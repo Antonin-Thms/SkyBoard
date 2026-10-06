@@ -163,7 +163,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
 
   if (items.length === 0) {
     return (
-      <p className="rounded-2xl border border-slate-800 p-8 text-center text-slate-500">
+      <p className="border border-slate-800 p-8 text-center text-slate-500">
         Aucun document ici pour l&apos;instant.
       </p>
     );
@@ -171,7 +171,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
 
   return (
     <div className={`space-y-2 ${pending ? "cursor-progress" : ""}`}>
-      <div className="sticky top-0 z-20 -mx-1 flex min-h-12 flex-wrap items-center gap-2 rounded-xl bg-[var(--background)]/95 px-1 py-2 backdrop-blur">
+      <div className="sticky top-0 z-20 flex min-h-12 flex-wrap items-center gap-2 bg-slate-900/95 px-3 py-2 backdrop-blur">
         <label className="flex items-center gap-2 text-sm text-slate-300">
           <input
             type="checkbox"
@@ -179,15 +179,17 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
             checked={allSelected}
             onChange={() => setSelected(allSelected ? new Set() : new Set(items.map((i) => i.id)))}
           />
-          {selectedIds.length > 0
-            ? `${selectedIds.length} sélectionné${selectedIds.length > 1 ? "s" : ""}`
-            : "Tout sélectionner"}
+          <span className={selectedIds.length > 0 ? "font-semibold text-accent" : ""}>
+            {selectedIds.length > 0
+              ? `${selectedIds.length} sélectionné${selectedIds.length > 1 ? "s" : ""}`
+              : "Tout sélectionner"}
+          </span>
         </label>
         {selectedIds.length > 0 && (
           <>
             <button
               type="button"
-              className="btn-secondary px-3"
+              className="btn-text text-base"
               title="Tourner vers la gauche"
               onClick={() => rotateSelected(-1)}
             >
@@ -195,14 +197,14 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
             </button>
             <button
               type="button"
-              className="btn-secondary px-3"
+              className="btn-text text-base"
               title="Tourner vers la droite"
               onClick={() => rotateSelected(1)}
             >
               ⟳
             </button>
             <select
-              className="input w-auto"
+              className="cursor-pointer border-0 bg-transparent py-1 text-sm text-slate-200 outline-none"
               value=""
               aria-label="Déplacer la sélection vers un dossier"
               onChange={(e) => {
@@ -218,7 +220,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
                 </option>
               ))}
             </select>
-            <button type="button" className="btn-danger" onClick={deleteSelected}>
+            <button type="button" className="btn-text text-red-300 hover:text-red-200" onClick={deleteSelected}>
               Supprimer
             </button>
             <button
@@ -234,7 +236,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
       {error && <p className="text-sm text-red-400">{error}</p>}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
-          <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
             {items.map((item) => (
               <DocumentCard
                 key={item.id}

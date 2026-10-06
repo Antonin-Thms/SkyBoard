@@ -38,6 +38,12 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
     ...f,
     count: documents.filter((d) => d.folderId === f.id).length,
   }));
+  const contextLabel =
+    filter.kind === "all"
+      ? "Tous les documents"
+      : filter.kind === "common"
+        ? "Communs"
+        : (folders.find((f) => f.id === filter.id)?.name ?? "");
   // Les envois vont dans le dossier affiché (Communs pour « Tous » et « Communs »).
   const uploadFolder = filter.kind === "folder" ? folders.find((f) => f.id === filter.id)! : null;
   // Remonte la grille quand la liste change côté serveur (upload, renommage…).
@@ -46,33 +52,9 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Documents</h1>
-        <p className="text-sm text-slate-400">
-          {documents.length} document{documents.length > 1 ? "s" : ""} · PDF, PNG, JPG, mission ou
-          track DCS (.miz, .trk), 50 Mo max
-        </p>
+        <div className="label-caps">{contextLabel}</div>
+        <h1 className="mt-1 text-3xl font-medium">Documents</h1>
       </div>
-
-      <HelpPanel>
-        <ul className="list-disc space-y-1 pl-5">
-          <li>Ajoute tes kneeboards : PDF (plusieurs pages) ou images PNG / JPG, 50 Mo max.</li>
-          <li>
-            Mission ou track DCS : dépose un fichier <span className="font-mono">.miz</span> ou{" "}
-            <span className="font-mono">.trk</span> pour importer ses kneeboards et images de
-            briefing. Tracks multijoueur :{" "}
-            <span className="font-mono">Saved Games\DCS\Tracks\Multiplayer</span>.
-          </li>
-          <li>
-            <strong>Dossiers</strong> (ex. un par serveur) : choisis le dossier actif d&apos;un
-            cockpit sur la page Remote ou Cockpits. Le casque affiche alors ce dossier et les
-            documents <strong>Communs</strong> (sans dossier), toujours présents.
-          </li>
-          <li>
-            Pour réordonner, fais glisser la poignée <span className="font-mono">⠿</span> en haut à
-            gauche d&apos;une miniature (sur iPad : appui long, puis glisse).
-          </li>
-        </ul>
-      </HelpPanel>
 
       <FolderBar
         folders={folderCounts}
@@ -93,6 +75,27 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       ) : (
         <DocumentGrid key={gridKey} initialItems={items} folders={folders} />
       )}
+
+      <HelpPanel defaultOpen={false}>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>Ajoute tes kneeboards : PDF (plusieurs pages) ou images PNG / JPG, 50 Mo max.</li>
+          <li>
+            Mission ou track DCS : dépose un fichier <span className="font-mono">.miz</span> ou{" "}
+            <span className="font-mono">.trk</span> pour importer ses kneeboards et images de
+            briefing. Tracks multijoueur :{" "}
+            <span className="font-mono">Saved Games\DCS\Tracks\Multiplayer</span>.
+          </li>
+          <li>
+            <strong>Dossiers</strong> (ex. un par serveur) : choisis le dossier actif d&apos;un
+            cockpit sur la page Remote ou Cockpits. Le casque affiche alors ce dossier et les
+            documents <strong>Communs</strong> (sans dossier), toujours présents.
+          </li>
+          <li>
+            Pour réordonner, fais glisser la poignée <span className="font-mono">⠿</span> en haut à
+            gauche d&apos;une miniature (sur iPad : appui long, puis glisse).
+          </li>
+        </ul>
+      </HelpPanel>
     </div>
   );
 }

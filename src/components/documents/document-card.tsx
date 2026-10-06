@@ -80,15 +80,20 @@ export function DocumentCard({
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex flex-col overflow-hidden rounded-xl border border-slate-800 bg-slate-900 ${
-        isDragging ? "z-10 opacity-80 shadow-2xl ring-2 ring-sky-500" : ""
-      } ${selected ? "border-sky-500 ring-2 ring-sky-500/70" : ""} ${pending ? "opacity-60" : ""}`}
+      className={`flex flex-col gap-2.5 ${isDragging ? "z-10 opacity-80" : ""} ${
+        pending ? "opacity-60" : ""
+      }`}
     >
-      <div className="relative aspect-[3/4] bg-slate-950">
+      {/* Miniature sur fond « papier » ; sélection = contour ambre. */}
+      <div
+        className={`relative aspect-[3/4] overflow-hidden bg-[#e9e6df] transition ${
+          selected || isDragging ? "ring-2 ring-sky-500" : ""
+        } ${isDragging ? "shadow-2xl" : ""}`}
+      >
         {item.thumbnailUrl ? (
           <RotatedThumbnail src={item.thumbnailUrl} rotation={item.rotation} />
         ) : (
-          <div className="flex h-full items-center justify-center text-slate-600">
+          <div className="flex h-full items-center justify-center text-slate-500">
             {TYPE_LABEL[item.type]}
           </div>
         )}
@@ -132,7 +137,7 @@ export function DocumentCard({
         </span>
       </div>
 
-      <div className="space-y-2 p-3">
+      <div className="space-y-1.5">
         {editing ? (
           <form
             onSubmit={(e) => {
@@ -156,12 +161,12 @@ export function DocumentCard({
             />
           </form>
         ) : (
-          <p className="truncate text-sm font-medium" title={item.name}>
+          <p className="truncate text-[15px] font-medium" title={item.name}>
             {item.name}
           </p>
         )}
         <select
-          className="w-full rounded-md border border-slate-800 bg-slate-950 px-1.5 py-1 text-xs text-slate-300"
+          className="-ml-0.5 max-w-full cursor-pointer border-0 bg-transparent p-0 text-xs text-slate-500 outline-none hover:text-slate-300"
           aria-label="Dossier"
           value={item.folderId ?? ""}
           disabled={pending}

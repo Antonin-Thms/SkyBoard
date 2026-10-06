@@ -1,15 +1,52 @@
 @import "tailwindcss";
 
+/*
+ * Thème « Night » : graphite chaud, accent ambre (voyant de cockpit).
+ * Les échelles slate (neutres) et sky (accent) de Tailwind sont redéfinies :
+ * tous les écrans adoptent la palette sans réécrire chaque composant.
+ */
 :root {
-  --background: #0b0f14;
-  --foreground: #e6edf3;
+  --background: #121314;
+  --foreground: #ece8e1;
+}
+
+@theme {
+  --color-slate-50: #f5f2ec;
+  --color-slate-100: #ece8e1;
+  --color-slate-200: #e0dbd2;
+  --color-slate-300: #c9c4bb;
+  --color-slate-400: #9a958c;
+  --color-slate-500: #7c776f;
+  --color-slate-600: #5b5750;
+  --color-slate-700: #34373b;
+  --color-slate-800: #26282b;
+  --color-slate-900: #1c1e20;
+  --color-slate-950: #0e0f10;
+
+  --color-sky-100: #fff3d6;
+  --color-sky-200: #ffe3a8;
+  --color-sky-300: #ffd27a;
+  --color-sky-400: #ffc04d;
+  --color-sky-500: #ffb020;
+  --color-sky-600: #e09400;
+  --color-sky-700: #a86f00;
+  --color-sky-800: #6b4705;
+  --color-sky-900: #4a3608;
+  --color-sky-950: #2a1f06;
+
+  /* Angles francs : coins à peine adoucis. */
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+  --radius-2xl: 6px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-accent: var(--color-sky-500);
+  --font-sans: var(--font-saira);
+  --font-condensed: var(--font-saira-condensed);
 }
 
 body {
@@ -17,17 +54,31 @@ body {
   color: var(--foreground);
 }
 
+/* Cases et boutons radio natifs à l'accent du thème. */
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--color-sky-500);
+}
+
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-slate-950 transition hover:bg-sky-400 disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-md bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:opacity-50;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-lg border border-slate-700 px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-slate-800 disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-800 disabled:opacity-50;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center rounded-lg border border-red-900 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-950 disabled:opacity-50;
+    @apply inline-flex items-center justify-center rounded-md border border-red-900 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-950 disabled:opacity-50;
   }
   .input {
-    @apply w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-500;
+    @apply w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-500;
+  }
+  /* Bouton texte discret (barres d'actions). */
+  .btn-text {
+    @apply inline-flex items-center px-1 py-1 text-sm text-slate-200 transition hover:text-white disabled:opacity-50;
+  }
+  /* Petit libellé en capitales condensées (sections, contexte). */
+  .label-caps {
+    @apply font-condensed text-xs tracking-[0.15em] text-slate-500 uppercase;
   }
 }

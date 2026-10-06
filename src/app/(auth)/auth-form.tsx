@@ -16,12 +16,13 @@ export function AuthForm({ mode, action, next, initialError }: AuthFormProps) {
   const isSignup = mode === "signup";
 
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
+    <main className="flex flex-1 flex-col items-center justify-center gap-8 p-6">
+      <div className="font-condensed text-2xl font-semibold tracking-[0.25em]">SKYBOARD</div>
       <form
         action={formAction}
-        className="w-full max-w-sm space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-6"
+        className="w-full max-w-sm space-y-4 border border-slate-800 bg-slate-900 p-6"
       >
-        <h1 className="text-xl font-semibold">{isSignup ? "Créer un compte" : "Connexion"}</h1>
+        <h1 className="text-xl font-medium">{isSignup ? "Créer un compte" : "Connexion"}</h1>
 
         {next && <input type="hidden" name="next" value={next} />}
 

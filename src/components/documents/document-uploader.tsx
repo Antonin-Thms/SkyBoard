@@ -106,13 +106,15 @@ export function DocumentUploader({ userId, nextSortOrder, folderId, folderName }
           setDragOver(false);
           void handleFiles(e.dataTransfer.files);
         }}
-        className={`flex flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed p-6 text-center transition ${
+        className={`flex flex-wrap items-center justify-between gap-3 border border-dashed px-4 py-3 transition ${
           dragOver ? "border-sky-500 bg-sky-500/10" : "border-slate-700"
         }`}
       >
         <p className="text-sm text-slate-400">
-          Glisse tes fichiers ici (PDF, PNG, JPG, mission <span className="font-mono">.miz</span> ou track{" "}
-          <span className="font-mono">.trk</span> DCS), ou
+          Glisse tes fichiers ici — PDF, PNG, JPG, mission .miz ou track .trk.{" "}
+          <span className="text-slate-500">
+            Destination : <span className="text-slate-200">{folderName ?? "Communs"}</span>
+          </span>
         </p>
         <button
           type="button"
@@ -120,11 +122,8 @@ export function DocumentUploader({ userId, nextSortOrder, folderId, folderName }
           onClick={() => inputRef.current?.click()}
           disabled={busy}
         >
-          {busy ? "Envoi en cours…" : "Choisir des fichiers"}
+          {busy ? "Envoi en cours…" : "Ajouter des fichiers"}
         </button>
-        <p className="text-xs text-slate-500">
-          Destination : {folderName ? `📁 ${folderName}` : "Communs (sans dossier)"}
-        </p>
         <input
           ref={inputRef}
           type="file"

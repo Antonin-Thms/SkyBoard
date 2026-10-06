@@ -14,7 +14,7 @@ interface FolderBarProps {
 }
 
 const pill = (active: boolean) =>
-  `whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition ${
+  `whitespace-nowrap border px-3 py-1.5 text-sm transition ${
     active
       ? "border-sky-500 bg-sky-500/15 text-sky-200"
       : "border-slate-700 text-slate-300 hover:border-slate-500"
@@ -66,7 +66,8 @@ export function FolderBar({ folders, filter, totalCount, commonCount }: FolderBa
 
   return (
     <div className={`space-y-2 ${pending ? "opacity-60" : ""}`}>
-      <nav className="flex gap-2 overflow-x-auto pb-1" aria-label="Dossiers">
+      {/* Sur ordinateur, les dossiers sont dans la barre latérale. */}
+      <nav className="flex gap-2 overflow-x-auto pb-1 md:hidden" aria-label="Dossiers">
         <Link href="/documents" className={pill(filter.kind === "all")}>
           Tous · {totalCount}
         </Link>
