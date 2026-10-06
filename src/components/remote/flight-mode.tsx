@@ -117,7 +117,7 @@ export function FlightMode({
   const edgeStyle = { width: GESTURE_CONFIG.edgeWidthPx };
 
   return (
-    <div className="fixed inset-0 z-50 flex select-none flex-col bg-black text-slate-500 [-webkit-touch-callout:none]">
+    <div className="fixed inset-0 z-50 flex select-none flex-col bg-black pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] text-slate-500 [-webkit-touch-callout:none]">
       <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-slate-900 px-3 text-sm">
         <button type="button" className="rounded-lg px-3 py-1.5 text-slate-300 active:bg-slate-800" onClick={onExit}>
           ✕ Quitter le mode vol

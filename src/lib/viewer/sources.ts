@@ -2,6 +2,7 @@
 
 import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { loadPdfjs } from "@/lib/pdf/pdfjs";
+import { getDocumentBlob } from "./doc-cache";
 import type { ViewerDocument } from "./types";
 
 /**
@@ -39,11 +40,10 @@ export function pruneDocumentSources(keepIds: Set<string>) {
 }
 
 async function fetchSource(doc: ViewerDocument): Promise<DocumentSource> {
-  // Téléchargement complet (pas de requêtes par plages) : le document reste
-  // utilisable même après expiration de l'URL signée ou perte de connexion.
-  const res = await fetch(doc.url);
-  if (!res.ok) throw new Error(`Téléchargement impossible (${res.status})`);
-  const blob = await res.blob();
+  // Fichier complet (pas de requêtes par plages), depuis le cache persistant
+  // si possible : le document reste utilisable même après expiration de
+  // l'URL signée ou perte de connexion.
+  const blob = await getDocumentBlob(doc);
 
   if (doc.type === "application/pdf") {
     const pdfjs = await loadPdfjs();

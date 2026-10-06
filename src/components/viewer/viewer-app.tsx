@@ -6,6 +6,7 @@ import { createAnonClient } from "@/lib/supabase/anon";
 import { connectCockpit, type LinkStatus } from "@/lib/sync/cockpit-link";
 import { clampView, IDENTITY_VIEW } from "@/lib/gestures/transform";
 import { clampPage } from "@/lib/viewer/fit";
+import { prefetchDocuments } from "@/lib/viewer/doc-cache";
 import { pruneDocumentSources } from "@/lib/viewer/sources";
 import { viewReducer } from "@/lib/viewer/view-reducer";
 import { PageView } from "./page-view";
@@ -53,6 +54,17 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
   useEffect(() => {
     if (data) pruneDocumentSources(new Set(documents.map((d) => d.id)));
   }, [data, documents]);
+
+  // Précharge tous les documents dans le cache, après l'affichage du courant.
+  useEffect(() => {
+    if (documents.length === 0) return;
+    const signal = { cancelled: false };
+    const timer = setTimeout(() => void prefetchDocuments(documents, signal), 3_000);
+    return () => {
+      signal.cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [documents]);
 
   // Dernier état persisté : point de départ si aucune remote ne répond.
   const lastState = data?.lastState;

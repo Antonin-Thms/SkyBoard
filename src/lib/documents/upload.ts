@@ -5,6 +5,7 @@ import type { Database, DocumentRow } from "@/lib/database.types";
 import { analyzeFile } from "./analyze";
 import { checkFile, defaultDocumentName, EXTENSION_BY_MIME } from "./file-type";
 import { STORAGE_BUCKET } from "./storage";
+import { uuid } from "@/lib/uuid";
 
 /**
  * Upload complet d'un document : vérification, analyse (pages + miniature),
@@ -28,7 +29,7 @@ export async function uploadDocument(
     throw new Error("Fichier illisible ou corrompu.");
   }
 
-  const id = crypto.randomUUID();
+  const id = uuid();
   const storagePath = `${userId}/${id}.${EXTENSION_BY_MIME[mime]}`;
   const uploaded: string[] = [];
   const storage = supabase.storage.from(STORAGE_BUCKET);

@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { ACCEPT_ATTRIBUTE } from "@/lib/documents/file-type";
 import { uploadDocument } from "@/lib/documents/upload";
 import { createClient } from "@/lib/supabase/client";
+import { uuid } from "@/lib/uuid";
 
 interface UploadEntry {
   key: string;
@@ -33,7 +34,7 @@ export function DocumentUploader({ userId, nextSortOrder }: DocumentUploaderProp
     if (!fileList?.length) return;
     const files = Array.from(fileList);
     const batch = files.map((f) => ({
-      key: crypto.randomUUID(),
+      key: uuid(),
       name: f.name,
       status: "pending" as const,
     }));
