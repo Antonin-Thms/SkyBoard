@@ -53,7 +53,7 @@ La clé secrète n'est lue que dans `src/lib/supabase/admin.ts`, qui importe `se
 Prérequis : Node.js ≥ 20.9.
 
 ```bash
-npm install
+npm ci               # installe les versions exactes du package-lock.json
 npm run dev          # http://localhost:3000
 ```
 
@@ -69,10 +69,13 @@ npm run build
 ### Mise à jour du code
 
 ```bash
+git restore package-lock.json   # au cas où un « npm install » l'aurait modifié
 git pull
-npm install        # si de nouvelles dépendances ont été ajoutées
+npm ci
 npm run dev
 ```
+
+Utilise `npm ci` plutôt que `npm install` : il ne réécrit pas `package-lock.json` (une version de npm différente peut le modifier et bloquer ensuite `git pull`).
 
 ## 4. Déployer sur Vercel *(détaillé en phase 6)*
 
