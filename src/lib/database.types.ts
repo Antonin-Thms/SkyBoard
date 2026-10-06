@@ -66,6 +66,10 @@ export interface Database {
         Args: { cockpit_id: string };
         Returns: string;
       };
+      reorder_documents: {
+        Args: { ids: string[] };
+        Returns: undefined;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

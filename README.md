@@ -8,7 +8,7 @@ Pilote l'affichage de tes kneeboards dans le casque VR (DCS World + OpenKneeboar
 
 Stack : Next.js 16 (App Router) · TypeScript strict · Tailwind 4 · Supabase (Auth, Storage, Postgres, Realtime) · pdf.js · Vitest.
 
-> État : **phase 1** (setup, auth, migrations). Les sections marquées *(à venir)* seront complétées au fil des phases.
+> État : **phase 2** (setup, auth, migrations, gestion des documents). Les sections marquées *(à venir)* seront complétées au fil des phases.
 
 ---
 
@@ -25,6 +25,7 @@ Stack : Next.js 16 (App Router) · TypeScript strict · Tailwind 4 · Supabase (
      npx supabase db push
      ```
    Les migrations créent les tables `cockpits` et `documents`, la RLS, et le bucket privé `kneeboards` (50 Mo max, PDF/PNG/JPEG).
+   **À chaque nouvelle phase**, exécute les nouveaux fichiers de migration (ceux que tu n'as pas encore appliqués).
 3. **Authentication → Sign In / Providers → Email** : laisse « Email » activé.
    - Pour un usage perso, tu peux désactiver *Confirm email* : le compte est alors utilisable immédiatement.
    - Si tu gardes la confirmation, va dans **Authentication → Emails → Confirm signup** et remplace le lien du template par :
@@ -65,6 +66,14 @@ npm test
 npm run build
 ```
 
+### Mise à jour du code
+
+```bash
+git pull
+npm install        # si de nouvelles dépendances ont été ajoutées
+npm run dev
+```
+
 ## 4. Déployer sur Vercel *(détaillé en phase 6)*
 
 1. Importe le dépôt dans Vercel (framework détecté : Next.js).
@@ -85,12 +94,26 @@ src/
     (auth)/        connexion, inscription, server actions d'auth
     (app)/         pages protégées : documents, cockpits, remote
     auth/confirm/  lien de confirmation d'email
+  components/documents/  upload, grille triable, carte document
   lib/
+    documents/     vérification des fichiers, analyse (pages, miniature), upload
+    pdf/           chargement de pdf.js (build legacy, worker dans public/pdfjs/)
     supabase/      clients navigateur / serveur / admin (service_role) / proxy
     database.types.ts
   proxy.ts         rafraîchissement de session + protection des routes
 supabase/migrations/   schéma SQL, RLS, Storage
 ```
+
+## Documents
+
+- Les fichiers partent **directement du navigateur vers Supabase Storage** : les fonctions Vercel limitent le corps des requêtes à 4,5 Mo.
+- Avant l'envoi, le navigateur :
+  - vérifie la taille (50 Mo max) et le type réel du fichier (signature binaire, pas l'extension) ;
+  - compte les pages avec pdf.js ;
+  - génère une miniature WebP (JPEG sur les anciens Safari).
+- Le bucket refuse de son côté tout fichier trop gros ou d'un type non autorisé.
+- Arborescence : `<user_id>/<uuid>.pdf|png|jpg` et `<user_id>/<uuid>.thumb.webp`.
+- Le worker pdf.js est copié de `node_modules` vers `public/pdfjs/` avant `dev` et `build` (`scripts/copy-pdf-worker.mjs`). C'est le build *legacy* : le build moderne exige des API JS trop récentes pour WebView2 et Safari.
 
 ## Sécurité (résumé)
 
