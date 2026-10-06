@@ -17,6 +17,8 @@ export async function uploadDocument(
   userId: string,
   file: File,
   sortOrder: number,
+  /** Nom affiché (par défaut : nom du fichier sans extension) */
+  name?: string,
 ): Promise<DocumentRow> {
   const check = await checkFile(file);
   if (!check.ok) throw new Error(check.error);
@@ -60,7 +62,7 @@ export async function uploadDocument(
     const { data, error } = await supabase
       .from("documents")
       .insert({
-        name: defaultDocumentName(file.name),
+        name: (name?.trim() || defaultDocumentName(file.name)).slice(0, 200),
         type: mime,
         storage_path: storagePath,
         thumbnail_path: thumbnailPath,

@@ -3,9 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { ACCEPT_ATTRIBUTE } from "@/lib/documents/file-type";
+import { isMizFileName } from "@/lib/documents/miz";
+import { extractMizKneeboards, type ExtractedKneeboard } from "@/lib/documents/miz-extract";
 import { uploadDocument } from "@/lib/documents/upload";
 import { createClient } from "@/lib/supabase/client";
 import { uuid } from "@/lib/uuid";
+import { MizImport } from "./miz-import";
 
 interface UploadEntry {
   key: string;
@@ -25,17 +28,18 @@ export function DocumentUploader({ userId, nextSortOrder }: DocumentUploaderProp
   const sortOrderRef = useRef(nextSortOrder);
   const [entries, setEntries] = useState<UploadEntry[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  const [mission, setMission] = useState<{ fileName: string; entries: ExtractedKneeboard[] } | null>(null);
+  const [mizStatus, setMizStatus] = useState<string | null>(null);
   const busy = entries.some((e) => e.status === "pending" || e.status === "uploading");
 
   const update = (key: string, patch: Partial<UploadEntry>) =>
     setEntries((list) => list.map((e) => (e.key === key ? { ...e, ...patch } : e)));
 
-  async function handleFiles(fileList: FileList | null) {
-    if (!fileList?.length) return;
-    const files = Array.from(fileList);
-    const batch = files.map((f) => ({
+  /** Envoie des fichiers un par un (nom optionnel), avec suivi par fichier. */
+  async function uploadAll(items: { file: File; name?: string }[]) {
+    const batch = items.map(({ file, name }) => ({
       key: uuid(),
-      name: f.name,
+      name: name ?? file.name,
       status: "pending" as const,
     }));
     setEntries((list) => [...list.filter((e) => e.status !== "done"), ...batch]);
@@ -44,11 +48,11 @@ export function DocumentUploader({ userId, nextSortOrder }: DocumentUploaderProp
     sortOrderRef.current = Math.max(sortOrderRef.current, nextSortOrder);
 
     // Séquentiel : évite de saturer la mémoire (rendu pdf.js) et la connexion.
-    for (const [i, file] of files.entries()) {
+    for (const [i, { file, name }] of items.entries()) {
       const { key } = batch[i];
       update(key, { status: "uploading" });
       try {
-        await uploadDocument(supabase, userId, file, sortOrderRef.current++);
+        await uploadDocument(supabase, userId, file, sortOrderRef.current++, name);
         update(key, { status: "done" });
         router.refresh();
       } catch (err) {
@@ -58,6 +62,27 @@ export function DocumentUploader({ userId, nextSortOrder }: DocumentUploaderProp
         });
       }
     }
+  }
+
+  async function handleFiles(fileList: FileList | null) {
+    if (!fileList?.length) return;
+    const files = Array.from(fileList);
+    const missions = files.filter((f) => isMizFileName(f.name));
+    const documents = files.filter((f) => !isMizFileName(f.name));
+
+    // Fichier de mission DCS : on propose les images de kneeboard qu'il contient.
+    const miz = missions[0];
+    if (miz) {
+      setMizStatus(`Lecture de « ${miz.name} »…`);
+      try {
+        setMission({ fileName: miz.name, entries: await extractMizKneeboards(miz) });
+        setMizStatus(null);
+      } catch (err) {
+        setMission(null);
+        setMizStatus(err instanceof Error ? err.message : "Fichier .miz illisible.");
+      }
+    }
+    if (documents.length) await uploadAll(documents.map((file) => ({ file })));
   }
 
   return (
@@ -77,7 +102,9 @@ export function DocumentUploader({ userId, nextSortOrder }: DocumentUploaderProp
           dragOver ? "border-sky-500 bg-sky-500/10" : "border-slate-700"
         }`}
       >
-        <p className="text-sm text-slate-400">Glisse tes fichiers ici, ou</p>
+        <p className="text-sm text-slate-400">
+          Glisse tes fichiers ici (PDF, PNG, JPG ou mission DCS <span className="font-mono">.miz</span>), ou
+        </p>
         <button
           type="button"
           className="btn-primary"
@@ -98,6 +125,21 @@ export function DocumentUploader({ userId, nextSortOrder }: DocumentUploaderProp
           }}
         />
       </div>
+
+      {mizStatus && <p className="text-sm text-slate-400">{mizStatus}</p>}
+      {mission && (
+        <MizImport
+          key={mission.fileName}
+          missionFileName={mission.fileName}
+          entries={mission.entries}
+          busy={busy}
+          onCancel={() => setMission(null)}
+          onImport={(items) => {
+            setMission(null);
+            void uploadAll(items);
+          }}
+        />
+      )}
 
       {entries.length > 0 && (
         <ul className="space-y-1 text-sm">

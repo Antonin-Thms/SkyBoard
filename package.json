@@ -20,6 +20,7 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "cookie": "^1.1.1",
+    "fflate": "^0.8.3",
     "next": "16.3.8",
     "pdfjs-dist": "^6.4.299",
     "qrcode": "^1.5.4",

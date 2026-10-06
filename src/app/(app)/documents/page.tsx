@@ -40,6 +40,12 @@ export default async function DocumentsPage() {
         <ul className="list-disc space-y-1 pl-5">
           <li>Ajoute tes kneeboards : PDF (plusieurs pages) ou images PNG / JPG, 50 Mo max.</li>
           <li>
+            Mission DCS : dépose un fichier <span className="font-mono">.miz</span> pour importer
+            les kneeboards qu&apos;il contient. Les missions multijoueur téléchargées sont en
+            général dans <span className="font-mono">Saved Games\DCS\Missions</span> ou{" "}
+            <span className="font-mono">%TEMP%\DCS</span>.
+          </li>
+          <li>
             Pour réordonner, fais glisser la poignée <span className="font-mono">⠿</span> en haut à
             gauche d&apos;une miniature (sur iPad : appui long, puis glisse). L&apos;ordre est celui
             du viewer et de la remote.
