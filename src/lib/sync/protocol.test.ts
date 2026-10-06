@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { INITIAL_VIEW_STATE, isRotation, parseViewState, rotateBy } from "./protocol";
+import { INITIAL_VIEW_STATE, isRotation, MAX_SEQ_AHEAD_MS, parseViewState, rotateBy } from "./protocol";
 
 const valid = { docId: "abc", page: 2, zoom: 1.5, panX: 0.1, panY: -0.2, seq: 7, ts: 1700000000000 };
 
@@ -24,6 +24,19 @@ describe("parseViewState", () => {
     expect(parseViewState({ ...valid, docId: 42 })).toBeNull();
     expect(parseViewState({ ...valid, docId: "x".repeat(65) })).toBeNull();
     expect(parseViewState({ ...valid, seq: undefined })).toBeNull();
+  });
+
+  it("rejette les valeurs démesurées d'un message forgé", () => {
+    const now = 1_700_000_000_000;
+    // Un seq très en avance ferait ignorer tous les états légitimes suivants.
+    expect(parseViewState({ ...valid, seq: 1e300 }, now)).toBeNull();
+    expect(parseViewState({ ...valid, seq: now + MAX_SEQ_AHEAD_MS + 1 }, now)).toBeNull();
+    expect(parseViewState({ ...valid, seq: now + 1000 }, now)).not.toBeNull();
+    expect(parseViewState({ ...valid, seq: 1.5 }, now)).toBeNull();
+    expect(parseViewState({ ...valid, seq: -1 }, now)).toBeNull();
+    expect(parseViewState({ ...valid, zoom: 1e9 }, now)).toBeNull();
+    expect(parseViewState({ ...valid, panX: 50 }, now)).toBeNull();
+    expect(parseViewState({ ...valid, cursor: { x: 1e9, y: 0 } }, now)?.cursor).toBeNull();
   });
 });
 

@@ -9,7 +9,9 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const initialError =
     params.error === "confirmation"
       ? "Lien de confirmation invalide ou expiré."
-      : undefined;
+      : params.error === "pairing"
+        ? "QR code expiré ou déjà utilisé : affiche-en un nouveau sur le PC, ou connecte-toi."
+        : undefined;
 
   return <AuthForm mode="login" action={login} next={next} initialError={initialError} />;
 }

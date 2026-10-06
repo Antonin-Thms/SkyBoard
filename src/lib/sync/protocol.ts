@@ -46,10 +46,23 @@ export const INITIAL_VIEW_STATE: ViewState = {
 
 const isFiniteNumber = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
 
+/**
+ * Avance maximale tolérée d'un numéro de séquence sur l'horloge locale.
+ * `seq` est basé sur l'horloge de la remote : sans borne, un message forgé
+ * avec un `seq` démesuré ferait ignorer tous les états légitimes suivants.
+ * Couvre largement le décalage d'horloge entre deux appareils.
+ */
+export const MAX_SEQ_AHEAD_MS = 2 * 60 * 1000;
+/** Bornes larges : le viewer reborne de toute façon zoom et déplacement. */
+const MAX_ZOOM = 100;
+const MAX_PAN = 1;
+
 function parsePoint(value: unknown): NormalizedPoint | null {
   if (!value || typeof value !== "object") return null;
   const { x, y } = value as Record<string, unknown>;
-  return isFiniteNumber(x) && isFiniteNumber(y) ? { x, y } : null;
+  if (!isFiniteNumber(x) || !isFiniteNumber(y)) return null;
+  // Le curseur peut sortir un peu de la page, pas plus.
+  return Math.abs(x - 0.5) <= 1 && Math.abs(y - 0.5) <= 1 ? { x, y } : null;
 }
 
 /**
@@ -57,16 +70,19 @@ function parsePoint(value: unknown): NormalizedPoint | null {
  * Les messages Realtime sont publics pour qui connaît le canal : on ne fait
  * jamais confiance à leur contenu.
  */
-export function parseViewState(value: unknown): ViewState | null {
+export function parseViewState(value: unknown, now: number = Date.now()): ViewState | null {
   if (!value || typeof value !== "object") return null;
   const v = value as Record<string, unknown>;
 
   const docId = v.docId === null || typeof v.docId === "string" ? v.docId : undefined;
   if (docId === undefined || (docId !== null && docId.length > 64)) return null;
   if (!isFiniteNumber(v.page) || !Number.isInteger(v.page) || v.page < 1) return null;
-  if (!isFiniteNumber(v.zoom) || v.zoom <= 0) return null;
+  if (!isFiniteNumber(v.zoom) || v.zoom <= 0 || v.zoom > MAX_ZOOM) return null;
   if (!isFiniteNumber(v.panX) || !isFiniteNumber(v.panY)) return null;
-  if (!isFiniteNumber(v.seq) || !isFiniteNumber(v.ts)) return null;
+  if (Math.abs(v.panX) > MAX_PAN || Math.abs(v.panY) > MAX_PAN) return null;
+  if (!isFiniteNumber(v.seq) || !Number.isSafeInteger(v.seq) || v.seq < 0) return null;
+  if (v.seq > now + MAX_SEQ_AHEAD_MS) return null;
+  if (!isFiniteNumber(v.ts)) return null;
 
   return {
     docId,

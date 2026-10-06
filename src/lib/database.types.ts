@@ -87,6 +87,26 @@ export interface Database {
         };
         Relationships: [];
       };
+      /** Jumelage par QR code : accessible uniquement côté serveur (service_role). */
+      remote_pairings: {
+        Row: {
+          code_hash: string;
+          user_id: string;
+          cockpit_id: string;
+          expires_at: string;
+          used_at: string | null;
+        };
+        Insert: {
+          code_hash: string;
+          user_id: string;
+          cockpit_id: string;
+          expires_at: string;
+        };
+        Update: {
+          used_at?: string | null;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -96,6 +116,10 @@ export interface Database {
       };
       reorder_documents: {
         Args: { ids: string[] };
+        Returns: undefined;
+      };
+      save_last_state: {
+        Args: { cockpit_id: string; state: Json };
         Returns: undefined;
       };
     };

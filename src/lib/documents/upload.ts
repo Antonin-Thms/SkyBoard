@@ -43,7 +43,14 @@ export async function uploadDocument(
       contentType: mime,
       upsert: false,
     });
-    if (fileError) throw new Error(`Envoi du fichier impossible : ${fileError.message}`);
+    if (fileError) {
+      // Refus de la politique Storage : quota de 1 Go atteint (le chemin est toujours le nôtre).
+      throw new Error(
+        /row-level security|unauthorized|403/i.test(fileError.message)
+          ? "Espace de stockage plein (1 Go) : supprime des documents pour en ajouter."
+          : "Envoi du fichier impossible. Vérifie la connexion et réessaie.",
+      );
+    }
     uploaded.push(storagePath);
 
     let thumbnailPath: string | null = null;
@@ -74,7 +81,13 @@ export async function uploadDocument(
       })
       .select()
       .single();
-    if (error) throw new Error(`Enregistrement impossible : ${error.message}`);
+    if (error) {
+      throw new Error(
+        error.code === "53400"
+          ? "Nombre maximal de documents atteint (500)."
+          : "Enregistrement impossible. Réessaie.",
+      );
+    }
     return data;
   } catch (err) {
     if (uploaded.length) await storage.remove(uploaded);

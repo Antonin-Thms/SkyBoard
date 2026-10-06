@@ -59,7 +59,14 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
     password,
     options: { emailRedirectTo: `${origin}/auth/confirm` },
   });
-  if (error) return { error: error.message };
+  if (error) {
+    // Messages génériques : ne pas révéler si une adresse a déjà un compte.
+    if (error.code === "weak_password") return { error: "Mot de passe trop faible : choisis-en un plus long ou plus varié." };
+    if (error.code === "over_email_send_rate_limit" || error.status === 429) {
+      return { error: "Trop de tentatives : réessaie dans quelques minutes." };
+    }
+    return { error: "Inscription impossible. Vérifie l'adresse email et réessaie." };
+  }
 
   // Confirmation d'email désactivée dans Supabase : session ouverte directement.
   if (data.session) redirect("/");

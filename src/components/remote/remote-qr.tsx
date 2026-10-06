@@ -1,11 +1,10 @@
 "use client";
 
-import QRCode from "qrcode";
 import { useEffect, useState, useTransition } from "react";
 import { createRemoteLink } from "@/app/(app)/remote/actions";
 
-/** Le QR code est masqué au bout de ce délai (le jeton de connexion qu'il contient est sensible). */
-const QR_VISIBLE_MS = 5 * 60 * 1000;
+/** Le QR code est masqué quand son code de jumelage expire. */
+const QR_VISIBLE_MS = 2 * 60 * 1000;
 
 interface RemoteQrProps {
   cockpitId: string;
@@ -30,11 +29,13 @@ export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
     startTransition(async () => {
       const res = await createRemoteLink(cockpitId, autoLogin);
       if (!res.url) {
-        setError(res.error ?? "Erreur.");
+        setError(res.error ?? "Impossible de créer le QR code. Réessaie.");
         setQr(null);
         return;
       }
       setError(null);
+      // Bibliothèque chargée à la demande (absente du bundle initial de la remote).
+      const { default: QRCode } = await import("qrcode");
       const svg = await QRCode.toString(res.url, { type: "svg", margin: 1, errorCorrectionLevel: "M" });
       setQr({ svg, autoLogin: !!res.autoLogin });
     });
@@ -60,8 +61,7 @@ export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
           <span>
             Connexion automatique
             <span className="block text-xs text-slate-500">
-              Le QR code contient un jeton de connexion à usage unique : ne le montre à personne.
-              Il disparaît d&apos;ici 5 minutes.
+              Code à usage unique, valable 2 minutes. Évite de l&apos;afficher en stream.
             </span>
           </span>
         </label>

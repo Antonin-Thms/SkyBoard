@@ -12,6 +12,10 @@ import { SEND_INTERVAL_MS } from "@/lib/gestures/constants";
 
 /** Délai d'écriture du dernier état en base après le dernier changement. */
 const PERSIST_DELAY_MS = 1_000;
+/** Nouvel essai d'écriture après un échec. */
+const PERSIST_RETRY_MS = 10_000;
+/** Intervalle minimal entre deux réponses à une demande d'état. */
+const REPLY_INTERVAL_MS = 500;
 
 export type ViewUpdate = Omit<ViewState, "seq" | "ts">;
 
@@ -33,24 +37,46 @@ export function useRemoteSync(cockpit: RemoteCockpit, onDocumentsChanged?: () =>
   const dirty = useRef(false);
 
   const persist = useCallback(() => {
-    clearTimeout(persistTimer.current);
-    if (!dirty.current) return;
-    dirty.current = false;
-    void createClient()
-      .from("cockpits")
-      // Le curseur est éphémère : on ne le persiste pas.
-      .update({ last_state: { ...stateRef.current, cursor: null } as unknown as Json })
-      .eq("id", cockpit.id)
-      .then(({ error }) => {
-        if (error) dirty.current = true;
-      });
+    const attempt = () => {
+      clearTimeout(persistTimer.current);
+      if (!dirty.current) return;
+      dirty.current = false;
+      void createClient()
+        // Écriture conditionnelle en base : un état plus ancien (autre remote)
+        // n'écrase jamais un plus récent. Le curseur est éphémère : non persisté.
+        .rpc("save_last_state", {
+          cockpit_id: cockpit.id,
+          state: { ...stateRef.current, cursor: null } as unknown as Json,
+        })
+        .then(({ error }) => {
+          if (error) {
+            // Nouvel essai plus tard (réseau coupé…).
+            dirty.current = true;
+            clearTimeout(persistTimer.current);
+            persistTimer.current = setTimeout(attempt, PERSIST_RETRY_MS);
+          }
+        });
+    };
+    attempt();
   }, [cockpit.id]);
 
   useEffect(() => {
+    // Réponses aux demandes d'état limitées : une rafale de request_state
+    // (canal public) ne doit pas faire émettre la remote en boucle.
+    let lastReply = 0;
+    let replyTimer: ReturnType<typeof setTimeout> | undefined;
+    const reply = () => {
+      replyTimer = undefined;
+      lastReply = Date.now();
+      if (stateRef.current.seq > 0) link.sendState(stateRef.current);
+    };
     const link = connectCockpit(createClient(), cockpit.channel, {
       // Un viewer vient de se connecter : on lui envoie l'état courant.
       onRequestState: () => {
-        if (stateRef.current.seq > 0) link.sendState(stateRef.current);
+        if (replyTimer) return;
+        const wait = lastReply + REPLY_INTERVAL_MS - Date.now();
+        if (wait <= 0) reply();
+        else replyTimer = setTimeout(reply, wait);
       },
       // État envoyé par une autre remote (autre appareil) : on se synchronise.
       onState: (incoming) => {
@@ -70,6 +96,7 @@ export function useRemoteSync(cockpit: RemoteCockpit, onDocumentsChanged?: () =>
     window.addEventListener("pagehide", onHide);
     return () => {
       window.removeEventListener("pagehide", onHide);
+      clearTimeout(replyTimer);
       sender.flush();
       persist();
       link.close();
