@@ -74,7 +74,20 @@ export function RemoteApp({ cockpits, documents, initialCockpitId, initialMode }
         </div>
       </div>
 
-      {device === "desktop" && <RemoteQr key={cockpit.id} cockpitId={cockpit.id} cockpitName={cockpit.name} />}
+      {device === "desktop" ? (
+        <RemoteQr key={cockpit.id} cockpitId={cockpit.id} cockpitName={cockpit.name} />
+      ) : (
+        device && (
+          <details className="rounded-2xl border border-slate-800 p-3 text-sm">
+            <summary className="cursor-pointer text-slate-400">
+              Ouvrir sur un autre appareil (QR code)
+            </summary>
+            <div className="mt-3">
+              <RemoteQr key={cockpit.id} cockpitId={cockpit.id} cockpitName={cockpit.name} />
+            </div>
+          </details>
+        )
+      )}
 
       <HelpPanel defaultOpen={false}>
         <ul className="list-disc space-y-1 pl-5">

@@ -18,6 +18,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           <div className="flex items-center gap-4">
             <Link href="/documents" className="font-semibold tracking-tight">
               SkyBoard
+              <span className="ml-1.5 align-middle font-mono text-[10px] font-normal text-slate-600">
+                {process.env.NEXT_PUBLIC_APP_VERSION}
+              </span>
             </Link>
             <AppNav />
           </div>
