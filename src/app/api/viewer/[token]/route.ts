@@ -3,6 +3,7 @@ import { isViewerToken } from "@/lib/cockpits/token";
 import { STORAGE_BUCKET, VIEWER_URL_TTL } from "@/lib/documents/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { channelNameForToken } from "@/lib/sync/channel";
+import { logError } from "@/lib/log";
 import { parseViewState } from "@/lib/sync/protocol";
 import type { ViewerDocument, ViewerPayload } from "@/lib/viewer/types";
 
@@ -29,27 +30,29 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/viewer/[tok
     .eq("viewer_token", token)
     .maybeSingle();
   if (cockpitError) {
+    logError("viewer.cockpit", cockpitError);
     return Response.json({ error: "server_error" }, { status: 500, headers: NO_STORE });
   }
   if (!cockpit) return notFound();
 
   // Dossier actif : ses documents + les documents communs (sans dossier).
+  // Nom du dossier et documents demandés en parallèle.
+  const folderId = cockpit.active_folder_id;
   let docsQuery = admin
     .from("documents")
     .select("id, name, type, page_count, rotation, storage_path")
     .eq("user_id", cockpit.user_id);
-  let folder: { name: string } | null = null;
-  if (cockpit.active_folder_id) {
-    docsQuery = docsQuery.or(`folder_id.is.null,folder_id.eq.${cockpit.active_folder_id}`);
-    const { data: f } = await admin
-      .from("folders")
-      .select("name")
-      .eq("id", cockpit.active_folder_id)
-      .maybeSingle();
-    folder = f ? { name: f.name } : null;
-  }
-  const { data: rows, error: docsError } = await docsQuery.order("sort_order").order("created_at");
+  if (folderId) docsQuery = docsQuery.or(`folder_id.is.null,folder_id.eq.${folderId}`);
+  const [folderRes, docsRes] = await Promise.all([
+    folderId
+      ? admin.from("folders").select("name").eq("id", folderId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    docsQuery.order("sort_order").order("created_at"),
+  ]);
+  const folder = folderRes.data ? { name: folderRes.data.name } : null;
+  const { data: rows, error: docsError } = docsRes;
   if (docsError) {
+    logError("viewer.documents", docsError);
     return Response.json({ error: "server_error" }, { status: 500, headers: NO_STORE });
   }
 
@@ -64,6 +67,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/viewer/[tok
         VIEWER_URL_TTL,
       );
     if (signError) {
+      logError("viewer.sign", signError);
       return Response.json({ error: "server_error" }, { status: 500, headers: NO_STORE });
     }
     signed?.forEach((s) => {

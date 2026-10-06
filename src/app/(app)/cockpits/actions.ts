@@ -76,6 +76,6 @@ export async function setActiveFolder(cockpitId: string, folderId: string | null
 
   revalidatePath("/cockpits");
   revalidatePath("/remote");
-  await notifyDocumentsChanged(supabase, cockpitId);
+  notifyDocumentsChanged(supabase, cockpitId);
   return {};
 }

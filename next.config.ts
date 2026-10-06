@@ -21,7 +21,14 @@ const nextConfig: NextConfig = {
           { key: "X-Frame-Options", value: "DENY" },
           { key: "Content-Security-Policy", value: "frame-ancestors 'none'" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
         ],
+      },
+      {
+        // Worker pdf.js : chemin versionné (voir scripts/copy-pdf-worker.mjs),
+        // jamais revalidé au démarrage du viewer.
+        source: "/pdfjs/:version/:file*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
       },
     ];
   },

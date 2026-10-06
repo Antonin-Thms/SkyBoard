@@ -79,19 +79,24 @@ export function FlightMode({
       () => getViewRef.current(),
       DEVICE_GESTURE_OVERRIDES[device],
     );
-    const resize = new ResizeObserver(() => recognizer.setSurface(size()));
+    // Position de la surface mémorisée (pas de getBoundingClientRect, qui
+    // force une mise en page, à chaque événement tactile).
+    let origin = el.getBoundingClientRect();
+    const resize = new ResizeObserver(() => {
+      recognizer.setSurface(size());
+      origin = el.getBoundingClientRect();
+    });
     resize.observe(el);
 
-    const local = (e: PointerEvent) => {
-      const rect = el.getBoundingClientRect();
-      return [e.clientX - rect.left, e.clientY - rect.top] as const;
-    };
+    const local = (e: PointerEvent) => [e.clientX - origin.left, e.clientY - origin.top] as const;
     const emit = (actions: GestureAction[]) => {
       if (actions.length) onActionsRef.current(actions);
     };
 
     const onDown = (e: PointerEvent) => {
       e.preventDefault();
+      // Début de geste : position relue une fois (rotation d'écran, barre d'adresse…).
+      origin = el.getBoundingClientRect();
       el.setPointerCapture?.(e.pointerId);
       emit(recognizer.down(e.pointerId, ...local(e), e.timeStamp));
     };

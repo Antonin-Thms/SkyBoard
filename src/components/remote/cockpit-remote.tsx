@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useOptimistic, useTransition } from "react";
+import { useMemo, useOptimistic, useRef, useTransition } from "react";
 import { setActiveFolder } from "@/app/(app)/cockpits/actions";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useRemoteSync } from "@/hooks/use-remote-sync";
@@ -16,6 +16,9 @@ import { selectDocument, stepDocument, stepPage } from "@/lib/sync/state";
 import { FlightMode } from "./flight-mode";
 import { PrepMode } from "./prep-mode";
 import { SyncStatus } from "./sync-status";
+
+/** Notification « documents modifiés » ignorée juste après notre propre changement. */
+const OWN_CHANGE_WINDOW_MS = 3_000;
 
 interface CockpitRemoteProps {
   cockpit: RemoteCockpit;
@@ -37,11 +40,18 @@ export function CockpitRemote({
 }: CockpitRemoteProps) {
   const router = useRouter();
   // Documents modifiés ailleurs (upload, autre remote, page Cockpits) : on recharge.
-  const { state, status, update, flush, stateRef } = useRemoteSync(cockpit, () => router.refresh());
+  // Sauf juste après notre propre changement de dossier, déjà rechargé par l'action.
+  const ownChangeAt = useRef(0);
+  const { state, status, update, flush, stateRef } = useRemoteSync(cockpit, () => {
+    if (Date.now() - ownChangeAt.current > OWN_CHANGE_WINDOW_MS) router.refresh();
+  });
   const [activeFolderId, setOptimisticFolder] = useOptimistic(cockpit.activeFolderId);
   const [folderPending, startFolderTransition] = useTransition();
   // Dossier actif : ses documents + les communs. Les gestes ne parcourent que ceux-là.
-  const documents = allDocuments.filter((d) => isVisibleInActiveFolder(d.folderId, activeFolderId));
+  const documents = useMemo(
+    () => allDocuments.filter((d) => isVisibleInActiveFolder(d.folderId, activeFolderId)),
+    [allDocuments, activeFolderId],
+  );
   const [cursorPref, setCursorPref] = useLocalStorage("skyboard:cursor");
   const cursorEnabled = cursorPref === "1";
   const current = documents.find((d) => d.id === state.docId) ?? null;
@@ -61,7 +71,9 @@ export function CockpitRemote({
       if (state.docId && !visible.some((d) => d.id === state.docId)) {
         apply(visible[0] ? selectDocument(state, visible[0], pageMemory()) : { ...state, docId: null, page: 1 });
       }
+      ownChangeAt.current = Date.now();
       await setActiveFolder(cockpit.id, folderId);
+      ownChangeAt.current = Date.now();
     });
 
   /** Première navigation sans document affiché : on démarre sur le premier. */

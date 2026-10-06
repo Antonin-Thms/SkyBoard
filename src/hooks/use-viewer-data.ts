@@ -39,10 +39,21 @@ export function useViewerData(token: string) {
     let stopped = false;
     let hasData = false;
 
-    const schedule = (ms: number) => {
+    const schedule = (ms: number, min = 1_000) => {
       clearTimeout(timer);
-      timer = setTimeout(load, Math.max(1_000, ms));
+      timer = setTimeout(load, Math.max(min, ms));
     };
+
+    // Affichage immédiat de la dernière liste connue (les fichiers sont en
+    // cache), rafraîchie dès que le serveur répond.
+    // (Hors du rendu initial : le HTML serveur ne connaît pas le stockage local.)
+    const stored = readStoredPayload(token);
+    if (stored) {
+      hasData = true;
+      void Promise.resolve().then(() => {
+        if (!stopped) setData((current) => current ?? stored);
+      });
+    }
 
     async function load() {
       try {
@@ -83,7 +94,9 @@ export function useViewerData(token: string) {
     }
 
     void load();
-    reloadRef.current = () => schedule(0);
+    // Rechargement demandé (documents modifiés) : presque immédiat, en
+    // regroupant une rafale de notifications.
+    reloadRef.current = () => schedule(0, 150);
     // Au retour de veille / reconnexion réseau : recharger tout de suite.
     const onOnline = () => schedule(0);
     window.addEventListener("online", onOnline);

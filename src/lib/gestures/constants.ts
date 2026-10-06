@@ -51,4 +51,4 @@ export const SEND_INTERVAL_MS = 33;
  * Lissage du viewer : constante de temps de l'interpolation exponentielle
  * vers l'état cible (plus petit = plus réactif, plus grand = plus doux).
  */
-export const SMOOTHING_TAU_MS = 70;
+export const SMOOTHING_TAU_MS = 35;

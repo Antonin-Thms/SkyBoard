@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ViewerApp } from "@/components/viewer/viewer-app";
 import { isViewerToken } from "@/lib/cockpits/token";
+import { channelNameForToken } from "@/lib/sync/channel";
 
 export const metadata: Metadata = {
   title: "SkyBoard Viewer",
@@ -31,7 +32,8 @@ export default async function ViewerPage({ params, searchParams }: PageProps<"/v
       <style>{`html,body{overflow:hidden;${
         transparent ? "background:transparent!important;" : "background:#000;"
       }}`}</style>
-      <ViewerApp token={token} options={{ showStatus, showCursor }} />
+      {/* Nom du canal calculé ici : la connexion Realtime démarre sans attendre la liste des documents. */}
+      <ViewerApp token={token} channel={channelNameForToken(token)} options={{ showStatus, showCursor }} />
     </>
   );
 }

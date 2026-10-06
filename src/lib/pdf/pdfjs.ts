@@ -8,11 +8,12 @@ let pdfjsPromise: Promise<PdfjsModule> | undefined;
 
 /**
  * Charge pdf.js à la demande (navigateur uniquement) et configure son worker,
- * servi depuis public/pdfjs/ (voir scripts/copy-pdf-worker.mjs).
+ * servi depuis public/pdfjs/<version>/ (voir scripts/copy-pdf-worker.mjs).
  */
 export function loadPdfjs(): Promise<PdfjsModule> {
   pdfjsPromise ??= import("pdfjs-dist/legacy/build/pdf.mjs").then((pdfjs) => {
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdfjs/pdf.worker.min.mjs";
+    // Chemin versionné : mis en cache définitivement par le navigateur.
+    pdfjs.GlobalWorkerOptions.workerSrc = `/pdfjs/${pdfjs.version}/pdf.worker.min.mjs`;
     return pdfjs;
   });
   return pdfjsPromise;

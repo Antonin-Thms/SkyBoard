@@ -23,7 +23,7 @@ export async function renameDocument(id: string, name: string): Promise<ActionRe
   if (error) return { error: "Renommage impossible." };
 
   revalidatePath("/documents");
-  await notifyDocumentsChanged(supabase);
+  notifyDocumentsChanged(supabase);
   return {};
 }
 
@@ -47,7 +47,7 @@ export async function deleteDocument(id: string): Promise<ActionResult> {
   }
 
   revalidatePath("/documents");
-  await notifyDocumentsChanged(supabase);
+  notifyDocumentsChanged(supabase);
   return {};
 }
 
@@ -66,7 +66,7 @@ export async function reorderDocuments(ids: string[]): Promise<ActionResult> {
   if (error) return { error: "Réordonnancement impossible." };
 
   revalidatePath("/documents");
-  await notifyDocumentsChanged(supabase);
+  notifyDocumentsChanged(supabase);
   return {};
 }
 
@@ -102,7 +102,7 @@ export async function renameFolder(id: string, name: string): Promise<ActionResu
   if (error) return { error: "Renommage impossible." };
 
   revalidatePath("/documents");
-  await notifyDocumentsChanged(supabase);
+  notifyDocumentsChanged(supabase);
   return {};
 }
 
@@ -115,7 +115,7 @@ export async function deleteFolder(id: string): Promise<ActionResult> {
   if (error) return { error: "Suppression impossible." };
 
   revalidatePath("/documents");
-  await notifyDocumentsChanged(supabase);
+  notifyDocumentsChanged(supabase);
   return {};
 }
 
@@ -128,13 +128,13 @@ export async function moveDocument(id: string, folderId: string | null): Promise
   if (error) return { error: "Déplacement impossible." };
 
   revalidatePath("/documents");
-  await notifyDocumentsChanged(supabase);
+  notifyDocumentsChanged(supabase);
   return {};
 }
 
 /** Appelé après un envoi de fichiers : les viewers rechargent leur liste. */
 export async function documentsUploaded(): Promise<void> {
-  await notifyDocumentsChanged(await createClient());
+  notifyDocumentsChanged(await createClient());
 }
 
 /** Rotation mémorisée d'un document (0, 90, 180, 270). */
@@ -147,7 +147,7 @@ export async function setDocumentRotation(id: string, rotation: number): Promise
 
   revalidatePath("/documents");
   revalidatePath("/remote");
-  await notifyDocumentsChanged(supabase);
+  notifyDocumentsChanged(supabase);
   return {};
 }
 
@@ -182,7 +182,7 @@ export async function rotateDocuments(ids: string[], delta: 1 | -1): Promise<Act
 
   revalidatePath("/documents");
   revalidatePath("/remote");
-  await notifyDocumentsChanged(supabase);
+  notifyDocumentsChanged(supabase);
   return {};
 }
 
@@ -195,7 +195,7 @@ export async function moveDocuments(ids: string[], folderId: string | null): Pro
   if (error) return { error: "Déplacement impossible." };
 
   revalidatePath("/documents");
-  await notifyDocumentsChanged(supabase);
+  notifyDocumentsChanged(supabase);
   return {};
 }
 
@@ -215,6 +215,6 @@ export async function deleteDocuments(ids: string[]): Promise<ActionResult> {
   if (paths.length) await supabase.storage.from(STORAGE_BUCKET).remove(paths);
 
   revalidatePath("/documents");
-  await notifyDocumentsChanged(supabase);
+  notifyDocumentsChanged(supabase);
   return {};
 }

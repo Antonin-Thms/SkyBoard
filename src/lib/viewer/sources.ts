@@ -17,13 +17,31 @@ export type DocumentSource = (
 
 const cache = new Map<string, Promise<DocumentSource>>();
 
+/**
+ * Documents gardés ouverts : le courant, ses voisins pré-rendus et un peu de
+ * marge. Au-delà, le moins récemment utilisé est fermé (mémoire du worker
+ * pdf.js, prise à DCS pendant une longue session).
+ */
+const MAX_OPEN_SOURCES = 8;
+
 export function loadDocumentSource(doc: ViewerDocument): Promise<DocumentSource> {
   let entry = cache.get(doc.id);
-  if (!entry) {
-    entry = fetchSource(doc);
+  if (entry) {
+    // Récemment utilisé : passe en fin de file.
+    cache.delete(doc.id);
     cache.set(doc.id, entry);
-    // En cas d'échec, on retire l'entrée pour permettre un nouvel essai.
-    entry.catch(() => cache.delete(doc.id));
+    return entry;
+  }
+  entry = fetchSource(doc);
+  cache.set(doc.id, entry);
+  // En cas d'échec, on retire l'entrée pour permettre un nouvel essai.
+  entry.catch(() => {
+    if (cache.get(doc.id) === entry) cache.delete(doc.id);
+  });
+  while (cache.size > MAX_OPEN_SOURCES) {
+    const [oldestId, oldest] = cache.entries().next().value!;
+    cache.delete(oldestId);
+    oldest.then((src) => src.release()).catch(() => {});
   }
   return entry;
 }

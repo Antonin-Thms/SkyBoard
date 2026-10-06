@@ -62,6 +62,14 @@ export function PageView({ doc, page, rotation, view, cursor, onError, neighbors
   const [shownKey, setShownKey] = useState<string | null>(null);
   const tileRef = useRef<DetailTile | null>(null);
   const pageKey = `${doc.id}:${page}:${rotation}`;
+  // Le document est recréé à chaque rechargement de la liste (nouvelle URL
+  // signée) : les rendus dépendent de son id, pas de l'objet. La ref donne
+  // l'URL la plus récente si le fichier doit être téléchargé.
+  const docRef = useRef(doc);
+  useEffect(() => {
+    docRef.current = doc;
+  });
+  const docId = doc.id;
 
   const hideDetail = () => {
     tileRef.current = null;
@@ -73,7 +81,7 @@ export function PageView({ doc, page, rotation, view, cursor, onError, neighbors
     if (!container || container.width === 0 || container.height === 0) return;
     let cancelled = false;
     let cancelRender: (() => void) | undefined;
-    const ref = { doc, page, rotation };
+    const ref = { doc: docRef.current, page, rotation };
     const dpr = window.devicePixelRatio || 1;
 
     const show = (render: BaseRender) => {
@@ -81,7 +89,7 @@ export function PageView({ doc, page, rotation, view, cursor, onError, neighbors
       blit(render.canvas, canvasRef.current);
       hideDetail();
       setDisplaySize(render.display);
-      setShownKey(`${doc.id}:${page}:${rotation}`);
+      setShownKey(`${docId}:${page}:${rotation}`);
       onError?.(null);
     };
 
@@ -103,15 +111,24 @@ export function PageView({ doc, page, rotation, view, cursor, onError, neighbors
       cancelled = true;
       cancelRender?.();
     };
-  }, [doc, page, rotation, container, onError]);
+  }, [docId, page, rotation, container, onError]);
 
   // Pré-rendu des voisins, un par un, une fois la page courante affichée.
   useEffect(() => {
     if (!container || !neighbors?.length || shownKey !== pageKey) return;
     let cancelled = false;
     const dpr = window.devicePixelRatio || 1;
+    // Chaque pré-rendu attend un moment d'inactivité du navigateur : il ne
+    // doit pas saccader un zoom ou un déplacement en cours.
+    const idle = () =>
+      new Promise<void>((resolve) =>
+        typeof requestIdleCallback === "function"
+          ? requestIdleCallback(() => resolve(), { timeout: 1_000 })
+          : setTimeout(resolve, 50),
+      );
     const timer = setTimeout(async () => {
       for (const ref of neighbors) {
+        await idle();
         if (cancelled) return;
         await renderBase(ref, container, dpr).catch(() => {});
       }
@@ -136,7 +153,7 @@ export function PageView({ doc, page, rotation, view, cursor, onError, neighbors
     let cancelRender: (() => void) | undefined;
     const timer = setTimeout(() => {
       (async () => {
-        const source = await loadDocumentSource(doc);
+        const source = await loadDocumentSource(docRef.current);
         const natural = await naturalSize(source, page, rotation);
         if (cancelled) return;
         const rect = expandRect(visible, DETAIL_MARGIN);
@@ -154,6 +171,8 @@ export function PageView({ doc, page, rotation, view, cursor, onError, neighbors
         if (cancelled || !el) return;
 
         blit(rendered.canvas, el);
+        // Libère tout de suite le canvas hors écran (mémoire prise à DCS).
+        rendered.canvas.width = rendered.canvas.height = 0;
         Object.assign(el.style, {
           display: "block",
           left: `${rect.x * 100}%`,
@@ -172,7 +191,7 @@ export function PageView({ doc, page, rotation, view, cursor, onError, neighbors
       clearTimeout(timer);
       cancelRender?.();
     };
-  }, [view, displaySize, container, doc, page, rotation, pageKey, shownKey]);
+  }, [view, displaySize, container, docId, page, rotation, pageKey, shownKey]);
 
   // 2. Transformation écrite directement dans le DOM (appelé à chaque frame).
   const width = displaySize?.width ?? 0;

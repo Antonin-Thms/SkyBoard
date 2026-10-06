@@ -9,6 +9,7 @@ import type { PageRef } from "@/lib/viewer/base-cache";
 import { clampPage } from "@/lib/viewer/fit";
 import { prefetchDocuments } from "@/lib/viewer/doc-cache";
 import { pruneDocumentSources } from "@/lib/viewer/sources";
+import type { ViewState } from "@/lib/sync/protocol";
 import { viewReducer } from "@/lib/viewer/view-reducer";
 import { PageView } from "./page-view";
 import { StatusBadge, type ViewerStatus } from "./status-badge";
@@ -22,7 +23,14 @@ export interface ViewerOptions {
   showCursor: boolean;
 }
 
-export function ViewerApp({ token, options }: { token: string; options: ViewerOptions }) {
+interface ViewerAppProps {
+  token: string;
+  /** Nom du canal Realtime (calculé côté serveur) */
+  channel: string;
+  options: ViewerOptions;
+}
+
+export function ViewerApp({ token, channel, options }: ViewerAppProps) {
   const { data, status: dataStatus, reload } = useViewerData(token);
   const [view, dispatch] = useReducer(viewReducer, null);
   const [linkStatus, setLinkStatus] = useState<LinkStatus>("connecting");
@@ -74,16 +82,37 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
   }, [lastState]);
 
   // Canal Realtime : états de la remote ; à chaque (re)connexion, on demande l'état courant.
-  const channel = data?.channel;
+  // Les états reçus sont appliqués au plus une fois par image : après une
+  // rafale (réseau qui se débloque), seul le plus récent compte.
   useEffect(() => {
-    if (!channel) return;
+    let latest: ViewState | null = null;
+    let frame: number | undefined;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const flush = () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      clearTimeout(timer);
+      frame = timer = undefined;
+      if (latest) dispatch({ type: "remote", state: latest });
+      latest = null;
+    };
     const link = connectCockpit(createAnonClient(), channel, {
-      onState: (state) => dispatch({ type: "remote", state }),
+      onState: (state) => {
+        if (!latest || state.seq > latest.seq) latest = state;
+        if (frame === undefined) {
+          frame = requestAnimationFrame(flush);
+          // Secours si requestAnimationFrame est suspendu (onglet masqué).
+          timer = setTimeout(flush, 50);
+        }
+      },
       onConnected: () => link.requestState(),
       onStatus: setLinkStatus,
       onDocumentsChanged: reload,
     });
-    return () => link.close();
+    return () => {
+      if (frame !== undefined) cancelAnimationFrame(frame);
+      clearTimeout(timer);
+      link.close();
+    };
   }, [channel, reload]);
 
   // Affichage effectif : état reçu, sinon premier document.
