@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { GESTURE_CONFIG } from "@/lib/gestures/constants";
+import type { DeviceKind } from "@/lib/device/kind";
+import { DEVICE_GESTURE_OVERRIDES, GESTURE_CONFIG } from "@/lib/gestures/constants";
 import { GestureRecognizer, type GestureAction } from "@/lib/gestures/recognizer";
 import type { ViewTransform } from "@/lib/gestures/transform";
 import type { LinkStatus } from "@/lib/sync/cockpit-link";
@@ -9,6 +10,7 @@ import type { LinkStatus } from "@/lib/sync/cockpit-link";
 interface FlightModeProps {
   getView: () => ViewTransform;
   onActions: (actions: GestureAction[]) => void;
+  device: DeviceKind;
   onExit: () => void;
   status: LinkStatus;
   cursorEnabled: boolean;
@@ -29,6 +31,7 @@ const STATUS_COLOR: Record<LinkStatus, string> = {
 export function FlightMode({
   getView,
   onActions,
+  device,
   onExit,
   status,
   cursorEnabled,
@@ -36,6 +39,8 @@ export function FlightMode({
   info,
 }: FlightModeProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
+  const config = { ...GESTURE_CONFIG, ...DEVICE_GESTURE_OVERRIDES[device] };
+  const compact = device === "phone";
   // Références stables pour les écouteurs natifs.
   const getViewRef = useRef(getView);
   const onActionsRef = useRef(onActions);
@@ -69,7 +74,11 @@ export function FlightMode({
     const el = surfaceRef.current;
     if (!el) return;
     const size = () => ({ width: el.clientWidth || 1, height: el.clientHeight || 1 });
-    const recognizer = new GestureRecognizer(size(), () => getViewRef.current());
+    const recognizer = new GestureRecognizer(
+      size(),
+      () => getViewRef.current(),
+      DEVICE_GESTURE_OVERRIDES[device],
+    );
     const resize = new ResizeObserver(() => recognizer.setSurface(size()));
     resize.observe(el);
 
@@ -112,15 +121,15 @@ export function FlightMode({
       el.removeEventListener("touchmove", prevent);
       el.removeEventListener("contextmenu", prevent);
     };
-  }, []);
+  }, [device]);
 
-  const edgeStyle = { width: GESTURE_CONFIG.edgeWidthPx };
+  const edgeStyle = { width: config.edgeWidthPx };
 
   return (
     <div className="fixed inset-0 z-50 flex select-none flex-col bg-black pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] text-slate-500 [-webkit-touch-callout:none]">
       <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-slate-900 px-3 text-sm">
         <button type="button" className="rounded-lg px-3 py-1.5 text-slate-300 active:bg-slate-800" onClick={onExit}>
-          ✕ Quitter le mode vol
+          ✕ {compact ? "Quitter" : "Quitter le mode vol"}
         </button>
         <span className="flex items-center gap-2">
           <span className={`h-2.5 w-2.5 rounded-full ${STATUS_COLOR[status]}`} />
@@ -130,7 +139,7 @@ export function FlightMode({
           className={`rounded-lg px-3 py-1.5 ${cursorEnabled ? "bg-sky-900 text-sky-200" : "text-slate-400"}`}
           onClick={onToggleCursor}
         >
-          Curseur {cursorEnabled ? "activé" : "désactivé"}
+          Curseur {compact ? (cursorEnabled ? "●" : "○") : cursorEnabled ? "activé" : "désactivé"}
         </button>
       </div>
 
@@ -143,8 +152,11 @@ export function FlightMode({
           <span className="text-xs [writing-mode:vertical-rl]">▲ document ▼</span>
         </div>
 
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 px-20 text-center">
-          <p className="max-w-full truncate text-lg text-slate-300">{info.docName ?? "Aucun document"}</p>
+        <div
+          className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 text-center"
+          style={{ paddingInline: config.edgeWidthPx + 12 }}
+        >
+          <p className={`max-w-full truncate text-slate-300 ${compact ? "text-base" : "text-lg"}`}>{info.docName ?? "Aucun document"}</p>
           {info.docName && (
             <p className="text-sm">
               Page {info.page} / {info.pageCount} · zoom ×{info.zoom.toFixed(1)}
@@ -152,9 +164,13 @@ export function FlightMode({
           )}
         </div>
 
-        <p className="pointer-events-none absolute inset-x-0 bottom-3 px-20 text-center text-xs leading-relaxed text-slate-600">
-          Pincer : zoom · 2 doigts : déplacer · 1 doigt (zoomé) : déplacer · Swipe ← → : page · Double
-          tap : réinitialiser · Bords ↕ : document
+        <p
+          className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs leading-relaxed text-slate-600"
+          style={{ paddingInline: config.edgeWidthPx + 12 }}
+        >
+          {compact
+            ? "Pincer : zoom · Swipe ← → : page · Double tap : reset · Bords ↕ : doc"
+            : "Pincer : zoom · 2 doigts : déplacer · 1 doigt (zoomé) : déplacer · Swipe ← → : page · Double tap : réinitialiser · Bords ↕ : document"}
         </p>
       </div>
     </div>

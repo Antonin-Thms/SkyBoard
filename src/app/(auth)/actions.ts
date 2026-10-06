@@ -1,8 +1,10 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { FORGET_VALUE, REMEMBER_COOKIE } from "@/lib/auth/remember";
 import { safeRedirectPath } from "@/lib/auth/safe-redirect";
+import { siteOrigin } from "@/lib/site-url";
 import { createClient } from "@/lib/supabase/server";
 
 export interface AuthFormState {
@@ -21,6 +23,9 @@ function readCredentials(formData: FormData) {
 export async function login(_prev: AuthFormState, formData: FormData): Promise<AuthFormState> {
   const { email, password } = readCredentials(formData);
   if (!email || !password) return { error: "Email et mot de passe requis." };
+
+  // À poser avant la connexion : les cookies de session en tiennent compte.
+  await setRememberPreference(formData.get("remember") === "on");
 
   const supabase = await createClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -46,10 +51,7 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
     return { error: "Les mots de passe ne correspondent pas." };
   }
 
-  const h = await headers();
-  const host = h.get("x-forwarded-host") ?? h.get("host");
-  const proto = h.get("x-forwarded-proto") ?? "https";
-  const origin = process.env.NEXT_PUBLIC_SITE_URL ?? `${proto}://${host}`;
+  const origin = await siteOrigin();
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
@@ -65,8 +67,19 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
   return { message: "Compte créé. Vérifie ta boîte mail pour confirmer ton adresse." };
 }
 
+async function setRememberPreference(remember: boolean) {
+  const store = await cookies();
+  if (remember) {
+    store.delete(REMEMBER_COOKIE);
+  } else {
+    // Cookie de session (sans durée) : disparaît avec la session navigateur.
+    store.set(REMEMBER_COOKIE, FORGET_VALUE, { path: "/", sameSite: "lax", httpOnly: false });
+  }
+}
+
 export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  (await cookies()).delete(REMEMBER_COOKIE);
   redirect("/login");
 }

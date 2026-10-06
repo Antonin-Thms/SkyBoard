@@ -34,6 +34,16 @@ export const GESTURE_CONFIG = {
 
 export type GestureConfig = { -readonly [K in keyof typeof GESTURE_CONFIG]: number };
 
+/**
+ * Ajustements par type d'appareil (fusionnés avec GESTURE_CONFIG).
+ * Sur téléphone, l'écran est plus petit : bandes et distances réduites.
+ */
+export const DEVICE_GESTURE_OVERRIDES: Record<"phone" | "tablet" | "desktop", Partial<GestureConfig>> = {
+  phone: { edgeWidthPx: 40, edgeSwipeMinPx: 45, swipeMinPx: 45, doubleTapSlopPx: 40 },
+  tablet: {},
+  desktop: {},
+};
+
 /** Envoi de l'état : intervalle min entre deux messages pendant un geste (≈ 30 msg/s). */
 export const SEND_INTERVAL_MS = 33;
 

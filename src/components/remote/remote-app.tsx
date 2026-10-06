@@ -1,29 +1,45 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HelpPanel } from "@/components/help-panel";
+import { useDeviceKind } from "@/hooks/use-device-kind";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import type { RemoteCockpit, RemoteDocument } from "@/lib/remote/types";
 import { CockpitRemote } from "./cockpit-remote";
+import { RemoteQr } from "./remote-qr";
 
 interface RemoteAppProps {
   cockpits: RemoteCockpit[];
   documents: RemoteDocument[];
+  /** Cockpit demandé par l'URL (QR code) */
+  initialCockpitId: string | null;
+  initialMode: "prep" | "flight";
 }
 
-export function RemoteApp({ cockpits, documents }: RemoteAppProps) {
+export function RemoteApp({ cockpits, documents, initialCockpitId, initialMode }: RemoteAppProps) {
   const [storedId, setStoredId] = useLocalStorage("skyboard:cockpit");
-  const [mode, setMode] = useState<"prep" | "flight">("prep");
-  const cockpit = cockpits.find((c) => c.id === storedId) ?? cockpits[0];
+  const [mode, setMode] = useState<"prep" | "flight">(initialMode);
+  const device = useDeviceKind();
+  const cockpit =
+    cockpits.find((c) => c.id === (initialCockpitId ?? storedId)) ??
+    cockpits.find((c) => c.id === storedId) ??
+    cockpits[0];
+
+  // Ouverture par QR code : on mémorise le cockpit et on nettoie l'URL
+  // (un rechargement ne doit pas forcer à nouveau le mode vol).
+  useEffect(() => {
+    if (initialCockpitId) setStoredId(initialCockpitId);
+    if (window.location.search) window.history.replaceState(null, "", window.location.pathname);
+  }, [initialCockpitId, setStoredId]);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex items-center gap-2 text-sm">
+        <label className="flex min-w-0 items-center gap-2 text-sm">
           <span className="text-slate-400">Cockpit</span>
           <select
-            className="input w-auto"
+            className="input w-auto min-w-0 max-w-[60vw]"
             value={cockpit.id}
             onChange={(e) => setStoredId(e.target.value)}
           >
@@ -57,6 +73,8 @@ export function RemoteApp({ cockpits, documents }: RemoteAppProps) {
           ))}
         </div>
       </div>
+
+      {device === "desktop" && <RemoteQr key={cockpit.id} cockpitId={cockpit.id} cockpitName={cockpit.name} />}
 
       <HelpPanel defaultOpen={false}>
         <ul className="list-disc space-y-1 pl-5">
@@ -100,6 +118,7 @@ export function RemoteApp({ cockpits, documents }: RemoteAppProps) {
           cockpit={cockpit}
           documents={documents}
           mode={mode}
+          device={device ?? "tablet"}
           onExitFlight={() => setMode("prep")}
         />
       )}

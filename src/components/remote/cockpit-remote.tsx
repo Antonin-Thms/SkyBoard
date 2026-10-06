@@ -2,6 +2,7 @@
 
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useRemoteSync } from "@/hooks/use-remote-sync";
+import type { DeviceKind } from "@/lib/device/kind";
 import type { GestureAction } from "@/lib/gestures/recognizer";
 import { IDENTITY_VIEW } from "@/lib/gestures/transform";
 import { readPageMemory, rememberPage } from "@/lib/remote/page-memory";
@@ -16,11 +17,12 @@ interface CockpitRemoteProps {
   cockpit: RemoteCockpit;
   documents: RemoteDocument[];
   mode: "prep" | "flight";
+  device: DeviceKind;
   onExitFlight: () => void;
 }
 
 /** Pilotage d'un cockpit : commandes de haut niveau au-dessus de la synchro. */
-export function CockpitRemote({ cockpit, documents, mode, onExitFlight }: CockpitRemoteProps) {
+export function CockpitRemote({ cockpit, documents, mode, device, onExitFlight }: CockpitRemoteProps) {
   const { state, status, update, flush, stateRef } = useRemoteSync(cockpit);
   const [cursorPref, setCursorPref] = useLocalStorage("skyboard:cursor");
   const cursorEnabled = cursorPref === "1";
@@ -91,6 +93,7 @@ export function CockpitRemote({ cockpit, documents, mode, onExitFlight }: Cockpi
       <FlightMode
         getView={() => stateRef.current}
         onActions={handleGestures}
+        device={device}
         onExit={onExitFlight}
         status={status}
         cursorEnabled={cursorEnabled}
@@ -113,6 +116,7 @@ export function CockpitRemote({ cockpit, documents, mode, onExitFlight }: Cockpi
         current={current}
         page={state.page}
         zoomed={state.zoom > 1.01}
+        compact={device === "phone"}
         onSelect={(doc) => apply(selectDocument(state, doc, pageMemory()))}
         onStepPage={(delta) => apply(stepPageOrStart(state, delta))}
         onStepDocument={(delta) => apply(stepDocument(state, documents, delta, pageMemory()))}

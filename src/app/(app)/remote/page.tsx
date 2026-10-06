@@ -18,7 +18,8 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default async function RemotePage() {
+export default async function RemotePage({ searchParams }: PageProps<"/remote">) {
+  const query = await searchParams;
   const supabase = await createClient();
   const [{ data: rows }, { documents: docs }] = await Promise.all([
     supabase.from("cockpits").select("id, name, viewer_token, last_state").order("created_at"),
@@ -52,5 +53,13 @@ export default async function RemotePage() {
     );
   }
 
-  return <RemoteApp cockpits={cockpits} documents={documents} />;
+  const requested = typeof query.cockpit === "string" ? query.cockpit : null;
+  return (
+    <RemoteApp
+      cockpits={cockpits}
+      documents={documents}
+      initialCockpitId={cockpits.some((c) => c.id === requested) ? requested : null}
+      initialMode={query.mode === "flight" ? "flight" : "prep"}
+    />
+  );
 }

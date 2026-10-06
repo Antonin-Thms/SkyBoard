@@ -55,6 +55,13 @@ export function AuthForm({ mode, action, next, initialError }: AuthFormProps) {
           </label>
         )}
 
+        {!isSignup && (
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input type="checkbox" name="remember" defaultChecked className="h-4 w-4" />
+            Se souvenir de moi
+          </label>
+        )}
+
         {state.error && (
           <p role="alert" className="text-sm text-red-400">
             {state.error}

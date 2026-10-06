@@ -7,6 +7,8 @@ interface PrepModeProps {
   current: RemoteDocument | null;
   page: number;
   zoomed: boolean;
+  /** Téléphone : mise en page resserrée */
+  compact?: boolean;
   onSelect: (doc: RemoteDocument) => void;
   onStepPage: (delta: number) => void;
   onStepDocument: (delta: number) => void;
@@ -19,6 +21,7 @@ export function PrepMode({
   current,
   page,
   zoomed,
+  compact = false,
   onSelect,
   onStepPage,
   onStepDocument,
@@ -26,8 +29,12 @@ export function PrepMode({
 }: PrepModeProps) {
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
-        <div className="min-w-0 flex-1">
+      <div
+        className={`flex flex-wrap items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3 ${
+          compact ? "sticky top-0 z-10 bg-slate-900" : ""
+        }`}
+      >
+        <div className={`min-w-0 ${compact ? "basis-full" : "flex-1"}`}>
           <p className="text-xs text-slate-500">Dans le casque</p>
           <p className="truncate font-medium">{current ? current.name : "Aucun document"}</p>
           {current && (
@@ -36,7 +43,7 @@ export function PrepMode({
             </p>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className={`flex gap-2 ${compact ? "flex-1 [&>button]:flex-1" : ""}`}>
           <button
             type="button"
             className="btn-secondary h-12 min-w-12 text-lg"
@@ -56,10 +63,10 @@ export function PrepMode({
             ▶
           </button>
         </div>
-        <div className="flex gap-2">
+        <div className={`flex gap-2 ${compact ? "flex-1 [&>button]:flex-1" : ""}`}>
           <button
             type="button"
-            className="btn-secondary h-12 text-sm"
+            className="btn-secondary h-12 whitespace-nowrap px-3 text-sm"
             onClick={() => onStepDocument(-1)}
             disabled={documents.length < 2}
           >
@@ -67,7 +74,7 @@ export function PrepMode({
           </button>
           <button
             type="button"
-            className="btn-secondary h-12 text-sm"
+            className="btn-secondary h-12 whitespace-nowrap px-3 text-sm"
             onClick={() => onStepDocument(1)}
             disabled={documents.length < 2}
           >
@@ -75,13 +82,15 @@ export function PrepMode({
           </button>
         </div>
         {zoomed && (
-          <button type="button" className="btn-secondary h-12 text-sm" onClick={onResetZoom}>
+          <button type="button" className="btn-secondary h-12 whitespace-nowrap px-3 text-sm" onClick={onResetZoom}>
             Zoom 1:1
           </button>
         )}
       </div>
 
-      <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
+      <ul
+        className={`grid gap-3 ${compact ? "grid-cols-2" : "grid-cols-3 sm:grid-cols-4 lg:grid-cols-5"}`}
+      >
         {documents.map((doc) => {
           const active = doc.id === current?.id;
           return (

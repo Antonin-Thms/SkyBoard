@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { applyRememberPolicy, REMEMBER_COOKIE, shouldRemember } from "@/lib/auth/remember";
 import type { Database } from "@/lib/database.types";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
@@ -18,9 +19,10 @@ export async function createClient() {
         return cookieStore.getAll();
       },
       setAll(cookiesToSet) {
+        const remember = shouldRemember(cookieStore.get(REMEMBER_COOKIE)?.value);
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options),
+            cookieStore.set(name, value, applyRememberPolicy(options, remember)),
           );
         } catch {
           // Appelé depuis un Server Component : les cookies sont en lecture seule.

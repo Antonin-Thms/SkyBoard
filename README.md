@@ -114,7 +114,21 @@ Chaque `git push` redéploie automatiquement. Les migrations SQL, elles, restent
 
 Une variable d'environnement modifiée dans Vercel ne s'applique qu'après un redéploiement (**Deployments → … → Redeploy**).
 
-## 5. Installer la remote sur iPad (PWA)
+## 5. Ouvrir la remote sur l'iPad / l'iPhone
+
+### Par QR code (le plus rapide)
+
+1. Sur le PC, ouvre la page **Remote** et choisis le cockpit.
+2. Clique sur **Afficher le QR code**.
+3. Scanne-le avec l'appareil photo de l'iPad ou de l'iPhone : la remote s'ouvre directement en **mode vol** sur ce cockpit.
+
+Avec l'option **Connexion automatique** (cochée par défaut), le QR code contient un jeton de connexion à **usage unique**. C'est un magic link Supabase, valable 1 h par défaut (réglage *Email OTP Expiration* dans Supabase). Il connecte l'appareil sans saisir de mot de passe.
+
+Ne montre pas ce QR code. Il disparaît de l'écran au bout de 5 minutes. Décoche l'option pour un QR code sans jeton : l'appareil devra alors être déjà connecté.
+
+Le QR code ouvre Safari, pas l'application installée. iOS ne permet pas d'ouvrir une PWA depuis un lien.
+
+### Installer en application (PWA)
 
 1. Ouvre l'URL Vercel dans **Safari** sur l'iPad, puis connecte-toi.
 2. Bouton **Partager** → **Sur l'écran d'accueil** → **Ajouter**.
@@ -123,6 +137,21 @@ Une variable d'environnement modifiée dans Vercel ne s'applique qu'après un re
 Une PWA iOS a son propre stockage : il faut s'y connecter une fois, même si tu l'étais déjà dans Safari.
 
 En mode vol, le zoom et le défilement natifs sont désactivés. Si iOS affiche quand même son geste système (bord bas : barre d'accueil), active **Accès guidé** (Réglages → Accessibilité) pour verrouiller l'écran sur SkyBoard pendant le vol.
+
+### Adaptation à l'appareil
+
+La remote détecte le type d'appareil : téléphone, tablette ou ordinateur. Un iPad qui se présente comme un Mac est reconnu à ses points de contact tactiles.
+
+- **Ordinateur** : affiche le panneau QR code.
+- **Téléphone** :
+  - mise en page resserrée (2 colonnes, barre de commandes collée en haut) ;
+  - mode vol compact ;
+  - bandes latérales et seuils de swipe réduits (`DEVICE_GESTURE_OVERRIDES` dans `src/lib/gestures/constants.ts`).
+
+### Se souvenir de moi
+
+- **Case cochée** (par défaut) : la session reste ouverte, avec des cookies de 400 jours rafraîchis automatiquement.
+- **Case décochée** : la session se ferme avec le navigateur, car les cookies d'auth deviennent des cookies de session.
 
 ## 6. Configurer OpenKneeboard
 
