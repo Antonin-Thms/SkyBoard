@@ -10,7 +10,7 @@ import type { FolderSummary } from "@/lib/documents/folders";
 const LINKS = [
   { href: "/documents", label: "Documents" },
   { href: "/cockpits", label: "Cockpits" },
-  { href: "/remote", label: "Télécommande" },
+  { href: "/remote", label: "Remote" },
 ] as const;
 
 interface AppNavProps {

@@ -15,7 +15,8 @@ import {
   visiblePageRect,
   type DetailTile,
 } from "@/lib/viewer/detail";
-import { fitScale, type Size } from "@/lib/viewer/fit";
+import type { Size } from "@/lib/viewer/fit";
+import { baseKey, peekBaseRender, renderBase, type BaseRender, type PageRef } from "@/lib/viewer/base-cache";
 import { blit, naturalSize, renderRegion } from "@/lib/viewer/render";
 import { loadDocumentSource } from "@/lib/viewer/sources";
 import type { ViewerDocument } from "@/lib/viewer/types";
@@ -30,7 +31,12 @@ interface PageViewProps {
   /** Point de la page sous le doigt de la remote (null : masqué) */
   cursor: NormalizedPoint | null;
   onError?: (message: string | null) => void;
+  /** Pages probablement affichées ensuite (documents voisins) : pré-rendues en arrière-plan */
+  neighbors?: PageRef[];
 }
+
+/** Délai avant de pré-rendre les voisins, une fois la page courante affichée. */
+const PRERENDER_DELAY_MS = 300;
 
 const isCancellation = (err: unknown) =>
   err instanceof Error && err.name === "RenderingCancelledException";
@@ -44,7 +50,7 @@ const isCancellation = (err: unknown) =>
  *    à coût borné. En attendant, le rendu de base agrandi reste affiché.
  * Les rendus se font hors écran puis remplacent l'ancien d'un coup.
  */
-export function PageView({ doc, page, rotation, view, cursor, onError }: PageViewProps) {
+export function PageView({ doc, page, rotation, view, cursor, onError, neighbors }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detailRef = useRef<HTMLCanvasElement>(null);
@@ -62,44 +68,59 @@ export function PageView({ doc, page, rotation, view, cursor, onError }: PageVie
     if (detailRef.current) detailRef.current.style.display = "none";
   };
 
-  // 1. Rendu de base
+  // 1. Rendu de base (instantané s'il a déjà été pré-rendu)
   useEffect(() => {
     if (!container || container.width === 0 || container.height === 0) return;
     let cancelled = false;
     let cancelRender: (() => void) | undefined;
+    const ref = { doc, page, rotation };
+    const dpr = window.devicePixelRatio || 1;
 
-    (async () => {
-      const source = await loadDocumentSource(doc);
-      if (cancelled) return;
-      const natural = await naturalSize(source, page, rotation);
-      if (cancelled) return;
-      const fit = fitScale(container, natural);
-      const dpr = window.devicePixelRatio || 1;
-      const rendered = await renderRegion(
-        source,
-        page,
-        fit * dpr,
-        undefined,
-        (c) => (cancelRender = c),
-        rotation,
-      );
-      if (cancelled || !canvasRef.current) return;
-
-      blit(rendered.canvas, canvasRef.current);
+    const show = (render: BaseRender) => {
+      if (!canvasRef.current) return;
+      blit(render.canvas, canvasRef.current);
       hideDetail();
-      setDisplaySize({ width: natural.width * fit, height: natural.height * fit });
+      setDisplaySize(render.display);
       setShownKey(`${doc.id}:${page}:${rotation}`);
       onError?.(null);
-    })().catch((err: unknown) => {
-      if (cancelled || isCancellation(err)) return;
-      onError?.(err instanceof Error ? err.message : "Erreur de rendu");
-    });
+    };
+
+    const hit = peekBaseRender(baseKey(ref, container, dpr));
+    if (hit) {
+      show(hit);
+      return;
+    }
+    renderBase(ref, container, dpr, (c) => (cancelRender = c))
+      .then((render) => {
+        if (!cancelled) show(render);
+      })
+      .catch((err: unknown) => {
+        if (cancelled || isCancellation(err)) return;
+        onError?.(err instanceof Error ? err.message : "Erreur de rendu");
+      });
 
     return () => {
       cancelled = true;
       cancelRender?.();
     };
   }, [doc, page, rotation, container, onError]);
+
+  // Pré-rendu des voisins, un par un, une fois la page courante affichée.
+  useEffect(() => {
+    if (!container || !neighbors?.length || shownKey !== pageKey) return;
+    let cancelled = false;
+    const dpr = window.devicePixelRatio || 1;
+    const timer = setTimeout(async () => {
+      for (const ref of neighbors) {
+        if (cancelled) return;
+        await renderBase(ref, container, dpr).catch(() => {});
+      }
+    }, PRERENDER_DELAY_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [neighbors, container, shownKey, pageKey]);
 
   // 3. Tuile de détail, après stabilisation de la vue cible
   useEffect(() => {

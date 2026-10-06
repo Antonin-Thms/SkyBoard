@@ -5,6 +5,7 @@ import { useViewerData } from "@/hooks/use-viewer-data";
 import { createAnonClient } from "@/lib/supabase/anon";
 import { connectCockpit, type LinkStatus } from "@/lib/sync/cockpit-link";
 import { clampView, IDENTITY_VIEW } from "@/lib/gestures/transform";
+import type { PageRef } from "@/lib/viewer/base-cache";
 import { clampPage } from "@/lib/viewer/fit";
 import { prefetchDocuments } from "@/lib/viewer/doc-cache";
 import { pruneDocumentSources } from "@/lib/viewer/sources";
@@ -105,6 +106,32 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
     return { doc, page: clampPage(page, doc.pageCount), rotation: doc.rotation, transform, cursor };
   }, [view, documents, options.showCursor]);
 
+  // Voisins probables : documents précédent / suivant et pages adjacentes.
+  // Seuls le document et la page comptent (pas le zoom ni le curseur).
+  const currentDoc = current?.doc ?? null;
+  const currentPage = current?.page ?? 1;
+  const neighbors = useMemo(() => {
+    if (!currentDoc) return [];
+    const refs: PageRef[] = [];
+    const index = documents.findIndex((d) => d.id === currentDoc.id);
+    if (documents.length > 1) {
+      // Swipes enchaînés : on prépare aussi les documents à deux crans.
+      for (const delta of [1, -1, 2, -2]) {
+        const doc = documents[(((index + delta) % documents.length) + documents.length) % documents.length];
+        if (doc.id !== currentDoc.id && !refs.some((r) => r.doc.id === doc.id)) {
+          refs.push({ doc, page: 1, rotation: doc.rotation });
+        }
+      }
+    }
+    for (const delta of [1, -1]) {
+      const page = currentPage + delta;
+      if (page >= 1 && page <= currentDoc.pageCount) {
+        refs.push({ doc: currentDoc, page, rotation: currentDoc.rotation });
+      }
+    }
+    return refs;
+  }, [currentDoc, currentPage, documents]);
+
   // Navigation clavier : uniquement pour tester sur PC (aucune interaction requise dans le casque).
   useEffect(() => {
     if (!current) return;
@@ -158,6 +185,7 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
           view={current.transform}
           cursor={current.cursor}
           onError={handleRenderError}
+          neighbors={neighbors}
         />
       ) : (
         data && (

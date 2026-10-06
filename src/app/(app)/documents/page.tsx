@@ -41,7 +41,7 @@ export default async function DocumentsPage() {
           </li>
           <li>
             <strong>Dossiers</strong> (ex. un par serveur) : choisis le dossier actif d&apos;un
-            cockpit sur la page Télécommande ou Cockpits. Le casque affiche alors ce dossier et les
+            cockpit sur la page Remote ou Cockpits. Le casque affiche alors ce dossier et les
             documents <strong>Communs</strong> (sans dossier), toujours présents.
           </li>
           <li>

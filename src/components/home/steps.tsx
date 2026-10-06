@@ -34,8 +34,8 @@ const STEPS = [
   {
     href: "/remote",
     title: "Pilote au doigt",
-    text: "Ouvre la télécommande sur une tablette ou un téléphone (ou scanne le QR code affiché sur le PC).",
-    cta: "Télécommande",
+    text: "Ouvre la remote sur une tablette ou un téléphone (ou scanne le QR code affiché sur le PC).",
+    cta: "Remote",
     icon: (
       <svg viewBox="0 0 120 90" className="h-20 w-full" aria-hidden="true" fill="none" strokeWidth="2">
         <rect x="34" y="10" width="52" height="70" rx="6" className="fill-slate-900 stroke-slate-600" />
