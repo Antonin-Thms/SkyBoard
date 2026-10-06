@@ -1,77 +1,33 @@
 import { redirect } from "next/navigation";
-import { DocumentGrid, type DocumentItem } from "@/components/documents/document-grid";
-import { DocumentUploader } from "@/components/documents/document-uploader";
-import { FolderBar } from "@/components/documents/folder-bar";
+import { Suspense } from "react";
+import { DocumentsView } from "@/components/documents/documents-view";
 import { HelpPanel } from "@/components/help-panel";
-import { matchesFilter, parseFolderFilter } from "@/lib/documents/folders";
 import { getDocuments, getFolders } from "@/lib/documents/server";
 import { getSessionClaims } from "@/lib/supabase/server";
 
 export const metadata = { title: "Documents · SkyBoard" };
 
-export default async function DocumentsPage({ searchParams }: PageProps<"/documents">) {
+export default async function DocumentsPage() {
   const userId = (await getSessionClaims())?.sub;
   if (!userId) redirect("/login");
 
-  const [{ documents, error }, folders, query] = await Promise.all([
-    getDocuments(),
-    getFolders(),
-    searchParams,
-  ]);
-  const filter = parseFolderFilter(query.folder, folders.map((f) => f.id));
-
-  const items: DocumentItem[] = documents
-    .filter((d) => matchesFilter(d.folderId, filter))
-    .map(({ id, name, type, pageCount, thumbnailUrl, folderId, rotation }) => ({
-      id,
-      name,
-      type,
-      pageCount,
-      thumbnailUrl,
-      folderId,
-      rotation,
-    }));
+  const [{ documents, error }, folders] = await Promise.all([getDocuments(), getFolders()]);
   const nextSortOrder = documents.reduce((max, d) => Math.max(max, d.sortOrder), 0) + 1;
-  const folderCounts = folders.map((f) => ({
-    ...f,
-    count: documents.filter((d) => d.folderId === f.id).length,
-  }));
-  const contextLabel =
-    filter.kind === "all"
-      ? "Tous les documents"
-      : filter.kind === "common"
-        ? "Communs"
-        : (folders.find((f) => f.id === filter.id)?.name ?? "");
-  // Les envois vont dans le dossier affiché (Communs pour « Tous » et « Communs »).
-  const uploadFolder = filter.kind === "folder" ? folders.find((f) => f.id === filter.id)! : null;
-  // Remonte la grille quand la liste change côté serveur (upload, renommage…).
-  const gridKey = `${JSON.stringify(filter)}|${items.map((i) => `${i.id}:${i.name}:${i.folderId}`).join("|")}`;
 
   return (
     <div className="space-y-6">
-      <div>
-        <div className="label-caps">{contextLabel}</div>
-        <h1 className="mt-1 text-3xl font-medium">Documents</h1>
-      </div>
-
-      <FolderBar
-        folders={folderCounts}
-        filter={filter}
-        totalCount={documents.length}
-        commonCount={documents.filter((d) => d.folderId === null).length}
-      />
-
-      <DocumentUploader
-        userId={userId}
-        nextSortOrder={nextSortOrder}
-        folderId={uploadFolder?.id ?? null}
-        folderName={uploadFolder?.name ?? null}
-      />
-
       {error ? (
         <p className="text-sm text-red-400">Impossible de charger les documents.</p>
       ) : (
-        <DocumentGrid key={gridKey} initialItems={items} folders={folders} />
+        // Filtrage par dossier côté navigateur : changement de dossier instantané.
+        <Suspense>
+          <DocumentsView
+            userId={userId}
+            documents={documents}
+            folders={folders}
+            nextSortOrder={nextSortOrder}
+          />
+        </Suspense>
       )}
 
       <HelpPanel defaultOpen={false}>

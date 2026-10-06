@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createFolder } from "@/app/(app)/documents/actions";
+import { FolderLink } from "@/components/folder-link";
 import type { FolderSummary } from "@/lib/documents/folders";
 
 const LINKS = [
@@ -85,7 +86,7 @@ function FolderNav({ folders, counts }: AppNavProps) {
       {items.map((item) => {
         const active = current === item.key;
         return (
-          <Link
+          <FolderLink
             key={item.key}
             href={item.href}
             aria-current={active ? "page" : undefined}
@@ -95,7 +96,7 @@ function FolderNav({ folders, counts }: AppNavProps) {
           >
             <span className="truncate">{item.label}</span>
             <span className={active ? "text-accent" : ""}>{item.count}</span>
-          </Link>
+          </FolderLink>
         );
       })}
       {creating ? (

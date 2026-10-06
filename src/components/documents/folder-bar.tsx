@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { FolderLink } from "@/components/folder-link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createFolder, deleteFolder, renameFolder } from "@/app/(app)/documents/actions";
@@ -68,24 +68,24 @@ export function FolderBar({ folders, filter, totalCount, commonCount }: FolderBa
     <div className={`space-y-2 ${pending ? "opacity-60" : ""}`}>
       {/* Sur ordinateur, les dossiers sont dans la barre latérale. */}
       <nav className="flex gap-2 overflow-x-auto pb-1 md:hidden" aria-label="Dossiers">
-        <Link href="/documents" className={pill(filter.kind === "all")}>
+        <FolderLink href="/documents" className={pill(filter.kind === "all")}>
           Tous · {totalCount}
-        </Link>
-        <Link
+        </FolderLink>
+        <FolderLink
           href="/documents?folder=common"
           className={pill(filter.kind === "common")}
           title="Documents sans dossier : toujours affichés, quel que soit le dossier actif"
         >
           Communs · {commonCount}
-        </Link>
+        </FolderLink>
         {folders.map((f) => (
-          <Link
+          <FolderLink
             key={f.id}
             href={`/documents?folder=${f.id}`}
             className={pill(filter.kind === "folder" && filter.id === f.id)}
           >
             📁 {f.name} · {f.count}
-          </Link>
+          </FolderLink>
         ))}
         {!creating && (
           <button

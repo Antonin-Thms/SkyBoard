@@ -2,7 +2,8 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { cache } from "react";
-import type { Database, DocumentMimeType, Rotation } from "@/lib/database.types";
+import type { Database } from "@/lib/database.types";
+import type { DocumentSummary } from "./server-types";
 import type { FolderSummary } from "./folders";
 import { createClient } from "@/lib/supabase/server";
 import { STORAGE_BUCKET, THUMBNAIL_URL_TTL } from "./storage";
@@ -45,16 +46,7 @@ async function signedThumbnailUrls(
   return result;
 }
 
-export interface DocumentSummary {
-  id: string;
-  name: string;
-  type: DocumentMimeType;
-  pageCount: number;
-  sortOrder: number;
-  folderId: string | null;
-  rotation: Rotation;
-  thumbnailUrl: string | null;
-}
+export type { DocumentSummary } from "./server-types";
 
 /** Documents de l'utilisateur connecté (RLS), triés, avec miniatures signées. */
 export async function listDocumentsWithThumbnails(
