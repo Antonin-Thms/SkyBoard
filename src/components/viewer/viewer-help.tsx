@@ -20,7 +20,7 @@ export function ViewerHelp(props: ViewerHelpProps) {
           <h2 className="text-lg font-semibold">SkyBoard Viewer</h2>
           <p className="text-slate-400">
             Page affichée dans OpenKneeboard (onglet Web Dashboard). Elle se pilote depuis la
-            remote ; le clavier sert seulement à tester sur PC.
+            télécommande ; le clavier sert seulement à tester sur PC.
           </p>
         </div>
 

@@ -10,7 +10,7 @@ export const GESTURE_CONFIG = {
   /** En dessous de zoomMin + zoomEpsilon, on considère que la page n'est pas zoomée */
   zoomEpsilon: 0.02,
 
-  /** Largeur des bandes latérales (document précédent / suivant) */
+  /** Largeur des bandes latérales (page précédente / suivante) */
   edgeWidthPx: 56,
   /** Distance verticale minimale d'un swipe dans une bande latérale */
   edgeSwipeMinPx: 60,
@@ -24,9 +24,9 @@ export const GESTURE_CONFIG = {
   /** Distance max entre les deux taps d'un double tap */
   doubleTapSlopPx: 48,
 
-  /** Distance horizontale minimale d'un swipe de page (zoom = 1) */
+  /** Distance horizontale minimale d'un swipe de document (zoom = 1) */
   swipeMinPx: 60,
-  /** Durée max d'un swipe de page */
+  /** Durée max d'un swipe de document */
   swipeMaxMs: 700,
   /** Le déplacement principal doit dominer l'autre axe de ce facteur */
   swipeDirectionRatio: 1.5,

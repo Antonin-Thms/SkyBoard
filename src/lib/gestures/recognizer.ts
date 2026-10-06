@@ -27,9 +27,9 @@ interface Pointer {
 }
 
 type Mode =
-  /** Un doigt, en attente : tap, swipe de page ou pan selon la suite */
+  /** Un doigt, en attente : tap, swipe de document ou pan selon la suite */
   | "single"
-  /** Un doigt parti d'une bande latérale : swipe vertical = changement de document */
+  /** Un doigt parti d'une bande latérale : swipe vertical = changement de page */
   | "edge"
   /** Un doigt qui déplace la page zoomée */
   | "pan"
@@ -178,22 +178,23 @@ export class GestureRecognizer {
     }
     this.lastTap = null;
 
-    // Bande latérale : swipe vertical = document précédent / suivant
+    // Bande latérale : swipe vertical = page précédente / suivante (PDF de plusieurs pages)
     if (this.mode === "edge") {
       if (Math.abs(dy) >= c.edgeSwipeMinPx && Math.abs(dy) >= Math.abs(dx) * c.swipeDirectionRatio) {
-        return [{ type: "document", delta: dy > 0 ? 1 : -1 }];
+        return [{ type: "page", delta: dy > 0 ? 1 : -1 }];
       }
       return [];
     }
 
-    // Swipe horizontal à zoom 1 : vers la gauche = page suivante (comme un livre)
+    // Swipe horizontal à zoom 1 : vers la gauche = document suivant (comme on tourne une page).
+    // Un kneeboard = un document dans l'immense majorité des cas.
     if (
       !this.isZoomed() &&
       duration <= c.swipeMaxMs &&
       Math.abs(dx) >= c.swipeMinPx &&
       Math.abs(dx) >= Math.abs(dy) * c.swipeDirectionRatio
     ) {
-      return [{ type: "page", delta: dx < 0 ? 1 : -1 }];
+      return [{ type: "document", delta: dx < 0 ? 1 : -1 }];
     }
     return [];
   }

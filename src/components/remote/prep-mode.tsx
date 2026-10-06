@@ -40,48 +40,53 @@ export function PrepMode({
           <p className="truncate font-medium">{current ? current.name : "Aucun document"}</p>
           {current && (
             <p className="text-sm text-slate-400">
-              Page {page} / {current.pageCount}
+              Document {documents.findIndex((d) => d.id === current.id) + 1} / {documents.length}
+              {current.pageCount > 1 && ` · page ${page} / ${current.pageCount}`}
             </p>
           )}
         </div>
+        {/* Navigation principale : un kneeboard = un document. */}
         <div className={`flex gap-2 ${compact ? "flex-1 [&>button]:flex-1" : ""}`}>
           <button
             type="button"
             className="btn-secondary h-12 min-w-12 text-lg"
-            aria-label="Page précédente"
-            onClick={() => onStepPage(-1)}
-            disabled={!current || page <= 1}
+            aria-label="Document précédent"
+            onClick={() => onStepDocument(-1)}
+            disabled={documents.length < 2}
           >
             ◀
           </button>
           <button
             type="button"
             className="btn-primary h-12 min-w-12 text-lg"
-            aria-label="Page suivante"
-            onClick={() => onStepPage(1)}
-            disabled={!!current && page >= current.pageCount}
+            aria-label="Document suivant"
+            onClick={() => onStepDocument(1)}
+            disabled={documents.length < 2 && !!current}
           >
             ▶
           </button>
         </div>
-        <div className={`flex gap-2 ${compact ? "flex-1 [&>button]:flex-1" : ""}`}>
-          <button
-            type="button"
-            className="btn-secondary h-12 whitespace-nowrap px-3 text-sm"
-            onClick={() => onStepDocument(-1)}
-            disabled={documents.length < 2}
-          >
-            ▲ Doc
-          </button>
-          <button
-            type="button"
-            className="btn-secondary h-12 whitespace-nowrap px-3 text-sm"
-            onClick={() => onStepDocument(1)}
-            disabled={documents.length < 2}
-          >
-            Doc ▼
-          </button>
-        </div>
+        {/* Pages : seulement pour les documents de plusieurs pages. */}
+        {current && current.pageCount > 1 && (
+          <div className={`flex gap-2 ${compact ? "flex-1 [&>button]:flex-1" : ""}`}>
+            <button
+              type="button"
+              className="btn-secondary h-12 whitespace-nowrap px-3 text-sm"
+              onClick={() => onStepPage(-1)}
+              disabled={page <= 1}
+            >
+              ▲ Page
+            </button>
+            <button
+              type="button"
+              className="btn-secondary h-12 whitespace-nowrap px-3 text-sm"
+              onClick={() => onStepPage(1)}
+              disabled={page >= current.pageCount}
+            >
+              Page ▼
+            </button>
+          </div>
+        )}
         {zoomed && (
           <button type="button" className="btn-secondary h-12 whitespace-nowrap px-3 text-sm" onClick={onResetZoom}>
             Zoom 1:1

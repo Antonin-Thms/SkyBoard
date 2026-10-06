@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { channelNameForToken } from "@/lib/sync/channel";
 import { parseViewState } from "@/lib/sync/protocol";
 
-export const metadata = { title: "Remote · SkyBoard" };
+export const metadata = { title: "Télécommande · SkyBoard" };
 
 // Remote tactile : pas de zoom natif du navigateur (le zoom pilote le viewer).
 export const viewport: Viewport = {

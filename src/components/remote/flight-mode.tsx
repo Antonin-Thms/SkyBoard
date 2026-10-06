@@ -144,12 +144,12 @@ export function FlightMode({
       </div>
 
       <div ref={surfaceRef} className="relative flex-1 touch-none overflow-hidden">
-        {/* Bandes latérales : swipe vertical = document précédent / suivant */}
+        {/* Bandes latérales : swipe vertical = page précédente / suivante (PDF de plusieurs pages) */}
         <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center bg-slate-900/60">
-          <span className="text-xs [writing-mode:vertical-rl] rotate-180">▲ document ▼</span>
+          <span className="text-xs [writing-mode:vertical-rl] rotate-180">▲ page ▼</span>
         </div>
         <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-center bg-slate-900/60">
-          <span className="text-xs [writing-mode:vertical-rl]">▲ document ▼</span>
+          <span className="text-xs [writing-mode:vertical-rl]">▲ page ▼</span>
         </div>
 
         <div
@@ -169,8 +169,8 @@ export function FlightMode({
           style={{ paddingInline: config.edgeWidthPx + 12 }}
         >
           {compact
-            ? "Pincer : zoom · Swipe ← → : page · Double tap : reset · Bords ↕ : doc"
-            : "Pincer : zoom · 2 doigts : déplacer · 1 doigt (zoomé) : déplacer · Swipe ← → : page · Double tap : réinitialiser · Bords ↕ : document"}
+            ? "Pincer : zoom · Swipe ← → : document · Double tap : reset · Bords ↕ : page"
+            : "Pincer : zoom · 2 doigts : déplacer · 1 doigt (zoomé) : déplacer · Swipe ← → : document · Double tap : réinitialiser · Bords ↕ : page"}
         </p>
       </div>
     </div>

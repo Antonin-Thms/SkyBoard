@@ -3,7 +3,7 @@
 Pilote l'affichage de tes kneeboards dans le casque VR (DCS World + OpenKneeboard) depuis une tablette ou un téléphone (tout écran tactile).
 
 - **Viewer** (`/viewer/[token]`) : page affichée dans l'onglet *Web Dashboard* d'OpenKneeboard.
-- **Remote** (`/remote`) : télécommande tactile sur tablette ou téléphone (mode préparation + mode vol à l'aveugle).
+- **Télécommande** (`/remote`) : télécommande tactile sur tablette ou téléphone (mode préparation + mode vol à l'aveugle).
 - La synchro passe par Supabase Realtime (Broadcast). Seul un **état** (document, page, zoom, pan) circule, jamais de vidéo.
 
 Stack : Next.js 16 (App Router) · TypeScript strict · Tailwind 4 · Supabase (Auth, Storage, Postgres, Realtime) · pdf.js · Vitest.
@@ -118,7 +118,7 @@ Une variable d'environnement modifiée dans Vercel ne s'applique qu'après un re
 
 ### Par QR code (le plus rapide)
 
-1. Sur le PC, ouvre la page **Remote** et choisis le cockpit.
+1. Sur le PC, ouvre la page **Télécommande** et choisis le cockpit.
 2. Clique sur **Afficher le QR code**.
 3. Scanne-le avec l'appareil photo de la tablette ou du téléphone : la remote s'ouvre directement en **mode vol** sur ce cockpit.
 
@@ -187,7 +187,7 @@ Si la connexion faiblit :
   - En test uniquement, les flèches **← →** changent de page et **↑ ↓** changent de document.
   - **H** affiche une aide (document et page courants, touches, indicateur, options d'URL).
   - Pour vérifier l'ajustement, sors la fenêtre du plein écran (bouton « Restaurer ») et tire sur ses bords.
-- **Remote** : ouvre `/remote` dans un autre onglet, ou sur la tablette / le téléphone (`http://<IP-du-PC>:3000/remote` sur le même Wi-Fi). Tu peux aussi utiliser les DevTools de Chrome/Edge en mode appareil (Ctrl+Shift+M) avec une tablette en émulation tactile.
+- **Télécommande** : ouvre `/remote` dans un autre onglet, ou sur la tablette / le téléphone (`http://<IP-du-PC>:3000/remote` sur le même Wi-Fi). Tu peux aussi utiliser les DevTools de Chrome/Edge en mode appareil (Ctrl+Shift+M) avec une tablette en émulation tactile.
   - Mode **Préparation** : tape une miniature, le viewer change immédiatement.
   - Mode **Vol** : dans les DevTools, active l'émulation tactile. Pour pincer sans écran tactile, Chrome simule un deuxième doigt avec **Maj + glisser** ; le plus fiable reste un vrai écran tactile.
   - Ferme puis rouvre le viewer : il reprend l'état courant, en le demandant à la remote si elle est ouverte, sinon depuis la base.
@@ -246,9 +246,9 @@ Tout l'écran reçoit les gestes, sans bouton au centre. Les gestes sont relatif
 | Pincer à deux doigts | zoom centré sur le point entre les doigts (×1 à ×6) |
 | Glisser à deux doigts | déplacer la page |
 | Glisser à un doigt (page zoomée) | déplacer la page |
-| Swipe horizontal à un doigt (zoom ×1) | ← page suivante · → page précédente |
+| Swipe horizontal à un doigt (zoom ×1) | ← document suivant · → document précédent |
 | Double tap | zoom et position remis à zéro |
-| Swipe vertical dans une bande latérale (bords gauche/droit) | ↓ document suivant · ↑ document précédent |
+| Swipe vertical dans une bande latérale (bords gauche/droit) | ↓ page suivante · ↑ page précédente (PDF de plusieurs pages) |
 
 - **Bornes** : le zoom va de ×1 à ×6, et le déplacement est limité pour que la page ne sorte jamais du champ.
 - **Seuils** : tous dans `src/lib/gestures/constants.ts`.
@@ -282,7 +282,7 @@ Remote et viewer peuvent donc avoir des écrans de tailles et de formats différ
 ## Dossiers
 
 - **Principe** : un document appartient à au plus un dossier, par exemple un par serveur multijoueur. Les documents sans dossier sont les **Communs**, comme tes checklists perso.
-- **Dossier actif** : chaque cockpit en a un (`cockpits.active_folder_id`), choisi sur la page **Remote** ou **Cockpits**. Le viewer et la remote affichent alors ce dossier **plus** les Communs, et les gestes « document suivant/précédent » ne parcourent que ceux-là. Sans dossier actif, tout est affiché.
+- **Dossier actif** : chaque cockpit en a un (`cockpits.active_folder_id`), choisi sur la page **Télécommande** ou **Cockpits**. Le viewer et la remote affichent alors ce dossier **plus** les Communs, et les gestes « document suivant/précédent » ne parcourent que ceux-là. Sans dossier actif, tout est affiché.
 - **Page Documents** :
   - filtre Tous / Communs / dossier ;
   - création, renommage et suppression des dossiers (supprimer un dossier n'efface pas ses documents : ils redeviennent communs) ;

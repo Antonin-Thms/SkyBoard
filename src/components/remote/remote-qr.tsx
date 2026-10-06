@@ -44,7 +44,7 @@ export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
       <div className="min-w-0 flex-1 space-y-2 text-sm">
         <h2 className="font-medium text-slate-200">Piloter depuis une tablette ou un téléphone</h2>
         <p className="text-slate-400">
-          Scanne le QR code avec l&apos;appareil photo : la remote s&apos;ouvre directement en mode
+          Scanne le QR code avec l&apos;appareil photo : la télécommande s&apos;ouvre directement en mode
           vol sur le cockpit « {cockpitName} ».
         </p>
         <label className="flex items-start gap-2 text-slate-300">

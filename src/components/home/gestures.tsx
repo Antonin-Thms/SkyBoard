@@ -41,7 +41,7 @@ const GESTURES = [
   },
   {
     title: "Swipe horizontal",
-    text: "← page suivante · → page précédente",
+    text: "← document suivant · → document précédent",
     art: (
       <Tablet>
         <Finger x={80} y={56} />
@@ -63,7 +63,7 @@ const GESTURES = [
   },
   {
     title: "Bords de l'écran",
-    text: "Swipe vertical : ↓ document suivant · ↑ précédent",
+    text: "Swipe vertical : ↓ page suivante · ↑ précédente (PDF de plusieurs pages)",
     art: (
       <Tablet>
         <rect x="12" y="10" width="16" height="90" className="fill-slate-800" />

@@ -103,11 +103,11 @@ export function RemoteApp({ cockpits, documents, folders, initialCockpitId, init
             <ul className="mt-1 list-[circle] space-y-0.5 pl-5">
               <li>pincer à deux doigts : zoom centré sur les doigts ;</li>
               <li>glisser à deux doigts (ou à un doigt quand c&apos;est zoomé) : déplacer ;</li>
-              <li>swipe horizontal à un doigt (non zoomé) : page suivante ← / précédente → ;</li>
+              <li>swipe horizontal à un doigt (non zoomé) : document suivant ← / précédent → ;</li>
               <li>double tap : zoom et position remis à zéro ;</li>
               <li>
                 bandes étroites sur les bords gauche et droit de l&apos;écran : swipe vers le bas =
-                document suivant, vers le haut = précédent ;
+                page suivante, vers le haut = précédente (PDF de plusieurs pages) ;
               </li>
               <li>« Curseur » (en haut) : affiche la position du doigt dans le casque.</li>
             </ul>

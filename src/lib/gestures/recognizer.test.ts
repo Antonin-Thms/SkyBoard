@@ -43,15 +43,15 @@ function setup(initial: ViewTransform = IDENTITY_VIEW) {
   };
 }
 
-describe("swipe de page (zoom = 1)", () => {
-  it("swipe vers la gauche = page suivante, vers la droite = précédente", () => {
+describe("swipe de document (zoom = 1)", () => {
+  it("swipe vers la gauche = document suivant, vers la droite = précédent", () => {
     const g = setup();
     g.drag(1, [600, 400], [400, 410]);
     g.tick(500);
     g.drag(1, [400, 400], [650, 380]);
-    expect(g.commands().filter((c) => c.type === "page")).toEqual([
-      { type: "page", delta: 1 },
-      { type: "page", delta: -1 },
+    expect(g.commands().filter((c) => c.type === "document")).toEqual([
+      { type: "document", delta: 1 },
+      { type: "document", delta: -1 },
     ]);
   });
 
@@ -62,34 +62,34 @@ describe("swipe de page (zoom = 1)", () => {
     g.drag(1, [600, 400], [400, 400], 1500);
     g.tick(500);
     g.drag(1, [500, 200], [420, 500]);
-    expect(g.commands().filter((c) => c.type === "page")).toEqual([]);
+    expect(g.commands().filter((c) => c.type === "document")).toEqual([]);
   });
 
-  it("pas de swipe de page quand la page est zoomée : le doigt déplace la page", () => {
+  it("pas de swipe de document quand la page est zoomée : le doigt déplace la page", () => {
     const g = setup({ zoom: 3, panX: 0, panY: 0 });
     g.drag(1, [600, 400], [400, 400]);
-    expect(g.commands().filter((c) => c.type === "page")).toEqual([]);
+    expect(g.commands().filter((c) => c.type === "document")).toEqual([]);
     // le contenu suit le doigt vers la gauche
     expect(g.view.panX).toBeCloseTo(-200 / W / 3);
   });
 });
 
 describe("bandes latérales", () => {
-  it("swipe vertical dans une bande = document suivant (bas) / précédent (haut)", () => {
+  it("swipe vertical dans une bande = page suivante (bas) / précédente (haut)", () => {
     const g = setup();
     g.drag(1, [20, 200], [25, 450]);
     g.tick(500);
     g.drag(1, [W - 20, 600], [W - 30, 300]);
-    expect(g.commands().filter((c) => c.type === "document")).toEqual([
-      { type: "document", delta: 1 },
-      { type: "document", delta: -1 },
+    expect(g.commands().filter((c) => c.type === "page")).toEqual([
+      { type: "page", delta: 1 },
+      { type: "page", delta: -1 },
     ]);
   });
 
-  it("un swipe vertical hors des bandes ne change pas de document", () => {
+  it("un swipe vertical hors des bandes ne change pas de page", () => {
     const g = setup();
     g.drag(1, [500, 200], [500, 500]);
-    expect(g.commands().filter((c) => c.type === "document")).toEqual([]);
+    expect(g.commands().filter((c) => c.type === "page")).toEqual([]);
   });
 
   it("un swipe horizontal parti d'une bande ne change ni page ni document", () => {
@@ -182,7 +182,7 @@ describe("pincement", () => {
     g.move(1, 300, 400);
     expect(g.view.panX).toBeLessThan(before);
     g.up(1, 300, 400);
-    expect(g.commands().filter((c) => c.type === "page")).toEqual([]);
+    expect(g.commands().filter((c) => c.type === "document")).toEqual([]);
   });
 });
 
