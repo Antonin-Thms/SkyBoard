@@ -1,5 +1,4 @@
-import type { Rotation } from "@/lib/database.types";
-import { rotateBy, type ViewState } from "./protocol";
+import type { ViewState } from "./protocol";
 
 /**
  * Numéro de séquence suivant. Basé sur l'horloge (ms) : une remote rechargée
@@ -18,8 +17,6 @@ export function isNewer(incoming: ViewState, current: ViewState | null): boolean
 export interface DocRef {
   id: string;
   pageCount: number;
-  /** Rotation mémorisée du document */
-  rotation?: Rotation;
 }
 
 /** Remet zoom et déplacement à zéro (changement de page ou de document). */
@@ -35,7 +32,7 @@ export function selectDocument(
 ): ViewState {
   const remembered = pageMemory[doc.id] ?? 1;
   const page = Math.min(Math.max(1, remembered), doc.pageCount);
-  return resetView({ ...state, docId: doc.id, page, rotation: doc.rotation ?? 0 });
+  return resetView({ ...state, docId: doc.id, page });
 }
 
 /** Page suivante / précédente dans le document courant. Renvoie null si en butée. */
@@ -61,7 +58,3 @@ export function stepDocument(
   return selectDocument(state, doc, pageMemory);
 }
 
-/** Tourne la page affichée de ±90° (zoom et déplacement remis à zéro). */
-export function rotateView(state: ViewState, delta: 1 | -1): ViewState {
-  return resetView({ ...state, rotation: rotateBy(state.rotation ?? 0, delta) });
-}

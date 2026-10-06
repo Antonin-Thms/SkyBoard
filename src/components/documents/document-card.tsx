@@ -17,13 +17,32 @@ const TYPE_LABEL: Record<DocumentItem["type"], string> = {
 interface DocumentCardProps {
   item: DocumentItem;
   folders: FolderSummary[];
+  selected: boolean;
+  /** range : Maj+clic (sélection d'une plage) */
+  onToggleSelect: (range: boolean) => void;
+  onRotate: (delta: 1 | -1) => void;
   onDeleted: () => void;
   onRenamed: (name: string) => void;
 }
 
-export function DocumentCard({ item, folders, onDeleted, onRenamed }: DocumentCardProps) {
-  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
-    useSortable({ id: item.id });
+export function DocumentCard({
+  item,
+  folders,
+  selected,
+  onToggleSelect,
+  onRotate,
+  onDeleted,
+  onRenamed,
+}: DocumentCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.name);
   const [error, setError] = useState<string | null>(null);
@@ -63,7 +82,7 @@ export function DocumentCard({ item, folders, onDeleted, onRenamed }: DocumentCa
       style={{ transform: CSS.Transform.toString(transform), transition }}
       className={`flex flex-col overflow-hidden rounded-xl border border-slate-800 bg-slate-900 ${
         isDragging ? "z-10 opacity-80 shadow-2xl ring-2 ring-sky-500" : ""
-      } ${pending ? "opacity-60" : ""}`}
+      } ${selected ? "border-sky-500 ring-2 ring-sky-500/70" : ""} ${pending ? "opacity-60" : ""}`}
     >
       <div className="relative aspect-[3/4] bg-slate-950">
         {item.thumbnailUrl ? (
@@ -83,6 +102,20 @@ export function DocumentCard({ item, folders, onDeleted, onRenamed }: DocumentCa
         >
           ⠿
         </button>
+        {/* Grande zone cliquable pour cocher au doigt */}
+        <label className="absolute right-0 top-0 flex h-11 w-11 cursor-pointer items-start justify-end p-2">
+          <input
+            type="checkbox"
+            className="h-5 w-5 accent-sky-500"
+            checked={selected}
+            aria-label={`Sélectionner ${item.name}`}
+            onClick={(e) => {
+              e.preventDefault();
+              onToggleSelect(e.shiftKey);
+            }}
+            readOnly
+          />
+        </label>
         <span className="absolute bottom-2 right-2 rounded bg-slate-900/80 px-1.5 py-0.5 text-xs text-slate-300">
           {TYPE_LABEL[item.type]}
           {item.type === "application/pdf" && ` · ${item.pageCount} p.`}
@@ -138,7 +171,25 @@ export function DocumentCard({ item, folders, onDeleted, onRenamed }: DocumentCa
           ))}
         </select>
         {error && <p className="text-xs text-red-400">{error}</p>}
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <button
+            type="button"
+            className="rounded px-1 text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
+            title="Tourner vers la gauche"
+            aria-label="Tourner vers la gauche"
+            onClick={() => onRotate(-1)}
+          >
+            ⟲
+          </button>
+          <button
+            type="button"
+            className="rounded px-1 text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
+            title="Tourner vers la droite"
+            aria-label="Tourner vers la droite"
+            onClick={() => onRotate(1)}
+          >
+            ⟳
+          </button>
           <button
             type="button"
             className="text-xs text-slate-400 hover:text-white"

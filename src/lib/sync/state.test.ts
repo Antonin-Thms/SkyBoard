@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { INITIAL_VIEW_STATE, type ViewState } from "./protocol";
-import { isNewer, nextSeq, rotateView, selectDocument, stepDocument, stepPage } from "./state";
+import { isNewer, nextSeq, selectDocument, stepDocument, stepPage } from "./state";
 
 const docs = [
   { id: "a", pageCount: 3 },
@@ -70,14 +70,3 @@ describe("stepDocument", () => {
   });
 });
 
-describe("rotation", () => {
-  it("un document s'affiche avec sa rotation mémorisée", () => {
-    expect(selectDocument(base, { id: "x", pageCount: 2, rotation: 90 }, {}).rotation).toBe(90);
-    expect(selectDocument({ ...base, rotation: 90 }, { id: "y", pageCount: 2 }, {}).rotation).toBe(0);
-  });
-
-  it("tourner remet zoom et déplacement à zéro", () => {
-    expect(rotateView(base, 1)).toMatchObject({ rotation: 90, zoom: 1, panX: 0, panY: 0 });
-    expect(rotateView({ ...base, rotation: 0 }, -1).rotation).toBe(270);
-  });
-});

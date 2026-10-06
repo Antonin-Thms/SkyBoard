@@ -1,14 +1,12 @@
 "use client";
 
 import { RotatedThumbnail } from "@/components/rotated-thumbnail";
-import type { Rotation } from "@/lib/database.types";
 import type { RemoteDocument } from "@/lib/remote/types";
 
 interface PrepModeProps {
   documents: RemoteDocument[];
   current: RemoteDocument | null;
   page: number;
-  rotation: Rotation;
   zoomed: boolean;
   /** Téléphone : mise en page resserrée */
   compact?: boolean;
@@ -16,7 +14,6 @@ interface PrepModeProps {
   onStepPage: (delta: number) => void;
   onStepDocument: (delta: number) => void;
   onResetZoom: () => void;
-  onRotate: (delta: 1 | -1) => void;
 }
 
 /** Mode préparation : on regarde l'iPad, grille de miniatures et gros boutons. */
@@ -24,14 +21,12 @@ export function PrepMode({
   documents,
   current,
   page,
-  rotation,
   zoomed,
   compact = false,
   onSelect,
   onStepPage,
   onStepDocument,
   onResetZoom,
-  onRotate,
 }: PrepModeProps) {
   return (
     <div className="space-y-4">
@@ -46,7 +41,6 @@ export function PrepMode({
           {current && (
             <p className="text-sm text-slate-400">
               Page {page} / {current.pageCount}
-              {rotation !== 0 && ` · ${rotation}°`}
             </p>
           )}
         </div>
@@ -86,28 +80,6 @@ export function PrepMode({
             disabled={documents.length < 2}
           >
             Doc ▼
-          </button>
-        </div>
-        <div className={`flex gap-2 ${compact ? "flex-1 [&>button]:flex-1" : ""}`}>
-          <button
-            type="button"
-            className="btn-secondary h-12 min-w-12 text-lg"
-            aria-label="Tourner de 90° vers la gauche"
-            title="Tourner vers la gauche"
-            onClick={() => onRotate(-1)}
-            disabled={!current}
-          >
-            ⟲
-          </button>
-          <button
-            type="button"
-            className="btn-secondary h-12 min-w-12 text-lg"
-            aria-label="Tourner de 90° vers la droite"
-            title="Tourner vers la droite"
-            onClick={() => onRotate(1)}
-            disabled={!current}
-          >
-            ⟳
           </button>
         </div>
         {zoomed && (

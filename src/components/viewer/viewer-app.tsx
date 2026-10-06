@@ -101,9 +101,8 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
             y: Math.min(1, Math.max(0, wanted.cursor.y)),
           }
         : null;
-    // Rotation : celle de l'état reçu pour ce document, sinon celle mémorisée.
-    const rotation = sameDoc ? (wanted.rotation ?? doc.rotation) : doc.rotation;
-    return { doc, page: clampPage(page, doc.pageCount), rotation, transform, cursor };
+    // Rotation : propriété du document (réglée sur la page Documents).
+    return { doc, page: clampPage(page, doc.pageCount), rotation: doc.rotation, transform, cursor };
   }, [view, documents, options.showCursor]);
 
   // Navigation clavier : uniquement pour tester sur PC (aucune interaction requise dans le casque).
@@ -117,12 +116,11 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
           type: "local",
           docId: current.doc.id,
           page: clampPage(current.page + delta, current.doc.pageCount),
-          rotation: current.rotation,
         });
       } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         const delta = e.key === "ArrowDown" ? 1 : -1;
         const next = documents[(index + delta + documents.length) % documents.length];
-        dispatch({ type: "local", docId: next.id, page: 1, rotation: next.rotation });
+        dispatch({ type: "local", docId: next.id, page: 1 });
       }
     };
     window.addEventListener("keydown", onKey);

@@ -19,11 +19,6 @@ export interface ViewState {
   docId: string | null;
   /** Page courante, à partir de 1 */
   page: number;
-  /**
-   * Rotation de la page (sens horaire). Zoom, déplacement et curseur sont
-   * exprimés dans le repère de la page tournée.
-   */
-  rotation?: Rotation;
   /** Facteur de zoom, 1 = page ajustée à la fenêtre */
   zoom: number;
   /** Déplacement horizontal, en fraction de la largeur de la page */
@@ -41,7 +36,6 @@ export interface ViewState {
 export const INITIAL_VIEW_STATE: ViewState = {
   docId: null,
   page: 1,
-  rotation: 0,
   zoom: 1,
   panX: 0,
   panY: 0,
@@ -73,14 +67,10 @@ export function parseViewState(value: unknown): ViewState | null {
   if (!isFiniteNumber(v.zoom) || v.zoom <= 0) return null;
   if (!isFiniteNumber(v.panX) || !isFiniteNumber(v.panY)) return null;
   if (!isFiniteNumber(v.seq) || !isFiniteNumber(v.ts)) return null;
-  // Rotation absente (anciens états persistés) : 0.
-  const rotation = v.rotation === undefined ? 0 : v.rotation;
-  if (!isRotation(rotation)) return null;
 
   return {
     docId,
     page: v.page,
-    rotation,
     zoom: v.zoom,
     panX: v.panX,
     panY: v.panY,
@@ -90,6 +80,7 @@ export function parseViewState(value: unknown): ViewState | null {
   };
 }
 
+/** Rotation d'un document (propriété du document, pas de l'état synchronisé). */
 export function isRotation(value: unknown): value is Rotation {
   return value === 0 || value === 90 || value === 180 || value === 270;
 }

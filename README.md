@@ -226,7 +226,7 @@ supabase/migrations/   schéma SQL, RLS, Storage
 ## Synchronisation temps réel
 
 - **Canal** : un canal Supabase Realtime **Broadcast** par cockpit (`cockpit:<HMAC>`), sans serveur WebSocket custom.
-- **Message `state`** (remote → viewers) : `{ docId, page, rotation, zoom, panX, panY, seq, ts, cursor? }`.
+- **Message `state`** (remote → viewers) : `{ docId, page, zoom, panX, panY, seq, ts, cursor? }`.
   - `seq` est basé sur l'horloge et strictement croissant. Une remote rechargée repart donc au-dessus de ses anciens messages.
   - Le viewer ignore tout message plus ancien que le dernier appliqué.
   - Chaque message est validé à la réception : le canal est public pour qui connaît son nom.
@@ -292,14 +292,17 @@ Remote et viewer peuvent donc avoir des écrans de tailles et de formats différ
 - **Mise à jour immédiate** : changer de dossier actif, envoyer, déplacer ou supprimer un document envoie un événement Broadcast `documents_changed` sur le canal des cockpits (côté serveur, par HTTP). Les viewers rechargent alors leur liste sans attendre.
 - **Sécurité** : des clés étrangères composites `(folder_id, user_id)` garantissent qu'un document ou un cockpit ne peut référencer que les dossiers de son propriétaire.
 
-## Rotation
+## Rotation et sélection multiple (page Documents)
 
-- **Réglage** : en mode **Préparation** de la remote, les boutons ⟲ ⟳ tournent le document affiché par pas de 90°.
-- **Mémorisation** : la rotation est enregistrée sur le document (`documents.rotation`). Il s'affiche tourné à chaque fois, y compris dans les miniatures.
-- **Synchronisation** : la rotation fait partie de l'état synchronisé (`rotation` dans le message `state`), donc le casque suit immédiatement.
-- **Rendu** : la page est rendue déjà tournée (rotation native de pdf.js, transformation du canvas pour les images), donc nette à tout zoom.
+- **Rotation** : les boutons ⟲ ⟳ d'une carte tournent le document par pas de 90°.
+  - La rotation est une propriété du document (`documents.rotation`), visible dans toutes les miniatures.
+  - Les viewers rechargent leur liste (événement `documents_changed`) et affichent le document tourné, rendu nativement donc net à tout zoom.
   - Zoom, déplacement et curseur sont exprimés dans le repère de la page tournée.
-  - Tourner remet le zoom et le déplacement à zéro.
+- **Sélection multiple** : une case sur chaque carte, **Maj+clic** pour sélectionner une plage, ou « Tout sélectionner ». La barre d'actions permet ensuite de :
+  - **tourner** la sélection ⟲ ⟳ (chaque document depuis sa rotation actuelle) ;
+  - la **déplacer** vers un dossier ou vers les Communs ;
+  - la **supprimer** (fichiers compris).
+- Les modifications sont affichées tout de suite, et annulées si le serveur refuse.
 
 ## Rendu et cache du viewer
 

@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { STORAGE_BUCKET } from "@/lib/documents/storage";
 import { createClient } from "@/lib/supabase/server";
 import { notifyDocumentsChanged } from "@/lib/sync/notify";
-import { isRotation } from "@/lib/sync/protocol";
+import type { Rotation } from "@/lib/database.types";
+import { isRotation, rotateBy } from "@/lib/sync/protocol";
 import { cleanName, isUuid } from "@/lib/validation";
 
 export interface ActionResult {
@@ -146,5 +147,74 @@ export async function setDocumentRotation(id: string, rotation: number): Promise
 
   revalidatePath("/documents");
   revalidatePath("/remote");
+  await notifyDocumentsChanged(supabase);
+  return {};
+}
+
+// --- Actions groupées ------------------------------------------------------
+
+const MAX_BULK = 500;
+
+function validIds(ids: unknown): ids is string[] {
+  return Array.isArray(ids) && ids.length > 0 && ids.length <= MAX_BULK && ids.every(isUuid);
+}
+
+/** Tourne plusieurs documents de ±90° (chacun depuis sa rotation actuelle). */
+export async function rotateDocuments(ids: string[], delta: 1 | -1): Promise<ActionResult> {
+  if (!validIds(ids) || (delta !== 1 && delta !== -1)) return { error: "Sélection invalide." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("documents").select("id, rotation").in("id", ids);
+  if (error) return { error: "Rotation impossible." };
+
+  // Une requête par rotation de départ (4 au plus).
+  const groups = new Map<number, string[]>();
+  for (const d of data) groups.set(d.rotation, [...(groups.get(d.rotation) ?? []), d.id]);
+  const results = await Promise.all(
+    [...groups].map(([from, groupIds]) =>
+      supabase
+        .from("documents")
+        .update({ rotation: rotateBy(from as Rotation, delta) })
+        .in("id", groupIds),
+    ),
+  );
+  if (results.some((r) => r.error)) return { error: "Rotation impossible." };
+
+  revalidatePath("/documents");
+  revalidatePath("/remote");
+  await notifyDocumentsChanged(supabase);
+  return {};
+}
+
+/** Range plusieurs documents dans un dossier (null = Communs). */
+export async function moveDocuments(ids: string[], folderId: string | null): Promise<ActionResult> {
+  if (!validIds(ids) || (folderId !== null && !isUuid(folderId))) return { error: "Sélection invalide." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("documents").update({ folder_id: folderId }).in("id", ids);
+  if (error) return { error: "Déplacement impossible." };
+
+  revalidatePath("/documents");
+  await notifyDocumentsChanged(supabase);
+  return {};
+}
+
+/** Supprime plusieurs documents (lignes + fichiers). */
+export async function deleteDocuments(ids: string[]): Promise<ActionResult> {
+  if (!validIds(ids)) return { error: "Sélection invalide." };
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("documents")
+    .delete()
+    .in("id", ids)
+    .select("storage_path, thumbnail_path");
+  if (error) return { error: "Suppression impossible." };
+
+  const paths = data.flatMap((d) => [d.storage_path, d.thumbnail_path]).filter((p): p is string => !!p);
+  if (paths.length) await supabase.storage.from(STORAGE_BUCKET).remove(paths);
+
+  revalidatePath("/documents");
+  await notifyDocumentsChanged(supabase);
   return {};
 }
