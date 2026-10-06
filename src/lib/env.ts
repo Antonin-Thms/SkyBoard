@@ -8,7 +8,24 @@ function required(name: string, value: string | undefined): string {
 }
 
 export function supabaseUrl(): string {
-  return required("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL);
+  return normalizeSupabaseUrl(
+    required("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL),
+  );
+}
+
+/**
+ * Ne garde que l'origine (https://xxxx.supabase.co) : tolère une URL copiée
+ * avec un chemin (/rest/v1/), un slash final ou des guillemets.
+ */
+export function normalizeSupabaseUrl(value: string): string {
+  const cleaned = value.trim().replace(/^["']|["']$/g, "");
+  try {
+    return new URL(cleaned).origin;
+  } catch {
+    throw new Error(
+      `NEXT_PUBLIC_SUPABASE_URL invalide : "${cleaned}" (attendu : https://<id-projet>.supabase.co)`,
+    );
+  }
 }
 
 export function supabasePublishableKey(): string {
