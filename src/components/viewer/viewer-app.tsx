@@ -6,6 +6,10 @@ import { clampPage } from "@/lib/viewer/fit";
 import { pruneDocumentSources } from "@/lib/viewer/sources";
 import { PageView } from "./page-view";
 import { StatusBadge, type ViewerStatus } from "./status-badge";
+import { ViewerHelp } from "./viewer-help";
+
+/** Durée d'affichage du rappel « H : aide » au chargement. */
+const HELP_HINT_MS = 6_000;
 
 export interface ViewerOptions {
   showStatus: boolean;
@@ -21,6 +25,27 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
   const { data, status: dataStatus } = useViewerData(token);
   const [selection, setSelection] = useState<Selection | null>(null);
   const [renderError, setRenderError] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [hintVisible, setHintVisible] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setHintVisible(false), HELP_HINT_MS);
+    return () => clearTimeout(t);
+  }, []);
+
+  // Aide : H ou ? pour basculer, Échap pour fermer.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "h" || e.key === "H" || e.key === "?") {
+        setHelpOpen((open) => !open);
+        setHintVisible(false);
+      } else if (e.key === "Escape") {
+        setHelpOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const documents = useMemo(() => data?.documents ?? [], [data]);
 
@@ -87,6 +112,21 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
         )
       )}
       {options.showStatus && <StatusBadge status={status} detail={detail} />}
+      {options.showStatus && hintVisible && !helpOpen && (
+        <div className="pointer-events-none fixed bottom-2 left-2 rounded-full bg-black/40 px-2 py-1 text-[10px] text-white/70">
+          H : aide
+        </div>
+      )}
+      {helpOpen && (
+        <ViewerHelp
+          cockpitName={data?.cockpit.name ?? null}
+          docName={current?.doc.name ?? null}
+          page={current?.page ?? 1}
+          pageCount={current?.doc.pageCount ?? 1}
+          docIndex={current ? documents.findIndex((d) => d.id === current.doc.id) : 0}
+          docCount={documents.length}
+        />
+      )}
     </div>
   );
 }

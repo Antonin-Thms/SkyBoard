@@ -105,7 +105,9 @@ export function CockpitCard({ id, name, token }: CockpitCardProps) {
       </div>
 
       <div className="space-y-2">
-        <span className="text-sm text-slate-400">URL viewer (Web Dashboard d&apos;OpenKneeboard)</span>
+        <span className="text-sm text-slate-400">
+          URL viewer — à coller dans un onglet Web Dashboard d&apos;OpenKneeboard
+        </span>
         <div className="flex flex-wrap gap-2">
           <input
             className="input min-w-0 flex-1 font-mono text-xs"
@@ -118,19 +120,25 @@ export function CockpitCard({ id, name, token }: CockpitCardProps) {
             Ouvrir
           </a>
         </div>
-        <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-slate-300">
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={transparent} onChange={(e) => setTransparent(e.target.checked)} />
-            Fond transparent
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={hideStatus} onChange={(e) => setHideStatus(e.target.checked)} />
-            Masquer l&apos;indicateur de connexion
-          </label>
-          <label className="flex items-center gap-2">
-            <input type="checkbox" checked={cursor} onChange={(e) => setCursor(e.target.checked)} />
-            Autoriser le curseur
-          </label>
+        <div className="grid gap-2 pt-1 text-sm sm:grid-cols-3">
+          <Option
+            checked={transparent}
+            onChange={setTransparent}
+            label="Fond transparent"
+            hint="Pas de fond noir autour de la page : seul le document apparaît dans le casque."
+          />
+          <Option
+            checked={hideStatus}
+            onChange={setHideStatus}
+            label="Masquer l'indicateur"
+            hint="Cache le petit point de connexion en bas à droite (vert = OK, orange = connexion, rouge = erreur)."
+          />
+          <Option
+            checked={cursor}
+            onChange={setCursor}
+            label="Autoriser le curseur"
+            hint="Affiche la position de ton doigt sur l'iPad (disponible en phase 5)."
+          />
         </div>
       </div>
 
@@ -155,5 +163,29 @@ export function CockpitCard({ id, name, token }: CockpitCardProps) {
 
       {error && <p className="text-sm text-red-400">{error}</p>}
     </li>
+  );
+}
+
+interface OptionProps {
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  label: string;
+  hint: string;
+}
+
+function Option({ checked, onChange, label, hint }: OptionProps) {
+  return (
+    <label className="flex cursor-pointer gap-2 rounded-lg border border-slate-800 p-2 hover:border-slate-700">
+      <input
+        type="checkbox"
+        className="mt-0.5"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      <span>
+        <span className="block text-slate-200">{label}</span>
+        <span className="block text-xs text-slate-500">{hint}</span>
+      </span>
+    </label>
   );
 }

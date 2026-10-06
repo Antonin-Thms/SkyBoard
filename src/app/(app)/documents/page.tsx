@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { DocumentGrid, type DocumentItem } from "@/components/documents/document-grid";
 import { DocumentUploader } from "@/components/documents/document-uploader";
+import { HelpPanel } from "@/components/help-panel";
 import { STORAGE_BUCKET, THUMBNAIL_URL_TTL } from "@/lib/documents/storage";
 import { createClient } from "@/lib/supabase/server";
 
@@ -51,6 +52,18 @@ export default async function DocumentsPage() {
           </p>
         </div>
       </div>
+
+      <HelpPanel>
+        <ul className="list-disc space-y-1 pl-5">
+          <li>Ajoute tes kneeboards : PDF (plusieurs pages) ou images PNG / JPG, 50 Mo max.</li>
+          <li>
+            Pour réordonner, fais glisser la poignée <span className="font-mono">⠿</span> en haut à
+            gauche d&apos;une miniature (sur iPad : appui long, puis glisse). L&apos;ordre est celui
+            du viewer et de la remote.
+          </li>
+          <li>Tous tes documents sont visibles par tous tes cockpits.</li>
+        </ul>
+      </HelpPanel>
 
       <DocumentUploader userId={userId} nextSortOrder={nextSortOrder} />
 

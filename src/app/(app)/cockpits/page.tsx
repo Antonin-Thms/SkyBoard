@@ -1,5 +1,6 @@
 import { CockpitCard } from "@/components/cockpits/cockpit-card";
 import { CreateCockpitForm } from "@/components/cockpits/create-cockpit-form";
+import { HelpPanel } from "@/components/help-panel";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Cockpits · SkyBoard" };
@@ -21,6 +22,28 @@ export default async function CockpitsPage() {
           d&apos;OpenKneeboard. Garde cette URL secrète : elle donne accès à tes documents.
         </p>
       </div>
+
+      <HelpPanel>
+        <ol className="list-decimal space-y-1 pl-5">
+          <li>Crée un cockpit (par ex. un par avion, ou un seul pour tout).</li>
+          <li>
+            Coche les options voulues sous l&apos;URL : elles modifient l&apos;URL affichée.
+          </li>
+          <li>
+            Clique sur <strong>Copier</strong>, puis colle l&apos;URL dans un onglet{" "}
+            <em>Web Dashboard</em> d&apos;OpenKneeboard.
+          </li>
+          <li>
+            <strong>Ouvrir</strong> affiche le viewer dans un onglet du navigateur pour tester hors
+            VR. Dans le viewer, appuie sur <kbd className="rounded bg-slate-800 px-1">H</kbd> pour
+            l&apos;aide.
+          </li>
+        </ol>
+        <p className="text-slate-400">
+          Le viewer affiche tous tes documents (page Documents), dans l&apos;ordre choisi. Il
+          s&apos;ouvre sur le dernier document et la dernière page affichés.
+        </p>
+      </HelpPanel>
 
       <CreateCockpitForm />
 

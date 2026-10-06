@@ -118,7 +118,8 @@ Le viewer ne demande aucune interaction : il charge la liste des documents et af
 
 - **Viewer** : ouvre l'URL du cockpit dans un onglet du navigateur sur PC (bouton **Ouvrir**).
   - En test uniquement, les flèches **← →** changent de page et **↑ ↓** changent de document.
-  - Redimensionne la fenêtre pour vérifier l'ajustement.
+  - **H** affiche une aide (document et page courants, touches, indicateur, options d'URL).
+  - Pour vérifier l'ajustement, sors la fenêtre du plein écran (bouton « Restaurer ») et tire sur ses bords.
 - **Remote** *(phases 4-5)* : sur iPad, ou dans les DevTools de Chrome/Edge en mode appareil (Ctrl+Shift+M), avec un iPad en émulation tactile.
 
 ---
