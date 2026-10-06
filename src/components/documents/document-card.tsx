@@ -4,7 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useState, useTransition } from "react";
 import { deleteDocument, moveDocument, renameDocument } from "@/app/(app)/documents/actions";
-import { RotatedThumbnail } from "@/components/rotated-thumbnail";
+import { CachedThumbnail } from "@/components/cached-thumbnail";
 import type { FolderSummary } from "@/lib/documents/folders";
 import type { DocumentItem } from "./document-grid";
 
@@ -91,7 +91,7 @@ export function DocumentCard({
         } ${isDragging ? "shadow-2xl" : ""}`}
       >
         {item.thumbnailUrl ? (
-          <RotatedThumbnail src={item.thumbnailUrl} rotation={item.rotation} />
+          <CachedThumbnail docId={item.id} url={item.thumbnailUrl} rotation={item.rotation} />
         ) : (
           <div className="flex h-full items-center justify-center text-slate-500">
             {TYPE_LABEL[item.type]}

@@ -1,6 +1,8 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useEffect } from "react";
+import { pruneThumbnails } from "@/lib/documents/thumb-cache";
 import type { FolderSummary } from "@/lib/documents/folders";
 import { matchesFilter, parseFolderFilter } from "@/lib/documents/folders";
 import type { DocumentSummary } from "@/lib/documents/server-types";
@@ -18,6 +20,12 @@ interface DocumentsViewProps {
 /** Page Documents, filtrée par dossier dans le navigateur (changement instantané). */
 export function DocumentsView({ userId, documents, folders, nextSortOrder }: DocumentsViewProps) {
   const params = useSearchParams();
+
+  // Retire du cache navigateur les miniatures des documents supprimés.
+  const docIds = documents.map((d) => d.id).join(",");
+  useEffect(() => {
+    void pruneThumbnails(new Set(docIds.split(",").filter(Boolean)));
+  }, [docIds]);
   const filter = parseFolderFilter(
     params.get("folder") ?? undefined,
     folders.map((f) => f.id),

@@ -1,6 +1,6 @@
 "use client";
 
-import { RotatedThumbnail } from "@/components/rotated-thumbnail";
+import { CachedThumbnail } from "@/components/cached-thumbnail";
 import type { RemoteDocument } from "@/lib/remote/types";
 
 interface PrepModeProps {
@@ -105,7 +105,7 @@ export function PrepMode({
               >
                 <div className="relative aspect-[3/4] w-full bg-slate-950">
                   {doc.thumbnailUrl ? (
-                    <RotatedThumbnail src={doc.thumbnailUrl} rotation={doc.rotation} />
+                    <CachedThumbnail docId={doc.id} url={doc.thumbnailUrl} rotation={doc.rotation} />
                   ) : (
                     <span className="flex h-full items-center justify-center text-xs text-slate-600">
                       {doc.type === "application/pdf" ? "PDF" : "Image"}
