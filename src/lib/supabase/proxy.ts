@@ -5,7 +5,7 @@ import type { Database } from "@/lib/database.types";
 import { supabasePublishableKey, supabaseUrl } from "@/lib/env";
 
 /** Préfixes réservés aux utilisateurs connectés. */
-const PROTECTED_PREFIXES = ["/documents", "/cockpits", "/remote"];
+const PROTECTED_PREFIXES = ["/documents", "/cockpits", "/remote", "/escadrilles"];
 /** Pages d'auth : un utilisateur connecté est renvoyé vers l'app. */
 const AUTH_PAGES = ["/login", "/signup"];
 
@@ -44,7 +44,8 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.search = "";
-    url.searchParams.set("next", pathname);
+    // Requête conservée (code d'invitation d'escadrille, cockpit du QR code…).
+    url.searchParams.set("next", pathname + request.nextUrl.search);
     return redirectWithCookies(url, response);
   }
 

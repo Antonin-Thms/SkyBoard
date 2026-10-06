@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { DocumentsView } from "@/components/documents/documents-view";
 import { HelpPanel } from "@/components/help-panel";
 import { getDocuments, getFolders } from "@/lib/documents/server";
+import { getSquadrons } from "@/lib/squadrons/server";
 import { getSessionClaims } from "@/lib/supabase/server";
 
 export const metadata = { title: "Documents · SkyBoard" };
@@ -11,8 +12,13 @@ export default async function DocumentsPage() {
   const userId = (await getSessionClaims())?.sub;
   if (!userId) redirect("/login");
 
-  const [{ documents, error }, folders] = await Promise.all([getDocuments(), getFolders()]);
-  const nextSortOrder = documents.reduce((max, d) => Math.max(max, d.sortOrder), 0) + 1;
+  const [{ documents, error }, folders, squadrons] = await Promise.all([
+    getDocuments(),
+    getFolders(),
+    getSquadrons(),
+  ]);
+  const nextSortOrder =
+    documents.filter((d) => !d.readOnly).reduce((max, d) => Math.max(max, d.sortOrder), 0) + 1;
 
   return (
     <div className="space-y-6">
@@ -25,6 +31,7 @@ export default async function DocumentsPage() {
             userId={userId}
             documents={documents}
             folders={folders}
+            squadrons={squadrons.map(({ id, name }) => ({ id, name }))}
             nextSortOrder={nextSortOrder}
           />
         </Suspense>

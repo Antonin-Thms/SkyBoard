@@ -14,10 +14,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   // Dossiers et compteurs pour la navigation. Mêmes lectures que la page
   // (mémoïsées par requête) : pas d'aller-retour Supabase supplémentaire.
   const [folders, { documents }] = await Promise.all([getFolders(), getDocuments()]);
-  const counts = { all: documents.length, common: 0, byFolder: {} as Record<string, number> };
+  const counts = { all: 0, common: 0, byFolder: {} as Record<string, number> };
   for (const d of documents) {
+    if (!d.readOnly) counts.all++;
     if (d.folderId) counts.byFolder[d.folderId] = (counts.byFolder[d.folderId] ?? 0) + 1;
-    else counts.common++;
+    else if (!d.readOnly) counts.common++;
   }
 
   return (

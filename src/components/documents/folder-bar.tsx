@@ -4,6 +4,7 @@ import { FolderLink } from "@/components/folder-link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createFolder, deleteFolder, renameFolder } from "@/app/(app)/documents/actions";
+import { shareFolder } from "@/app/(app)/escadrilles/actions";
 import type { FolderFilter, FolderSummary } from "@/lib/documents/folders";
 
 interface FolderBarProps {
@@ -11,6 +12,7 @@ interface FolderBarProps {
   filter: FolderFilter;
   totalCount: number;
   commonCount: number;
+  squadrons: { id: string; name: string }[];
 }
 
 const pill = (active: boolean) =>
@@ -21,7 +23,7 @@ const pill = (active: boolean) =>
   }`;
 
 /** Filtre par dossier + gestion des dossiers. */
-export function FolderBar({ folders, filter, totalCount, commonCount }: FolderBarProps) {
+export function FolderBar({ folders, filter, totalCount, commonCount, squadrons }: FolderBarProps) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState(false);
@@ -47,6 +49,14 @@ export function FolderBar({ folders, filter, totalCount, commonCount }: FolderBa
       if (res.error) return setError(res.error);
       setError(null);
       setRenaming(false);
+    });
+
+  const share = (squadronId: string | null) =>
+    startTransition(async () => {
+      if (!current) return;
+      const res = await shareFolder(current.id, squadronId);
+      setError(res.error ?? null);
+      router.refresh();
     });
 
   const remove = () => {
@@ -84,7 +94,7 @@ export function FolderBar({ folders, filter, totalCount, commonCount }: FolderBa
             href={`/documents?folder=${f.id}`}
             className={pill(filter.kind === "folder" && filter.id === f.id)}
           >
-            📁 {f.name} · {f.count}
+            {f.readOnly ? "⇄" : "📁"} {f.name} · {f.count}
           </FolderLink>
         ))}
         {!creating && (
@@ -126,7 +136,15 @@ export function FolderBar({ folders, filter, totalCount, commonCount }: FolderBa
         </form>
       )}
 
+      {current?.readOnly && (
+        <p className="text-sm text-slate-400">
+          Dossier partagé par l&apos;escadrille {current.squadronName} : lecture seule. Choisis-le
+          comme dossier actif d&apos;un cockpit (page Remote ou Cockpits) pour l&apos;afficher dans
+          le casque.
+        </p>
+      )}
       {current &&
+        !current.readOnly &&
         !creating &&
         (renaming ? (
           <form
@@ -165,6 +183,23 @@ export function FolderBar({ folders, filter, totalCount, commonCount }: FolderBa
             <button type="button" className="text-red-400 hover:text-red-300" onClick={remove}>
               Supprimer le dossier
             </button>
+            {squadrons.length > 0 && (
+              <label className="flex items-center gap-2 text-slate-400">
+                Partager avec
+                <select
+                  className="cursor-pointer border-0 bg-transparent p-0 text-sm text-slate-200"
+                  value={current.squadronId ?? ""}
+                  onChange={(e) => share(e.target.value || null)}
+                >
+                  <option value="">personne</option>
+                  {squadrons.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
         ))}
       {error && <p className="text-sm text-red-400">{error}</p>}

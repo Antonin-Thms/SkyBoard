@@ -33,7 +33,7 @@ Fonctionnalités :
      npx supabase link --project-ref <ref-du-projet>
      npx supabase db push
      ```
-   Les migrations créent les tables `cockpits` et `documents`, la RLS, et le bucket privé `kneeboards` (50 Mo max, PDF/PNG/JPEG).
+   Les migrations créent les tables (cockpits, documents, dossiers, annotations, escadrilles), la RLS, et le bucket privé `kneeboards` (50 Mo max, PDF/PNG/JPEG).
    **Après une mise à jour du code**, exécute les nouveaux fichiers de migration (ceux que tu n'as pas encore appliqués).
 3. **Authentication → Sign In / Providers → Email** : laisse « Email » activé.
    - Pour un usage perso, tu peux désactiver *Confirm email* : le compte est alors utilisable immédiatement.
@@ -296,6 +296,14 @@ Remote et viewer peuvent donc avoir des écrans de tailles et de formats différ
   - les envois, `.miz` compris, vont dans le dossier affiché.
 - **Mise à jour immédiate** : changer de dossier actif, envoyer, déplacer ou supprimer un document envoie un événement Broadcast `documents_changed` sur le canal des cockpits (côté serveur, par HTTP). Les viewers rechargent alors leur liste sans attendre.
 - **Sécurité** : des clés étrangères composites `(folder_id, user_id)` garantissent qu'un document ou un cockpit ne peut référencer que les dossiers de son propriétaire.
+
+## Escadrilles (partage)
+
+- Page **Escadrilles** : crée une escadrille (nom + ton indicatif) et envoie le lien d'invitation (`/escadrilles/rejoindre?code=…`) à tes coéquipiers. Le propriétaire peut régénérer le lien, retirer un membre ou supprimer l'escadrille.
+- **Partager un dossier** : depuis la page Escadrilles, ou sur la page Documents (dossier ouvert → « Partager avec »). Un dossier est partagé avec une seule escadrille à la fois.
+- Les membres voient le dossier sous « Escadrilles » (page Documents), **en lecture seule**, et peuvent le choisir comme dossier actif d'un cockpit : le casque affiche ce dossier plus leurs propres Communs. Quand le propriétaire modifie le dossier, leurs viewers rechargent.
+- Annotations : chacun annote pour soi, y compris sur les documents partagés.
+- Règles en base (migration `20261011000000_squadrons.sql`) : RLS sur dossiers, documents et fichiers (lecture pour les membres), fonctions `create_squadron`, `join_squadron`, `leave_squadron`, `delete_squadron`, `share_folder`. Quitter une escadrille ou arrêter un partage remet à « tous » les cockpits qui affichaient le dossier.
 
 ## Rotation et sélection multiple (page Documents)
 

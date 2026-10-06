@@ -44,20 +44,40 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/viewer/[toke
   }
   if (!cockpit) return notFound();
 
-  // Dossier actif : ses documents + les documents communs (sans dossier).
-  // Nom du dossier et documents demandés en parallèle.
-  const folderId = cockpit.active_folder_id;
-  let docsQuery = admin
+  // Dossier actif : ses documents + les documents communs (sans dossier) du
+  // pilote. Le dossier peut être partagé par un coéquipier : on vérifie que
+  // le pilote est toujours membre de l'escadrille, sinon on l'ignore.
+  let folderId = cockpit.active_folder_id;
+  let folderRes: { data: { name: string } | null } = { data: null };
+  if (folderId) {
+    const { data: f } = await admin
+      .from("folders")
+      .select("name, user_id, squadron_id")
+      .eq("id", folderId)
+      .maybeSingle();
+    let accessible = !!f && f.user_id === cockpit.user_id;
+    if (f && !accessible && f.squadron_id) {
+      const { data: member } = await admin
+        .from("squadron_members")
+        .select("user_id")
+        .eq("squadron_id", f.squadron_id)
+        .eq("user_id", cockpit.user_id)
+        .maybeSingle();
+      accessible = !!member;
+    }
+    if (accessible && f) folderRes = { data: { name: f.name } };
+    else folderId = null;
+  }
+  const docsQuery = admin
     .from("documents")
     .select("id, name, type, page_count, rotation, storage_path")
-    .eq("user_id", cockpit.user_id);
-  if (folderId) docsQuery = docsQuery.or(`folder_id.is.null,folder_id.eq.${folderId}`);
-  const [folderRes, docsRes] = await Promise.all([
-    folderId
-      ? admin.from("folders").select("name").eq("id", folderId).maybeSingle()
-      : Promise.resolve({ data: null }),
-    docsQuery.order("sort_order").order("created_at"),
-  ]);
+    // Avec un dossier actif : communs du pilote + documents du dossier (éventuellement d'un coéquipier).
+    .or(
+      folderId
+        ? `and(user_id.eq.${cockpit.user_id},folder_id.is.null),folder_id.eq.${folderId}`
+        : `user_id.eq.${cockpit.user_id}`,
+    );
+  const docsRes = await docsQuery.order("sort_order").order("created_at");
   const folder = folderRes.data ? { name: folderRes.data.name } : null;
   const { data: rows, error: docsError } = docsRes;
   if (docsError) {
@@ -79,6 +99,8 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/viewer/[toke
       admin
         .from("annotations")
         .select("document_id, page, strokes")
+        // Annotations du pilote de ce cockpit uniquement.
+        .eq("user_id", cockpit.user_id)
         .in(
           "document_id",
           docs.map((d) => d.id),

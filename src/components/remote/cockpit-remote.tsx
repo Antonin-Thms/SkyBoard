@@ -51,7 +51,7 @@ export function CockpitRemote({
   const [folderPending, startFolderTransition] = useTransition();
   // Dossier actif : ses documents + les communs. Les gestes ne parcourent que ceux-là.
   const documents = useMemo(
-    () => allDocuments.filter((d) => isVisibleInActiveFolder(d.folderId, activeFolderId)),
+    () => allDocuments.filter((d) => isVisibleInActiveFolder(d, activeFolderId)),
     [allDocuments, activeFolderId],
   );
   const [cursorPref, setCursorPref] = useLocalStorage("skyboard:cursor");
@@ -69,7 +69,7 @@ export function CockpitRemote({
     startFolderTransition(async () => {
       setOptimisticFolder(folderId);
       // Le document affiché n'est plus dans le dossier : on passe au premier visible.
-      const visible = allDocuments.filter((d) => isVisibleInActiveFolder(d.folderId, folderId));
+      const visible = allDocuments.filter((d) => isVisibleInActiveFolder(d, folderId));
       if (state.docId && !visible.some((d) => d.id === state.docId)) {
         apply(visible[0] ? selectDocument(state, visible[0], pageMemory()) : { ...state, docId: null, page: 1 });
       }
@@ -216,7 +216,7 @@ export function CockpitRemote({
               <option value="">Tous les documents</option>
               {folders.map((f) => (
                 <option key={f.id} value={f.id}>
-                  📁 {f.name}
+                  {f.readOnly ? `⇄ ${f.name} (${f.squadronName ?? "escadrille"})` : `📁 ${f.name}`}
                 </option>
               ))}
             </select>

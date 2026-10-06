@@ -9,5 +9,7 @@ export interface DocumentSummary {
   sortOrder: number;
   folderId: string | null;
   rotation: Rotation;
+  /** Partagé par un autre pilote de l'escadrille : lecture seule */
+  readOnly: boolean;
   thumbnailUrl: string | null;
 }

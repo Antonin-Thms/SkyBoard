@@ -9,16 +9,19 @@ import type { DocumentSummary } from "@/lib/documents/server-types";
 import { DocumentGrid, type DocumentItem } from "./document-grid";
 import { DocumentUploader } from "./document-uploader";
 import { FolderBar } from "./folder-bar";
+import { SharedDocumentGrid } from "./shared-document-grid";
 
 interface DocumentsViewProps {
   userId: string;
   documents: DocumentSummary[];
   folders: FolderSummary[];
+  /** Escadrilles de l'utilisateur (partage d'un dossier) */
+  squadrons: { id: string; name: string }[];
   nextSortOrder: number;
 }
 
 /** Page Documents, filtrée par dossier dans le navigateur (changement instantané). */
-export function DocumentsView({ userId, documents, folders, nextSortOrder }: DocumentsViewProps) {
+export function DocumentsView({ userId, documents, folders, squadrons, nextSortOrder }: DocumentsViewProps) {
   const params = useSearchParams();
 
   // Retire du cache navigateur les miniatures des documents supprimés.
@@ -32,7 +35,7 @@ export function DocumentsView({ userId, documents, folders, nextSortOrder }: Doc
   );
 
   const items: DocumentItem[] = documents
-    .filter((d) => matchesFilter(d.folderId, filter))
+    .filter((d) => matchesFilter(d, filter))
     .map(({ id, name, type, pageCount, thumbnailUrl, folderId, rotation }) => ({
       id,
       name,
@@ -44,7 +47,14 @@ export function DocumentsView({ userId, documents, folders, nextSortOrder }: Doc
     }));
   const currentFolder = filter.kind === "folder" ? folders.find((f) => f.id === filter.id) : undefined;
   const contextLabel =
-    filter.kind === "all" ? "Tous les documents" : filter.kind === "common" ? "Communs" : (currentFolder?.name ?? "");
+    filter.kind === "all"
+      ? "Tous les documents"
+      : filter.kind === "common"
+        ? "Communs"
+        : currentFolder?.readOnly
+          ? `${currentFolder.name} · escadrille ${currentFolder.squadronName ?? ""}`
+          : (currentFolder?.name ?? "");
+  const own = documents.filter((d) => !d.readOnly);
   const folderCounts = folders.map((f) => ({
     ...f,
     count: documents.filter((d) => d.folderId === f.id).length,
@@ -62,19 +72,27 @@ export function DocumentsView({ userId, documents, folders, nextSortOrder }: Doc
       <FolderBar
         folders={folderCounts}
         filter={filter}
-        totalCount={documents.length}
-        commonCount={documents.filter((d) => d.folderId === null).length}
+        totalCount={own.length}
+        commonCount={own.filter((d) => d.folderId === null).length}
+        squadrons={squadrons}
       />
 
-      {/* Les envois vont dans le dossier affiché (Communs pour « Tous » et « Communs »). */}
-      <DocumentUploader
-        userId={userId}
-        nextSortOrder={nextSortOrder}
-        folderId={currentFolder?.id ?? null}
-        folderName={currentFolder?.name ?? null}
-      />
+      {currentFolder?.readOnly ? (
+        // Dossier d'un coéquipier : consultation seulement.
+        <SharedDocumentGrid documents={documents.filter((d) => d.folderId === currentFolder.id)} />
+      ) : (
+        <>
+          {/* Les envois vont dans le dossier affiché (Communs pour « Tous » et « Communs »). */}
+          <DocumentUploader
+            userId={userId}
+            nextSortOrder={nextSortOrder}
+            folderId={currentFolder?.id ?? null}
+            folderName={currentFolder?.name ?? null}
+          />
 
-      <DocumentGrid key={gridKey} initialItems={items} folders={folders} />
+          <DocumentGrid key={gridKey} initialItems={items} folders={folders.filter((f) => !f.readOnly)} />
+        </>
+      )}
     </>
   );
 }

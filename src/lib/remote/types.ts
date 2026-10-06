@@ -19,4 +19,6 @@ export interface RemoteDocument {
   thumbnailUrl: string | null;
   folderId: string | null;
   rotation: Rotation;
+  /** Partagé par un autre pilote de l'escadrille */
+  readOnly: boolean;
 }

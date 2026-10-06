@@ -75,6 +75,8 @@ export interface Database {
           user_id: string;
           name: string;
           sort_order: number;
+          /** Escadrille avec laquelle le dossier est partagé */
+          squadron_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -85,6 +87,29 @@ export interface Database {
           name?: string;
           sort_order?: number;
         };
+        Relationships: [];
+      };
+      squadrons: {
+        Row: {
+          id: string;
+          name: string;
+          owner_id: string;
+          invite_code: string;
+          created_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
+      squadron_members: {
+        Row: {
+          squadron_id: string;
+          user_id: string;
+          callsign: string;
+          joined_at: string;
+        };
+        Insert: never;
+        Update: never;
         Relationships: [];
       };
       annotations: {
@@ -140,6 +165,30 @@ export interface Database {
       };
       annotation_clear: {
         Args: { document_ids: string[]; page?: number | null };
+        Returns: undefined;
+      };
+      create_squadron: {
+        Args: { name: string; callsign: string };
+        Returns: string;
+      };
+      join_squadron: {
+        Args: { code: string; callsign: string };
+        Returns: string;
+      };
+      leave_squadron: {
+        Args: { squadron: string; member?: string | null };
+        Returns: undefined;
+      };
+      delete_squadron: {
+        Args: { squadron: string };
+        Returns: undefined;
+      };
+      regenerate_squadron_invite: {
+        Args: { squadron: string };
+        Returns: string;
+      };
+      share_folder: {
+        Args: { folder: string; squadron: string | null };
         Returns: undefined;
       };
       save_last_state: {

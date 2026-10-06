@@ -11,6 +11,7 @@ const LINKS = [
   { href: "/documents", label: "Documents" },
   { href: "/cockpits", label: "Cockpits" },
   { href: "/remote", label: "Remote" },
+  { href: "/escadrilles", label: "Escadrilles" },
 ] as const;
 
 interface AppNavProps {
@@ -61,13 +62,26 @@ function FolderNav({ folders, counts }: AppNavProps) {
   const items = [
     { key: "all", href: "/documents", label: "Tous", count: counts.all },
     { key: "common", href: "/documents?folder=common", label: "Communs", count: counts.common },
-    ...folders.map((f) => ({
+    ...folders
+      .filter((f) => !f.readOnly)
+      .map((f) => ({
+        key: f.id,
+        href: `/documents?folder=${f.id}`,
+        label: f.squadronId ? `${f.name} ⇄` : f.name,
+        title: f.squadronName ? `Partagé avec ${f.squadronName}` : undefined,
+        count: counts.byFolder[f.id] ?? 0,
+      })),
+  ];
+  // Dossiers partagés par les coéquipiers (lecture seule).
+  const shared = folders
+    .filter((f) => f.readOnly)
+    .map((f) => ({
       key: f.id,
       href: `/documents?folder=${f.id}`,
       label: f.name,
+      title: f.squadronName ? `Escadrille ${f.squadronName} (lecture seule)` : undefined,
       count: counts.byFolder[f.id] ?? 0,
-    })),
-  ];
+    }));
 
   const create = () =>
     startTransition(async () => {
@@ -89,6 +103,7 @@ function FolderNav({ folders, counts }: AppNavProps) {
           <FolderLink
             key={item.key}
             href={item.href}
+            title={"title" in item ? item.title : undefined}
             aria-current={active ? "page" : undefined}
             className={`flex justify-between gap-3 px-3 py-1.5 transition ${
               active ? "bg-slate-900 text-slate-100" : "text-slate-400 hover:text-slate-100"
@@ -99,6 +114,29 @@ function FolderNav({ folders, counts }: AppNavProps) {
           </FolderLink>
         );
       })}
+      {shared.length > 0 && (
+        <>
+          <div className="label-caps px-3 pb-1.5 pt-4">Escadrilles</div>
+          {shared.map((item) => {
+            const active = current === item.key;
+            return (
+              <FolderLink
+                key={item.key}
+                href={item.href}
+                title={item.title}
+                aria-current={active ? "page" : undefined}
+                className={`flex justify-between gap-3 px-3 py-1.5 transition ${
+                  active ? "bg-slate-900 text-slate-100" : "text-slate-400 hover:text-slate-100"
+                }`}
+              >
+                <span className="truncate">{item.label}</span>
+                <span className={active ? "text-accent" : ""}>{item.count}</span>
+              </FolderLink>
+            );
+          })}
+          <div className="pt-2" />
+        </>
+      )}
       {creating ? (
         <form
           className="mt-1 flex flex-col gap-2 px-1"
