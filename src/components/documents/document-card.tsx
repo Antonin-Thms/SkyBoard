@@ -102,20 +102,30 @@ export function DocumentCard({
         >
           ⠿
         </button>
-        {/* Grande zone cliquable pour cocher au doigt */}
-        <label className="absolute right-0 top-0 flex h-11 w-11 cursor-pointer items-start justify-end p-2">
-          <input
-            type="checkbox"
-            className="h-5 w-5 accent-sky-500"
-            checked={selected}
-            aria-label={`Sélectionner ${item.name}`}
-            onClick={(e) => {
-              e.preventDefault();
-              onToggleSelect(e.shiftKey);
-            }}
-            readOnly
-          />
-        </label>
+        {/*
+          Case de sélection : un bouton (et non un <input type="checkbox">) dont
+          l'affichage dépend uniquement de l'état React. Une vraie case dont on
+          annule le clic (pour gérer Maj+clic) se redessine avec un clic de retard.
+          Grande zone cliquable pour cocher au doigt.
+        */}
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={selected}
+          aria-label={`Sélectionner ${item.name}`}
+          onClick={(e) => onToggleSelect(e.shiftKey)}
+          className="absolute right-0 top-0 flex h-11 w-11 items-start justify-end p-2"
+        >
+          <span
+            className={`flex h-5 w-5 items-center justify-center rounded border-2 text-xs font-bold leading-none ${
+              selected
+                ? "border-sky-500 bg-sky-500 text-slate-950"
+                : "border-slate-300 bg-slate-900/70 text-transparent"
+            }`}
+          >
+            ✓
+          </span>
+        </button>
         <span className="absolute bottom-2 right-2 rounded bg-slate-900/80 px-1.5 py-0.5 text-xs text-slate-300">
           {TYPE_LABEL[item.type]}
           {item.type === "application/pdf" && ` · ${item.pageCount} p.`}
