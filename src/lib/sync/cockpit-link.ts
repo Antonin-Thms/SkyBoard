@@ -1,15 +1,10 @@
 "use client";
 
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
+import { SYNC_EVENTS } from "./events";
 import { parseViewState, type ViewState } from "./protocol";
 
-/** Événements Broadcast échangés sur le canal d'un cockpit. */
-export const SYNC_EVENTS = {
-  /** remote → viewers (et autres remotes) : nouvel état */
-  state: "state",
-  /** viewer → remotes : « envoyez-moi l'état courant » */
-  requestState: "request_state",
-} as const;
+export { SYNC_EVENTS };
 
 /** Délai avant de recréer un canal fermé de façon inattendue (ms). */
 const REOPEN_DELAY_MS = 2_000;
@@ -19,6 +14,8 @@ export type LinkStatus = "connecting" | "connected" | "disconnected";
 export interface CockpitLinkHandlers {
   onState?: (state: ViewState) => void;
   onRequestState?: () => void;
+  /** La liste des documents a changé (envoyé par le serveur) */
+  onDocumentsChanged?: () => void;
   onStatus?: (status: LinkStatus) => void;
   /** Appelé à chaque (re)connexion effective au canal. */
   onConnected?: () => void;
@@ -82,6 +79,7 @@ export function connectCockpit(
       if (state) handlers.onState?.(state);
     });
     ch.on("broadcast", { event: SYNC_EVENTS.requestState }, () => handlers.onRequestState?.());
+    ch.on("broadcast", { event: SYNC_EVENTS.documentsChanged }, () => handlers.onDocumentsChanged?.());
 
     ch.subscribe((s) => {
       if (closed || ch !== channel) return;

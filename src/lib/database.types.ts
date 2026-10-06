@@ -21,6 +21,7 @@ export interface Database {
           name: string;
           viewer_token: string;
           last_state: Json | null;
+          active_folder_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -29,6 +30,7 @@ export interface Database {
         Update: {
           name?: string;
           last_state?: Json | null;
+          active_folder_id?: string | null;
         };
         Relationships: [];
       };
@@ -42,6 +44,7 @@ export interface Database {
           thumbnail_path: string | null;
           page_count: number;
           sort_order: number;
+          folder_id: string | null;
           created_at: string;
         };
         Insert: {
@@ -51,10 +54,30 @@ export interface Database {
           thumbnail_path?: string | null;
           page_count?: number;
           sort_order?: number;
+          folder_id?: string | null;
         };
         Update: {
           name?: string;
           thumbnail_path?: string | null;
+          sort_order?: number;
+          folder_id?: string | null;
+        };
+        Relationships: [];
+      };
+      folders: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          name: string;
+          sort_order?: number;
+        };
+        Update: {
+          name?: string;
           sort_order?: number;
         };
         Relationships: [];
@@ -78,3 +101,4 @@ export interface Database {
 
 export type CockpitRow = Database["public"]["Tables"]["cockpits"]["Row"];
 export type DocumentRow = Database["public"]["Tables"]["documents"]["Row"];
+export type FolderRow = Database["public"]["Tables"]["folders"]["Row"];

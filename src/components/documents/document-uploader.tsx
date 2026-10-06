@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import { documentsUploaded } from "@/app/(app)/documents/actions";
 import { ACCEPT_ATTRIBUTE } from "@/lib/documents/file-type";
 import { isMizFileName } from "@/lib/documents/miz";
 import { extractMizKneeboards, type ExtractedKneeboard } from "@/lib/documents/miz-extract";
@@ -20,9 +21,12 @@ interface UploadEntry {
 interface DocumentUploaderProps {
   userId: string;
   nextSortOrder: number;
+  /** Dossier de destination des envois (null : Communs) */
+  folderId: string | null;
+  folderName: string | null;
 }
 
-export function DocumentUploader({ userId, nextSortOrder }: DocumentUploaderProps) {
+export function DocumentUploader({ userId, nextSortOrder, folderId, folderName }: DocumentUploaderProps) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const sortOrderRef = useRef(nextSortOrder);
@@ -48,12 +52,14 @@ export function DocumentUploader({ userId, nextSortOrder }: DocumentUploaderProp
     sortOrderRef.current = Math.max(sortOrderRef.current, nextSortOrder);
 
     // Séquentiel : évite de saturer la mémoire (rendu pdf.js) et la connexion.
+    let uploaded = 0;
     for (const [i, { file, name }] of items.entries()) {
       const { key } = batch[i];
       update(key, { status: "uploading" });
       try {
-        await uploadDocument(supabase, userId, file, sortOrderRef.current++, name);
+        await uploadDocument(supabase, userId, file, sortOrderRef.current++, name, folderId);
         update(key, { status: "done" });
+        uploaded++;
         router.refresh();
       } catch (err) {
         update(key, {
@@ -62,6 +68,8 @@ export function DocumentUploader({ userId, nextSortOrder }: DocumentUploaderProp
         });
       }
     }
+    // Les viewers ouverts rechargent leur liste de documents.
+    if (uploaded > 0) void documentsUploaded();
   }
 
   async function handleFiles(fileList: FileList | null) {
@@ -113,6 +121,9 @@ export function DocumentUploader({ userId, nextSortOrder }: DocumentUploaderProp
         >
           {busy ? "Envoi en cours…" : "Choisir des fichiers"}
         </button>
+        <p className="text-xs text-slate-500">
+          Destination : {folderName ? `📁 ${folderName}` : "Communs (sans dossier)"}
+        </p>
         <input
           ref={inputRef}
           type="file"

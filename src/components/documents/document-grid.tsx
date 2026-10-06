@@ -19,6 +19,7 @@ import {
 import { useState } from "react";
 import { reorderDocuments } from "@/app/(app)/documents/actions";
 import type { DocumentMimeType } from "@/lib/database.types";
+import type { FolderSummary } from "@/lib/documents/folders";
 import { DocumentCard } from "./document-card";
 
 export interface DocumentItem {
@@ -27,9 +28,15 @@ export interface DocumentItem {
   type: DocumentMimeType;
   pageCount: number;
   thumbnailUrl: string | null;
+  folderId: string | null;
 }
 
-export function DocumentGrid({ initialItems }: { initialItems: DocumentItem[] }) {
+interface DocumentGridProps {
+  initialItems: DocumentItem[];
+  folders: FolderSummary[];
+}
+
+export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
   const [items, setItems] = useState(initialItems);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,7 +66,7 @@ export function DocumentGrid({ initialItems }: { initialItems: DocumentItem[] })
   if (items.length === 0) {
     return (
       <p className="rounded-2xl border border-slate-800 p-8 text-center text-slate-500">
-        Aucun document pour l&apos;instant.
+        Aucun document ici pour l&apos;instant.
       </p>
     );
   }
@@ -74,6 +81,7 @@ export function DocumentGrid({ initialItems }: { initialItems: DocumentItem[] })
               <DocumentCard
                 key={item.id}
                 item={item}
+                folders={folders}
                 onDeleted={() => setItems((list) => list.filter((i) => i.id !== item.id))}
                 onRenamed={(name) =>
                   setItems((list) => list.map((i) => (i.id === item.id ? { ...i, name } : i)))

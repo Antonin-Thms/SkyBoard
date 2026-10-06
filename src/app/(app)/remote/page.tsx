@@ -1,7 +1,7 @@
 import type { Viewport } from "next";
 import Link from "next/link";
 import { RemoteApp } from "@/components/remote/remote-app";
-import { listDocumentsWithThumbnails } from "@/lib/documents/server";
+import { listDocumentsWithThumbnails, listFolders } from "@/lib/documents/server";
 import type { RemoteCockpit, RemoteDocument } from "@/lib/remote/types";
 import { createClient } from "@/lib/supabase/server";
 import { channelNameForToken } from "@/lib/sync/channel";
@@ -21,9 +21,13 @@ export const viewport: Viewport = {
 export default async function RemotePage({ searchParams }: PageProps<"/remote">) {
   const query = await searchParams;
   const supabase = await createClient();
-  const [{ data: rows }, { documents: docs }] = await Promise.all([
-    supabase.from("cockpits").select("id, name, viewer_token, last_state").order("created_at"),
+  const [{ data: rows }, { documents: docs }, folders] = await Promise.all([
+    supabase
+      .from("cockpits")
+      .select("id, name, viewer_token, last_state, active_folder_id")
+      .order("created_at"),
     listDocumentsWithThumbnails(supabase),
+    listFolders(supabase),
   ]);
 
   // Le token reste côté serveur : la remote ne reçoit que le nom du canal.
@@ -32,14 +36,18 @@ export default async function RemotePage({ searchParams }: PageProps<"/remote">)
     name: c.name,
     channel: channelNameForToken(c.viewer_token),
     lastState: parseViewState(c.last_state),
+    activeFolderId: c.active_folder_id,
   }));
-  const documents: RemoteDocument[] = docs.map(({ id, name, type, pageCount, thumbnailUrl }) => ({
-    id,
-    name,
-    type,
-    pageCount,
-    thumbnailUrl,
-  }));
+  const documents: RemoteDocument[] = docs.map(
+    ({ id, name, type, pageCount, thumbnailUrl, folderId }) => ({
+      id,
+      name,
+      type,
+      pageCount,
+      thumbnailUrl,
+      folderId,
+    }),
+  );
 
   if (cockpits.length === 0) {
     return (
@@ -58,6 +66,7 @@ export default async function RemotePage({ searchParams }: PageProps<"/remote">)
     <RemoteApp
       cockpits={cockpits}
       documents={documents}
+      folders={folders}
       initialCockpitId={cockpits.some((c) => c.id === requested) ? requested : null}
       initialMode={query.mode === "flight" ? "flight" : "prep"}
     />

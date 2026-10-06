@@ -230,6 +230,7 @@ supabase/migrations/   schéma SQL, RLS, Storage
   - `seq` est basé sur l'horloge et strictement croissant. Une remote rechargée repart donc au-dessus de ses anciens messages.
   - Le viewer ignore tout message plus ancien que le dernier appliqué.
   - Chaque message est validé à la réception : le canal est public pour qui connaît son nom.
+- **Message `documents_changed`** (serveur → viewers et remotes) : la liste des documents a changé, la recharger.
 - **Message `request_state`** (viewer → remotes) : envoyé à chaque (re)connexion du viewer. La remote répond avec l'état courant.
 - **Persistance** : la remote écrit le dernier état dans `cockpits.last_state` 1 s après le dernier changement, et à la fermeture de la page. Un viewer qui démarre seul affiche cet état.
 - **Reconnexion** : supabase-js reconnecte le socket et rejoint le canal automatiquement.
@@ -278,6 +279,18 @@ Remote et viewer peuvent donc avoir des écrans de tailles et de formats différ
   - Il reste fluide même si les messages arrivent par à-coups.
 - **Transformation** : elle est écrite directement dans le DOM, sans re-rendu React.
 - **Changement de page ou de document** : la vue saute directement à la cible.
+
+## Dossiers
+
+- **Principe** : un document appartient à au plus un dossier, par exemple un par serveur multijoueur. Les documents sans dossier sont les **Communs**, comme tes checklists perso.
+- **Dossier actif** : chaque cockpit en a un (`cockpits.active_folder_id`), choisi sur la page **Remote** ou **Cockpits**. Le viewer et la remote affichent alors ce dossier **plus** les Communs, et les gestes « document suivant/précédent » ne parcourent que ceux-là. Sans dossier actif, tout est affiché.
+- **Page Documents** :
+  - filtre Tous / Communs / dossier ;
+  - création, renommage et suppression des dossiers (supprimer un dossier n'efface pas ses documents : ils redeviennent communs) ;
+  - déplacement d'un document via le menu de sa carte ;
+  - les envois, `.miz` compris, vont dans le dossier affiché.
+- **Mise à jour immédiate** : changer de dossier actif, envoyer, déplacer ou supprimer un document envoie un événement Broadcast `documents_changed` sur le canal des cockpits (côté serveur, par HTTP). Les viewers rechargent alors leur liste sans attendre.
+- **Sécurité** : des clés étrangères composites `(folder_id, user_id)` garantissent qu'un document ou un cockpit ne peut référencer que les dossiers de son propriétaire.
 
 ## Rendu et cache du viewer
 

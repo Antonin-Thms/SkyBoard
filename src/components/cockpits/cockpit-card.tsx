@@ -5,14 +5,18 @@ import {
   deleteCockpit,
   regenerateCockpitToken,
   renameCockpit,
+  setActiveFolder,
 } from "@/app/(app)/cockpits/actions";
 import { CopyButton } from "@/components/copy-button";
 import { buildViewerUrl } from "@/lib/cockpits/token";
+import type { FolderSummary } from "@/lib/documents/folders";
 
 interface CockpitCardProps {
   id: string;
   name: string;
   token: string;
+  activeFolderId: string | null;
+  folders: FolderSummary[];
 }
 
 const subscribeNoop = () => () => {};
@@ -26,7 +30,7 @@ function useOrigin(): string {
   );
 }
 
-export function CockpitCard({ id, name, token }: CockpitCardProps) {
+export function CockpitCard({ id, name, token, activeFolderId, folders }: CockpitCardProps) {
   const origin = useOrigin();
   const [transparent, setTransparent] = useState(false);
   const [hideStatus, setHideStatus] = useState(false);
@@ -103,6 +107,29 @@ export function CockpitCard({ id, name, token }: CockpitCardProps) {
           </button>
         </div>
       </div>
+
+      {folders.length > 0 && (
+        <label className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-slate-400">Dossier actif</span>
+          <select
+            className="input w-auto"
+            defaultValue={activeFolderId ?? ""}
+            disabled={pending}
+            onChange={(e) => {
+              const folderId = e.target.value || null;
+              run(() => setActiveFolder(id, folderId));
+            }}
+          >
+            <option value="">Tous les documents</option>
+            {folders.map((f) => (
+              <option key={f.id} value={f.id}>
+                📁 {f.name}
+              </option>
+            ))}
+          </select>
+          <span className="text-xs text-slate-500">+ les documents Communs</span>
+        </label>
+      )}
 
       <div className="space-y-2">
         <span className="text-sm text-slate-400">

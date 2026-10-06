@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { HelpPanel } from "@/components/help-panel";
 import { useDeviceKind } from "@/hooks/use-device-kind";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import type { FolderSummary } from "@/lib/documents/folders";
 import type { RemoteCockpit, RemoteDocument } from "@/lib/remote/types";
 import { CockpitRemote } from "./cockpit-remote";
 import { RemoteQr } from "./remote-qr";
@@ -12,12 +13,13 @@ import { RemoteQr } from "./remote-qr";
 interface RemoteAppProps {
   cockpits: RemoteCockpit[];
   documents: RemoteDocument[];
+  folders: FolderSummary[];
   /** Cockpit demandé par l'URL (QR code) */
   initialCockpitId: string | null;
   initialMode: "prep" | "flight";
 }
 
-export function RemoteApp({ cockpits, documents, initialCockpitId, initialMode }: RemoteAppProps) {
+export function RemoteApp({ cockpits, documents, folders, initialCockpitId, initialMode }: RemoteAppProps) {
   const [storedId, setStoredId] = useLocalStorage("skyboard:cockpit");
   const [mode, setMode] = useState<"prep" | "flight">(initialMode);
   const device = useDeviceKind();
@@ -130,6 +132,7 @@ export function RemoteApp({ cockpits, documents, initialCockpitId, initialMode }
           key={cockpit.id}
           cockpit={cockpit}
           documents={documents}
+          folders={folders}
           mode={mode}
           device={device ?? "tablet"}
           onExitFlight={() => setMode("prep")}

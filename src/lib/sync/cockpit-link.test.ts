@@ -140,6 +140,20 @@ describe("connectCockpit", () => {
     remote.close();
   });
 
+  it("signale au viewer que la liste des documents a changé", async () => {
+    const bus = new FakeBus();
+    let changed = 0;
+    const viewer = connectCockpit(fakeClient(bus), "cockpit:x", { onDocumentsChanged: () => changed++ });
+    const server = fakeClient(bus);
+    await flush();
+    const ch = server.channel("cockpit:x") as unknown as FakeChannel;
+    ch.subscribe(() => {});
+    await flush();
+    await ch.send({ event: "documents_changed", payload: {} });
+    expect(changed).toBe(1);
+    viewer.close();
+  });
+
   it("ignore les messages invalides", async () => {
     const bus = new FakeBus();
     const received: ViewState[] = [];

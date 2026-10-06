@@ -3,7 +3,8 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useState, useTransition } from "react";
-import { deleteDocument, renameDocument } from "@/app/(app)/documents/actions";
+import { deleteDocument, moveDocument, renameDocument } from "@/app/(app)/documents/actions";
+import type { FolderSummary } from "@/lib/documents/folders";
 import type { DocumentItem } from "./document-grid";
 
 const TYPE_LABEL: Record<DocumentItem["type"], string> = {
@@ -14,11 +15,12 @@ const TYPE_LABEL: Record<DocumentItem["type"], string> = {
 
 interface DocumentCardProps {
   item: DocumentItem;
+  folders: FolderSummary[];
   onDeleted: () => void;
   onRenamed: (name: string) => void;
 }
 
-export function DocumentCard({ item, onDeleted, onRenamed }: DocumentCardProps) {
+export function DocumentCard({ item, folders, onDeleted, onRenamed }: DocumentCardProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
   const [editing, setEditing] = useState(false);
@@ -120,6 +122,26 @@ export function DocumentCard({ item, onDeleted, onRenamed }: DocumentCardProps) 
             {item.name}
           </p>
         )}
+        <select
+          className="w-full rounded-md border border-slate-800 bg-slate-950 px-1.5 py-1 text-xs text-slate-300"
+          aria-label="Dossier"
+          value={item.folderId ?? ""}
+          disabled={pending}
+          onChange={(e) => {
+            const folderId = e.target.value || null;
+            startTransition(async () => {
+              const res = await moveDocument(item.id, folderId);
+              setError(res.error ?? null);
+            });
+          }}
+        >
+          <option value="">Communs</option>
+          {folders.map((f) => (
+            <option key={f.id} value={f.id}>
+              📁 {f.name}
+            </option>
+          ))}
+        </select>
         {error && <p className="text-xs text-red-400">{error}</p>}
         <div className="flex gap-2">
           <button

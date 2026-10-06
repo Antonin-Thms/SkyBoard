@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/viewer/[tok
 
   const { data: cockpit, error: cockpitError } = await admin
     .from("cockpits")
-    .select("user_id, name, last_state")
+    .select("user_id, name, last_state, active_folder_id")
     .eq("viewer_token", token)
     .maybeSingle();
   if (cockpitError) {
@@ -33,12 +33,22 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/viewer/[tok
   }
   if (!cockpit) return notFound();
 
-  const { data: rows, error: docsError } = await admin
+  // Dossier actif : ses documents + les documents communs (sans dossier).
+  let docsQuery = admin
     .from("documents")
     .select("id, name, type, page_count, storage_path")
-    .eq("user_id", cockpit.user_id)
-    .order("sort_order")
-    .order("created_at");
+    .eq("user_id", cockpit.user_id);
+  let folder: { name: string } | null = null;
+  if (cockpit.active_folder_id) {
+    docsQuery = docsQuery.or(`folder_id.is.null,folder_id.eq.${cockpit.active_folder_id}`);
+    const { data: f } = await admin
+      .from("folders")
+      .select("name")
+      .eq("id", cockpit.active_folder_id)
+      .maybeSingle();
+    folder = f ? { name: f.name } : null;
+  }
+  const { data: rows, error: docsError } = await docsQuery.order("sort_order").order("created_at");
   if (docsError) {
     return Response.json({ error: "server_error" }, { status: 500, headers: NO_STORE });
   }
@@ -68,6 +78,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/viewer/[tok
 
   const payload: ViewerPayload = {
     cockpit: { name: cockpit.name },
+    folder,
     channel: channelNameForToken(token),
     lastState: parseViewState(cockpit.last_state),
     documents,

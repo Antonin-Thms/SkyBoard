@@ -19,6 +19,8 @@ export async function uploadDocument(
   sortOrder: number,
   /** Nom affiché (par défaut : nom du fichier sans extension) */
   name?: string,
+  /** Dossier de destination (null : Communs) */
+  folderId: string | null = null,
 ): Promise<DocumentRow> {
   const check = await checkFile(file);
   if (!check.ok) throw new Error(check.error);
@@ -68,6 +70,7 @@ export async function uploadDocument(
         thumbnail_path: thumbnailPath,
         page_count: analysis.pageCount,
         sort_order: sortOrder,
+        folder_id: folderId,
       })
       .select()
       .single();

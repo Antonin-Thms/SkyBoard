@@ -13,6 +13,8 @@ export interface ViewerDocument {
 /** Réponse de GET /api/viewer/[token]. */
 export interface ViewerPayload {
   cockpit: { name: string };
+  /** Dossier actif (null : tous les documents) */
+  folder: { name: string } | null;
   /** Nom du canal Realtime à rejoindre */
   channel: string;
   /** Dernier état persisté (viewer qui démarre seul) */

@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { notifyDocumentsChanged } from "@/lib/sync/notify";
 import { cleanName, isUuid } from "@/lib/validation";
 
 export interface ActionResult {
@@ -57,5 +58,24 @@ export async function deleteCockpit(id: string): Promise<ActionResult> {
   if (error) return { error: "Suppression impossible." };
 
   revalidatePath("/cockpits");
+  return {};
+}
+
+/** Dossier actif du cockpit (null = tous les documents). */
+export async function setActiveFolder(cockpitId: string, folderId: string | null): Promise<ActionResult> {
+  if (!isUuid(cockpitId) || (folderId !== null && !isUuid(folderId))) {
+    return { error: "Dossier invalide." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("cockpits")
+    .update({ active_folder_id: folderId })
+    .eq("id", cockpitId);
+  if (error) return { error: "Changement de dossier impossible." };
+
+  revalidatePath("/cockpits");
+  revalidatePath("/remote");
+  await notifyDocumentsChanged(supabase, cockpitId);
   return {};
 }

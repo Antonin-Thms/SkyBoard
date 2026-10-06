@@ -2,6 +2,7 @@ import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, DocumentMimeType } from "@/lib/database.types";
+import type { FolderSummary } from "./folders";
 import { STORAGE_BUCKET, THUMBNAIL_URL_TTL } from "./storage";
 
 export interface DocumentSummary {
@@ -10,6 +11,7 @@ export interface DocumentSummary {
   type: DocumentMimeType;
   pageCount: number;
   sortOrder: number;
+  folderId: string | null;
   thumbnailUrl: string | null;
 }
 
@@ -19,7 +21,7 @@ export async function listDocumentsWithThumbnails(
 ): Promise<{ documents: DocumentSummary[]; error: boolean }> {
   const { data: rows, error } = await supabase
     .from("documents")
-    .select("id, name, type, page_count, sort_order, thumbnail_path")
+    .select("id, name, type, page_count, sort_order, folder_id, thumbnail_path")
     .order("sort_order")
     .order("created_at");
   if (error) return { documents: [], error: true };
@@ -43,7 +45,14 @@ export async function listDocumentsWithThumbnails(
       type: d.type,
       pageCount: d.page_count,
       sortOrder: d.sort_order,
+      folderId: d.folder_id,
       thumbnailUrl: d.thumbnail_path ? (thumbUrls.get(d.thumbnail_path) ?? null) : null,
     })),
   };
+}
+
+/** Dossiers de l'utilisateur connecté, triés. */
+export async function listFolders(supabase: SupabaseClient<Database>): Promise<FolderSummary[]> {
+  const { data } = await supabase.from("folders").select("id, name").order("sort_order").order("created_at");
+  return data ?? [];
 }

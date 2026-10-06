@@ -7,6 +7,8 @@ export interface RemoteCockpit {
   /** Nom du canal Realtime (calculé côté serveur, le token n'est pas exposé) */
   channel: string;
   lastState: ViewState | null;
+  /** Dossier actif (null : tous les documents) */
+  activeFolderId: string | null;
 }
 
 export interface RemoteDocument {
@@ -15,4 +17,5 @@ export interface RemoteDocument {
   type: DocumentMimeType;
   pageCount: number;
   thumbnailUrl: string | null;
+  folderId: string | null;
 }

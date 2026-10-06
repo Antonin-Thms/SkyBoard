@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { readLocalStorage, writeLocalStorage } from "@/hooks/use-local-storage";
 import { pruneDocumentCache } from "@/lib/viewer/doc-cache";
 import type { ViewerPayload } from "@/lib/viewer/types";
@@ -31,6 +31,7 @@ export type ViewerDataStatus = "loading" | "ok" | "stale" | "not_found" | "error
 export function useViewerData(token: string) {
   const [data, setData] = useState<ViewerPayload | null>(null);
   const [status, setStatus] = useState<ViewerDataStatus>("loading");
+  const reloadRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -82,6 +83,7 @@ export function useViewerData(token: string) {
     }
 
     void load();
+    reloadRef.current = () => schedule(0);
     // Au retour de veille / reconnexion réseau : recharger tout de suite.
     const onOnline = () => schedule(0);
     window.addEventListener("online", onOnline);
@@ -92,5 +94,8 @@ export function useViewerData(token: string) {
     };
   }, [token]);
 
-  return { data, status };
+  /** Recharge la liste tout de suite (dossier actif changé, documents ajoutés…). */
+  const reload = useCallback(() => reloadRef.current(), []);
+
+  return { data, status, reload };
 }

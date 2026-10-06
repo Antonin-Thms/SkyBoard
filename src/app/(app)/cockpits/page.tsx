@@ -1,16 +1,17 @@
 import { CockpitCard } from "@/components/cockpits/cockpit-card";
 import { CreateCockpitForm } from "@/components/cockpits/create-cockpit-form";
 import { HelpPanel } from "@/components/help-panel";
+import { listFolders } from "@/lib/documents/server";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Cockpits · SkyBoard" };
 
 export default async function CockpitsPage() {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("cockpits")
-    .select("id, name, viewer_token")
-    .order("created_at");
+  const [{ data, error }, folders] = await Promise.all([
+    supabase.from("cockpits").select("id, name, viewer_token, active_folder_id").order("created_at"),
+    listFolders(supabase),
+  ]);
   const cockpits = data ?? [];
 
   return (
@@ -56,7 +57,14 @@ export default async function CockpitsPage() {
       ) : (
         <ul className="space-y-4">
           {cockpits.map((c) => (
-            <CockpitCard key={`${c.id}:${c.viewer_token}:${c.name}`} id={c.id} name={c.name} token={c.viewer_token} />
+            <CockpitCard
+              key={`${c.id}:${c.viewer_token}:${c.name}`}
+              id={c.id}
+              name={c.name}
+              token={c.viewer_token}
+              activeFolderId={c.active_folder_id}
+              folders={folders}
+            />
           ))}
         </ul>
       )}

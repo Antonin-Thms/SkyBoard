@@ -19,12 +19,16 @@ export type ViewUpdate = Omit<ViewState, "seq" | "ts">;
  * État du cockpit piloté par la remote : diffusion en temps réel, réponse
  * aux viewers qui demandent l'état, et persistance en base (debounce).
  */
-export function useRemoteSync(cockpit: RemoteCockpit) {
+export function useRemoteSync(cockpit: RemoteCockpit, onDocumentsChanged?: () => void) {
   const [state, setState] = useState<ViewState>(cockpit.lastState ?? INITIAL_VIEW_STATE);
   const [status, setStatus] = useState<LinkStatus>("connecting");
   const stateRef = useRef(state);
   const linkRef = useRef<CockpitLink | null>(null);
   const senderRef = useRef<ThrottledSender<ViewState> | null>(null);
+  const onDocsChangedRef = useRef(onDocumentsChanged);
+  useEffect(() => {
+    onDocsChangedRef.current = onDocumentsChanged;
+  });
   const persistTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const dirty = useRef(false);
 
@@ -56,6 +60,7 @@ export function useRemoteSync(cockpit: RemoteCockpit) {
         }
       },
       onStatus: setStatus,
+      onDocumentsChanged: () => onDocsChangedRef.current?.(),
     });
     linkRef.current = link;
     const sender = createThrottledSender<ViewState>((s) => link.sendState(s), SEND_INTERVAL_MS);

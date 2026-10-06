@@ -22,7 +22,7 @@ export interface ViewerOptions {
 }
 
 export function ViewerApp({ token, options }: { token: string; options: ViewerOptions }) {
-  const { data, status: dataStatus } = useViewerData(token);
+  const { data, status: dataStatus, reload } = useViewerData(token);
   const [view, dispatch] = useReducer(viewReducer, null);
   const [linkStatus, setLinkStatus] = useState<LinkStatus>("connecting");
   const [renderError, setRenderError] = useState<string | null>(null);
@@ -80,9 +80,10 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
       onState: (state) => dispatch({ type: "remote", state }),
       onConnected: () => link.requestState(),
       onStatus: setLinkStatus,
+      onDocumentsChanged: reload,
     });
     return () => link.close();
-  }, [channel]);
+  }, [channel, reload]);
 
   // Affichage effectif : état reçu, sinon premier document.
   const current = useMemo(() => {
@@ -171,7 +172,11 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
       )}
       {helpOpen && (
         <ViewerHelp
-          cockpitName={data?.cockpit.name ?? null}
+          cockpitName={
+            data
+              ? `${data.cockpit.name}${data.folder ? ` · 📁 ${data.folder.name}` : ""}`
+              : null
+          }
           docName={current?.doc.name ?? null}
           page={current?.page ?? 1}
           pageCount={current?.doc.pageCount ?? 1}
