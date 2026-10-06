@@ -1,9 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useViewerData } from "@/hooks/use-viewer-data";
+import { createAnonClient } from "@/lib/supabase/anon";
+import { connectCockpit, type LinkStatus } from "@/lib/sync/cockpit-link";
 import { clampPage } from "@/lib/viewer/fit";
 import { pruneDocumentSources } from "@/lib/viewer/sources";
+import { viewReducer } from "@/lib/viewer/view-reducer";
 import { PageView } from "./page-view";
 import { StatusBadge, type ViewerStatus } from "./status-badge";
 import { ViewerHelp } from "./viewer-help";
@@ -16,14 +19,10 @@ export interface ViewerOptions {
   showCursor: boolean;
 }
 
-interface Selection {
-  docId: string | null;
-  page: number;
-}
-
 export function ViewerApp({ token, options }: { token: string; options: ViewerOptions }) {
   const { data, status: dataStatus } = useViewerData(token);
-  const [selection, setSelection] = useState<Selection | null>(null);
+  const [view, dispatch] = useReducer(viewReducer, null);
+  const [linkStatus, setLinkStatus] = useState<LinkStatus>("connecting");
   const [renderError, setRenderError] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [hintVisible, setHintVisible] = useState(true);
@@ -54,14 +53,32 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
     if (data) pruneDocumentSources(new Set(documents.map((d) => d.id)));
   }, [data, documents]);
 
-  // Sélection effective : choix local, sinon dernier état persisté, sinon premier document.
+  // Dernier état persisté : point de départ si aucune remote ne répond.
+  const lastState = data?.lastState;
+  useEffect(() => {
+    if (lastState) dispatch({ type: "remote", state: lastState });
+  }, [lastState]);
+
+  // Canal Realtime : états de la remote ; à chaque (re)connexion, on demande l'état courant.
+  const channel = data?.channel;
+  useEffect(() => {
+    if (!channel) return;
+    const link = connectCockpit(createAnonClient(), channel, {
+      onState: (state) => dispatch({ type: "remote", state }),
+      onConnected: () => link.requestState(),
+      onStatus: setLinkStatus,
+    });
+    return () => link.close();
+  }, [channel]);
+
+  // Affichage effectif : état reçu, sinon premier document.
   const current = useMemo(() => {
-    const wanted = selection ?? data?.lastState ?? null;
+    const wanted = view;
     const doc = documents.find((d) => d.id === wanted?.docId) ?? documents[0];
     if (!doc) return null;
     const page = wanted && wanted.docId === doc.id ? wanted.page : 1;
     return { doc, page: clampPage(page, doc.pageCount) };
-  }, [selection, data, documents]);
+  }, [view, documents]);
 
   // Navigation clavier : uniquement pour tester sur PC (aucune interaction requise dans le casque).
   useEffect(() => {
@@ -70,11 +87,15 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
       const index = documents.findIndex((d) => d.id === current.doc.id);
       if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
         const delta = e.key === "ArrowRight" ? 1 : -1;
-        setSelection({ docId: current.doc.id, page: clampPage(current.page + delta, current.doc.pageCount) });
+        dispatch({
+          type: "local",
+          docId: current.doc.id,
+          page: clampPage(current.page + delta, current.doc.pageCount),
+        });
       } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         const delta = e.key === "ArrowDown" ? 1 : -1;
         const next = documents[(index + delta + documents.length) % documents.length];
-        setSelection({ docId: next.id, page: 1 });
+        dispatch({ type: "local", docId: next.id, page: 1 });
       }
     };
     window.addEventListener("keydown", onKey);
@@ -83,22 +104,24 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
 
   const handleRenderError = useCallback((message: string | null) => setRenderError(message), []);
 
-  const status: ViewerStatus =
-    dataStatus === "ok"
-      ? renderError
-        ? "error"
-        : "ok"
-      : dataStatus === "loading"
-        ? "connecting"
-        : dataStatus === "stale"
-          ? "degraded"
-          : "error";
-  const detail =
-    dataStatus === "not_found"
-      ? "URL invalide ou révoquée"
-      : dataStatus === "error"
-        ? "Serveur injoignable"
-        : renderError;
+  let status: ViewerStatus;
+  let detail: string | null = null;
+  if (dataStatus === "not_found") {
+    status = "error";
+    detail = "URL invalide ou révoquée";
+  } else if (dataStatus === "error") {
+    status = "error";
+    detail = "Serveur injoignable";
+  } else if (dataStatus === "loading" || linkStatus === "connecting") {
+    status = "connecting";
+  } else if (linkStatus === "disconnected" || dataStatus === "stale") {
+    status = "degraded";
+  } else if (renderError) {
+    status = "error";
+    detail = renderError;
+  } else {
+    status = "ok";
+  }
 
   return (
     <div className="fixed inset-0 overflow-hidden select-none">

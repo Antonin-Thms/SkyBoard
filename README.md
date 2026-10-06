@@ -8,7 +8,7 @@ Pilote l'affichage de tes kneeboards dans le casque VR (DCS World + OpenKneeboar
 
 Stack : Next.js 16 (App Router) · TypeScript strict · Tailwind 4 · Supabase (Auth, Storage, Postgres, Realtime) · pdf.js · Vitest.
 
-> État : **phase 3** (setup, auth, migrations, documents, cockpits, viewer statique). Les sections marquées *(à venir)* seront complétées au fil des phases.
+> État : **phase 4** (setup, auth, migrations, documents, cockpits, viewer, synchro temps réel en mode préparation). Les sections marquées *(à venir)* seront complétées au fil des phases.
 
 ---
 
@@ -33,7 +33,8 @@ Stack : Next.js 16 (App Router) · TypeScript strict · Tailwind 4 · Supabase (
      <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email">Confirmer mon email</a>
      ```
      Le lien fonctionne alors depuis n'importe quel appareil.
-4. **Authentication → URL Configuration** : mets *Site URL* à l'URL de ton déploiement (ou `http://localhost:3000` en local). Ajoute aussi les deux dans *Redirect URLs*.
+4. **Realtime → Settings** : laisse l'accès public aux canaux autorisé. L'option qui réserve Realtime aux canaux privés doit rester **désactivée**, car le viewer est anonyme. Aucune table n'a besoin d'être « répliquée » : tout passe par Broadcast.
+5. **Authentication → URL Configuration** : mets *Site URL* à l'URL de ton déploiement (ou `http://localhost:3000` en local). Ajoute aussi les deux dans *Redirect URLs*.
 
 ## 2. Variables d'environnement
 
@@ -120,7 +121,9 @@ Le viewer ne demande aucune interaction : il charge la liste des documents et af
   - En test uniquement, les flèches **← →** changent de page et **↑ ↓** changent de document.
   - **H** affiche une aide (document et page courants, touches, indicateur, options d'URL).
   - Pour vérifier l'ajustement, sors la fenêtre du plein écran (bouton « Restaurer ») et tire sur ses bords.
-- **Remote** *(phases 4-5)* : sur iPad, ou dans les DevTools de Chrome/Edge en mode appareil (Ctrl+Shift+M), avec un iPad en émulation tactile.
+- **Remote** : ouvre `/remote` dans un autre onglet, ou sur l'iPad (`http://<IP-du-PC>:3000/remote` sur le même Wi-Fi). Tu peux aussi utiliser les DevTools de Chrome/Edge en mode appareil (Ctrl+Shift+M) avec un iPad en émulation tactile.
+  - Mode **Préparation** : tape une miniature, le viewer change immédiatement.
+  - Ferme puis rouvre le viewer : il reprend l'état courant, en le demandant à la remote si elle est ouverte, sinon depuis la base.
 
 ---
 
@@ -137,10 +140,12 @@ src/
   components/
     documents/     upload, grille triable, carte document
     cockpits/      création, URL viewer, régénération du token
-    viewer/        rendu de page (canvas), indicateur de statut
+    viewer/        rendu de page (canvas), indicateur de statut, aide
+    remote/        sélection du cockpit, mode préparation
   lib/
     documents/     vérification des fichiers, analyse (pages, miniature), upload
-    sync/          protocole d'état (ViewState) et nom du canal Realtime
+    sync/          protocole (ViewState), séquences, canal Realtime (cockpit-link)
+    remote/        types et mémoire de page de la remote
     viewer/        calcul d'ajustement, cache des documents chargés
     pdf/           chargement de pdf.js (build legacy, worker dans public/pdfjs/)
     supabase/      clients navigateur / serveur / admin (service_role) / proxy
@@ -148,6 +153,20 @@ src/
   proxy.ts         rafraîchissement de session + protection des routes
 supabase/migrations/   schéma SQL, RLS, Storage
 ```
+
+## Synchronisation temps réel
+
+- **Canal** : un canal Supabase Realtime **Broadcast** par cockpit (`cockpit:<HMAC>`), sans serveur WebSocket custom.
+- **Message `state`** (remote → viewers) : `{ docId, page, zoom, panX, panY, seq, ts, cursor? }`.
+  - `seq` est basé sur l'horloge et strictement croissant. Une remote rechargée repart donc au-dessus de ses anciens messages.
+  - Le viewer ignore tout message plus ancien que le dernier appliqué.
+  - Chaque message est validé à la réception : le canal est public pour qui connaît son nom.
+- **Message `request_state`** (viewer → remotes) : envoyé à chaque (re)connexion du viewer. La remote répond avec l'état courant.
+- **Persistance** : la remote écrit le dernier état dans `cockpits.last_state` 1 s après le dernier changement, et à la fermeture de la page. Un viewer qui démarre seul affiche cet état.
+- **Reconnexion** : supabase-js reconnecte le socket et rejoint le canal automatiquement.
+  - Un canal fermé de façon inattendue est recréé.
+  - Le retour du réseau ou le retour au premier plan relancent la connexion immédiatement.
+- **Mémoire de page** : chaque document reprend à sa dernière page vue (mémorisée sur l'appareil de la remote). Changer de page ou de document remet zoom et position à zéro.
 
 ## Documents
 
