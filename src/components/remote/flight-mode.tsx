@@ -18,6 +18,8 @@ interface FlightModeProps {
   onToggleCursor: () => void;
   night: boolean;
   onToggleNight: () => void;
+  /** Crayon actif (affichage) */
+  pen: boolean;
   info: { docName: string | null; page: number; pageCount: number; zoom: number };
 }
 
@@ -47,6 +49,7 @@ export function FlightMode({
   onToggleCursor,
   night,
   onToggleNight,
+  pen,
   info,
 }: FlightModeProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -104,12 +107,18 @@ export function FlightMode({
       if (actions.length) onActionsRef.current(actions);
     };
 
+    // Appui long (crayon) : vérifié par un minuteur, sans attendre un mouvement.
+    let holdTimer: ReturnType<typeof setTimeout> | undefined;
+    const holdMs = (DEVICE_GESTURE_OVERRIDES[device].penHoldMs ?? GESTURE_CONFIG.penHoldMs) + 30;
+
     const onDown = (e: PointerEvent) => {
       e.preventDefault();
       // Début de geste : position relue une fois (rotation d'écran, barre d'adresse…).
       origin = el.getBoundingClientRect();
       el.setPointerCapture?.(e.pointerId);
       emit(recognizer.down(e.pointerId, ...local(e), e.timeStamp));
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(() => emit(recognizer.poll(performance.now())), holdMs);
     };
     const onMove = (e: PointerEvent) => {
       // Événements coalescés : on prend la position la plus récente.
@@ -128,6 +137,7 @@ export function FlightMode({
     el.addEventListener("touchmove", prevent, { passive: false });
     el.addEventListener("contextmenu", prevent);
     return () => {
+      clearTimeout(holdTimer);
       resize.disconnect();
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointermove", onMove);
@@ -175,18 +185,24 @@ export function FlightMode({
       </div>
 
       <div ref={surfaceRef} className="relative flex-1 touch-none overflow-hidden">
-        {/* Bandes latérales : swipe vertical = page précédente / suivante (PDF de plusieurs pages) */}
-        <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center bg-slate-900/60">
-          <span className="text-xs [writing-mode:vertical-rl] rotate-180">▲ page ▼</span>
-        </div>
-        <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-center bg-slate-900/60">
-          <span className="text-xs [writing-mode:vertical-rl]">▲ page ▼</span>
-        </div>
+        {/* Bandes latérales : swipe vertical = page précédente / suivante (désactivées avec le crayon) */}
+        {!pen && (
+          <>
+            <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center bg-slate-900/60">
+              <span className="text-xs [writing-mode:vertical-rl] rotate-180">▲ page ▼</span>
+            </div>
+            <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-center bg-slate-900/60">
+              <span className="text-xs [writing-mode:vertical-rl]">▲ page ▼</span>
+            </div>
+          </>
+        )}
+        {pen && <div className="pointer-events-none absolute inset-0 border-2 border-sky-500/40" />}
 
         <div
           className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 text-center"
           style={{ paddingInline: config.edgeWidthPx + 12 }}
         >
+          {pen && <p className="text-lg font-semibold text-sky-400">✎ Crayon actif</p>}
           <p className={`max-w-full truncate text-slate-300 ${compact ? "text-base" : "text-lg"}`}>{info.docName ?? "Aucun document"}</p>
           {info.docName && (
             <p className="text-sm">
@@ -199,9 +215,11 @@ export function FlightMode({
           className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs leading-relaxed text-slate-400"
           style={{ paddingInline: config.edgeWidthPx + 12 }}
         >
-          {compact
-            ? "Pincer : zoom · Swipe ← → : document · Double tap : reset · Bords ↕ : page"
-            : "Pincer : zoom · 2 doigts : déplacer · 1 doigt (zoomé) : déplacer · Swipe ← → : document · Double tap : réinitialiser · Bords ↕ : page"}
+          {pen
+            ? "1 doigt : dessiner · Tap 2 doigts : annuler le dernier trait · Pincer : zoom · Appui long 2-3 s : arrêter le crayon"
+            : compact
+              ? "Pincer : zoom · Swipe ← → : document · Double tap : reset · Bords ↕ : page · Appui long : crayon"
+              : "Pincer : zoom · 2 doigts : déplacer · 1 doigt (zoomé) : déplacer · Swipe ← → : document · Double tap : réinitialiser · Bords ↕ : page · Appui long 2-3 s : crayon"}
         </p>
       </div>
     </div>

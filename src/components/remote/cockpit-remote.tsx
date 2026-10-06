@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useOptimistic, useRef, useTransition } from "react";
 import { setActiveFolder } from "@/app/(app)/cockpits/actions";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useInkSession } from "@/hooks/use-ink-session";
 import { useRemoteSync } from "@/hooks/use-remote-sync";
 import type { DeviceKind } from "@/lib/device/kind";
 import { isVisibleInActiveFolder, type FolderSummary } from "@/lib/documents/folders";
@@ -42,7 +43,7 @@ export function CockpitRemote({
   // Documents modifiés ailleurs (upload, autre remote, page Cockpits) : on recharge.
   // Sauf juste après notre propre changement de dossier, déjà rechargé par l'action.
   const ownChangeAt = useRef(0);
-  const { state, status, update, flush, stateRef } = useRemoteSync(cockpit, () => {
+  const { state, status, update, flush, stateRef, sendInk } = useRemoteSync(cockpit, () => {
     if (Date.now() - ownChangeAt.current > OWN_CHANGE_WINDOW_MS) router.refresh();
   });
   const [activeFolderId, setOptimisticFolder] = useOptimistic(cockpit.activeFolderId);
@@ -76,6 +77,21 @@ export function CockpitRemote({
       ownChangeAt.current = Date.now();
     });
 
+  // Annotations (crayon du mode vol).
+  const ink = useInkSession(sendInk);
+  const inkTarget = (s: ViewState) => {
+    const doc = documents.find((d) => d.id === s.docId);
+    return doc ? { docId: doc.id, page: s.page, rotation: doc.rotation } : null;
+  };
+
+  /** Sortie du mode vol : le crayon se désactive. */
+  const exitFlight = () => {
+    ink.end();
+    const s = stateRef.current;
+    if (s.pen) apply({ ...s, pen: false, cursor: null });
+    onExitFlight();
+  };
+
   /** Mode nuit : page atténuée dans le casque. */
   const toggleNight = () => {
     const s = stateRef.current;
@@ -102,11 +118,36 @@ export function CockpitRemote({
           changed = true;
           break;
         case "cursor": {
-          const cursor = cursorEnabled ? action.point : null;
+          // Crayon actif : le curseur est toujours montré (on voit où l'on dessine).
+          const show = cursorEnabled || next.pen === true;
+          const cursor = show ? action.point : null;
           if (cursor !== next.cursor) {
             next = { ...next, cursor };
-            changed = changed || cursorEnabled || action.point === null;
+            changed = changed || show || action.point === null;
           }
+          break;
+        }
+        case "pen":
+          if (!action.on) ink.end();
+          next = { ...next, pen: action.on, cursor: action.on ? next.cursor : cursorEnabled ? next.cursor : null };
+          changed = immediate = true;
+          break;
+        case "ink": {
+          if (action.phase === "start") {
+            const target = inkTarget(next);
+            if (target) ink.start(target, action.point);
+          } else if (action.phase === "move") {
+            ink.addPoint(action.point);
+          } else if (action.phase === "end") {
+            ink.end();
+          } else {
+            ink.cancel();
+          }
+          break;
+        }
+        case "undo": {
+          const target = inkTarget(next);
+          if (target) ink.undo(target.docId, target.page);
           break;
         }
         case "page":
@@ -141,7 +182,8 @@ export function CockpitRemote({
         getView={() => stateRef.current}
         onActions={handleGestures}
         device={device}
-        onExit={onExitFlight}
+        onExit={exitFlight}
+        pen={state.pen === true}
         status={status}
         cursorEnabled={cursorEnabled}
         onToggleCursor={() => setCursorPref(cursorEnabled ? null : "1")}

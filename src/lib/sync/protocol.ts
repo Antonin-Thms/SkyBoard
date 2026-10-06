@@ -33,6 +33,8 @@ export interface ViewState {
   cursor?: NormalizedPoint | null;
   /** Mode nuit : page atténuée dans le casque (vol de nuit) */
   night?: boolean;
+  /** Crayon actif sur la remote (le casque affiche un indicateur) */
+  pen?: boolean;
 }
 
 export const INITIAL_VIEW_STATE: ViewState = {
@@ -96,6 +98,7 @@ export function parseViewState(value: unknown, now: number = Date.now()): ViewSt
     ts: v.ts,
     cursor: parsePoint(v.cursor),
     ...(v.night === true ? { night: true } : {}),
+    ...(v.pen === true ? { pen: true } : {}),
   };
 }
 

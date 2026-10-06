@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { InkMessage } from "@/lib/annotations/model";
 import type { Json } from "@/lib/database.types";
 import type { RemoteCockpit } from "@/lib/remote/types";
 import { createClient } from "@/lib/supabase/client";
@@ -127,5 +128,8 @@ export function useRemoteSync(cockpit: RemoteCockpit, onDocumentsChanged?: () =>
   /** Fin de geste : envoi final garanti du dernier état. */
   const flush = useCallback(() => senderRef.current?.flush(), []);
 
-  return { state, status, update, flush, stateRef };
+  /** Annotation diffusée aux viewers (et aux autres remotes). */
+  const sendInk = useCallback((message: InkMessage) => linkRef.current?.sendInk(message), []);
+
+  return { state, status, update, flush, stateRef, sendInk };
 }

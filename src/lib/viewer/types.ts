@@ -1,4 +1,5 @@
 import type { DocumentMimeType, Rotation } from "@/lib/database.types";
+import type { Stroke } from "@/lib/annotations/model";
 import type { ViewState } from "@/lib/sync/protocol";
 
 export interface ViewerDocument {
@@ -22,6 +23,8 @@ export interface ViewerPayload {
   /** Dernier état persisté (viewer qui démarre seul) */
   lastState: ViewState | null;
   documents: ViewerDocument[];
+  /** Annotations par page (clé « docId:page »), traits dans le repère du document */
+  annotations: Record<string, Stroke[]>;
   /** Expiration des URLs signées (ms epoch) */
   expiresAt: number;
 }

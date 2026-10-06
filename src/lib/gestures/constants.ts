@@ -30,6 +30,15 @@ export const GESTURE_CONFIG = {
   swipeMaxMs: 700,
   /** Le déplacement principal doit dominer l'autre axe de ce facteur */
   swipeDirectionRatio: 1.5,
+
+  /** Appui long sans bouger (n'importe où) : active / désactive le crayon */
+  penHoldMs: 2500,
+  /** Tolérance de mouvement de l'appui long (le doigt tremble un peu) */
+  penHoldSlopPx: 10,
+  /** Crayon : le trait commence quand le doigt a bougé de cette distance (sinon : un point) */
+  inkStartSlopPx: 8,
+  /** Crayon : tap à deux doigts (annuler le dernier trait), durée max */
+  twoFingerTapMs: 350,
 } as const;
 
 export type GestureConfig = { -readonly [K in keyof typeof GESTURE_CONFIG]: number };

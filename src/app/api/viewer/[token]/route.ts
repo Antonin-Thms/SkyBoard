@@ -3,6 +3,7 @@ import { isViewerToken } from "@/lib/cockpits/token";
 import { STORAGE_BUCKET, VIEWER_URL_TTL } from "@/lib/documents/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { channelNameForToken } from "@/lib/sync/channel";
+import { pageKey, parseStrokes, type Stroke } from "@/lib/annotations/model";
 import { logError } from "@/lib/log";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { parseViewState } from "@/lib/sync/protocol";
@@ -67,13 +68,27 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/viewer/[toke
   const docs = rows ?? [];
   const expiresAt = Date.now() + VIEWER_URL_TTL * 1000;
   const urls = new Map<string, string>();
+  const annotations: Record<string, Stroke[]> = {};
   if (docs.length) {
-    const { data: signed, error: signError } = await admin.storage
-      .from(STORAGE_BUCKET)
-      .createSignedUrls(
+    // URLs signées et annotations en parallèle.
+    const [{ data: signed, error: signError }, { data: inkRows, error: inkError }] = await Promise.all([
+      admin.storage.from(STORAGE_BUCKET).createSignedUrls(
         docs.map((d) => d.storage_path),
         VIEWER_URL_TTL,
-      );
+      ),
+      admin
+        .from("annotations")
+        .select("document_id, page, strokes")
+        .in(
+          "document_id",
+          docs.map((d) => d.id),
+        ),
+    ]);
+    if (inkError) logError("viewer.annotations", inkError);
+    for (const row of inkRows ?? []) {
+      const strokes = parseStrokes(row.strokes);
+      if (strokes.length) annotations[pageKey(row.document_id, row.page)] = strokes;
+    }
     if (signError) {
       logError("viewer.sign", signError);
       return Response.json({ error: "server_error" }, { status: 500, headers: NO_STORE });
@@ -96,6 +111,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/viewer/[toke
     channel: channelNameForToken(token),
     lastState: parseViewState(cockpit.last_state),
     documents,
+    annotations,
     expiresAt,
   };
   return Response.json(payload, { headers: NO_STORE });

@@ -31,6 +31,7 @@ function setup(initial: ViewTransform = IDENTITY_VIEW) {
     down: (id: number, x: number, y: number) => run(r.down(id, x, y, t)),
     move: (id: number, x: number, y: number) => run(r.move(id, x, y)),
     up: (id: number, x: number, y: number) => run(r.up(id, x, y, t)),
+    poll: () => run(r.poll(t)),
     /** Glissé d'un doigt en n étapes */
     drag(id: number, from: [number, number], to: [number, number], ms = 200, steps = 10) {
       this.down(id, ...from);
@@ -201,5 +202,100 @@ describe("fin de geste et curseur", () => {
     g.down(1, 500, 400);
     const cursor = g.events.find((e) => e.type === "cursor");
     expect(cursor).toEqual({ type: "cursor", point: { x: 0.4, y: 0.5 } });
+  });
+});
+
+describe("crayon", () => {
+  const hold = GESTURE_CONFIG.penHoldMs;
+  const ink = (g: ReturnType<typeof setup>) =>
+    g.commands().filter((c) => c.type === "ink" || c.type === "undo" || c.type === "pen");
+
+  /** Appui long immobile n'importe où : bascule le crayon. */
+  function longPress(g: ReturnType<typeof setup>, x = 500, y = 400) {
+    g.down(1, x, y);
+    g.tick(hold / 2);
+    g.move(1, x + 3, y - 2); // léger tremblement toléré
+    g.poll(); // trop tôt : rien
+    g.tick(hold / 2 + 10);
+    g.poll();
+    g.up(1, x + 3, y - 2);
+  }
+
+  it("un appui long active puis désactive le crayon, sans autre action", () => {
+    const g = setup();
+    longPress(g);
+    expect(g.r.pen).toBe(true);
+    longPress(g, 900, 100);
+    expect(g.r.pen).toBe(false);
+    expect(g.commands().filter((c) => c.type !== "end")).toEqual([
+      { type: "pen", on: true },
+      { type: "pen", on: false },
+    ]);
+  });
+
+  it("un appui qui bouge n'active pas le crayon", () => {
+    const g = setup();
+    g.down(1, 500, 400);
+    g.tick(hold / 2);
+    g.move(1, 560, 400);
+    g.tick(hold);
+    g.poll();
+    g.up(1, 560, 400);
+    expect(g.r.pen).toBe(false);
+  });
+
+  it("crayon actif : un doigt dessine depuis le point d'appui, sans swipe", () => {
+    const g = setup();
+    g.r.setPen(true);
+    g.drag(1, [600, 400], [300, 400]);
+    const actions = ink(g);
+    expect(actions[0]).toEqual({ type: "ink", phase: "start", point: screenToPage(IDENTITY_VIEW, { x: 0.6, y: 0.5 }) });
+    expect(actions.at(-1)).toEqual({ type: "ink", phase: "end" });
+    expect(actions.filter((a) => a.type === "ink" && a.phase === "move").length).toBeGreaterThan(3);
+    expect(g.commands().some((c) => c.type === "document")).toBe(false);
+  });
+
+  it("crayon actif : un tap fait un point", () => {
+    const g = setup();
+    g.r.setPen(true);
+    g.down(1, 500, 400);
+    g.tick(80);
+    g.up(1, 501, 400);
+    expect(ink(g)).toEqual([
+      { type: "ink", phase: "start", point: { x: 0.5, y: 0.5 } },
+      { type: "ink", phase: "end" },
+    ]);
+  });
+
+  it("crayon actif : tap à deux doigts = annuler, pincement = zoom sans trait", () => {
+    const g = setup();
+    g.r.setPen(true);
+    g.down(1, 400, 400);
+    g.down(2, 600, 400);
+    g.tick(120);
+    g.up(2, 600, 400);
+    g.up(1, 400, 400);
+    expect(ink(g)).toEqual([{ type: "undo" }]);
+
+    const z = setup();
+    z.r.setPen(true);
+    z.down(1, 450, 400);
+    z.down(2, 550, 400);
+    z.move(1, 350, 400);
+    z.move(2, 650, 400);
+    z.tick(400);
+    z.up(2, 650, 400);
+    z.up(1, 350, 400);
+    expect(z.view.zoom).toBeGreaterThan(2);
+    expect(ink(z)).toEqual([]);
+  });
+
+  it("un second doigt pendant un trait l'abandonne", () => {
+    const g = setup();
+    g.r.setPen(true);
+    g.down(1, 500, 400);
+    g.move(1, 540, 400);
+    g.down(2, 700, 400);
+    expect(ink(g).map((a) => (a.type === "ink" ? a.phase : a.type))).toEqual(["start", "move", "cancel"]);
   });
 });

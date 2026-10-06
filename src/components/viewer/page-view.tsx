@@ -19,6 +19,8 @@ import type { Size } from "@/lib/viewer/fit";
 import { baseKey, peekBaseRender, renderBase, type BaseRender, type PageRef } from "@/lib/viewer/base-cache";
 import { blit, naturalSize, renderRegion } from "@/lib/viewer/render";
 import { loadDocumentSource } from "@/lib/viewer/sources";
+import type { Stroke } from "@/lib/annotations/model";
+import { InkLayer } from "./ink-layer";
 import type { ViewerDocument } from "@/lib/viewer/types";
 
 interface PageViewProps {
@@ -33,9 +35,13 @@ interface PageViewProps {
   onError?: (message: string | null) => void;
   /** Mode nuit : page atténuée */
   dim?: boolean;
+  /** Annotations de la page (repère du document) */
+  strokes?: Stroke[];
   /** Pages probablement affichées ensuite (documents voisins) : pré-rendues en arrière-plan */
   neighbors?: PageRef[];
 }
+
+const NO_STROKES: Stroke[] = [];
 
 /** Luminosité de la page en mode nuit. */
 const NIGHT_BRIGHTNESS = 0.4;
@@ -55,7 +61,17 @@ const isCancellation = (err: unknown) =>
  *    à coût borné. En attendant, le rendu de base agrandi reste affiché.
  * Les rendus se font hors écran puis remplacent l'ancien d'un coup.
  */
-export function PageView({ doc, page, rotation, view, cursor, dim = false, onError, neighbors }: PageViewProps) {
+export function PageView({
+  doc,
+  page,
+  rotation,
+  view,
+  cursor,
+  dim = false,
+  strokes = NO_STROKES,
+  onError,
+  neighbors,
+}: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detailRef = useRef<HTMLCanvasElement>(null);
@@ -239,6 +255,10 @@ export function PageView({ doc, page, rotation, view, cursor, dim = false, onErr
       >
         <canvas ref={canvasRef} className="block h-full w-full" />
         <canvas ref={detailRef} className="absolute" style={{ display: "none" }} />
+        {/* Annotations : seulement une fois la page affichée (même taille, même repère). */}
+        {displaySize && shownKey === pageKey && (
+          <InkLayer strokes={strokes} rotation={rotation} size={displaySize} />
+        )}
       </div>
       {/* Curseur : position du doigt sur la remote (centré sur la fenêtre puis décalé) */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0">

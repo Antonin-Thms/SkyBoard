@@ -2,6 +2,7 @@
 
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { SYNC_EVENTS } from "./events";
+import { parseInkMessage, type InkMessage } from "@/lib/annotations/model";
 import { parseViewState, type ViewState } from "./protocol";
 
 export { SYNC_EVENTS };
@@ -13,6 +14,7 @@ export type LinkStatus = "connecting" | "connected" | "disconnected";
 
 export interface CockpitLinkHandlers {
   onState?: (state: ViewState) => void;
+  onInk?: (message: InkMessage) => void;
   onRequestState?: () => void;
   /** La liste des documents a changé (envoyé par le serveur) */
   onDocumentsChanged?: () => void;
@@ -23,6 +25,8 @@ export interface CockpitLinkHandlers {
 
 export interface CockpitLink {
   sendState: (state: ViewState) => void;
+  /** Annotation : envoyée seulement si connecté (le trait terminé est aussi enregistré en base) */
+  sendInk: (message: InkMessage) => void;
   requestState: () => void;
   close: () => void;
 }
@@ -78,6 +82,10 @@ export function connectCockpit(
       const state = parseViewState(payload);
       if (state) handlers.onState?.(state);
     });
+    ch.on("broadcast", { event: SYNC_EVENTS.ink }, ({ payload }) => {
+      const message = parseInkMessage(payload);
+      if (message) handlers.onInk?.(message);
+    });
     ch.on("broadcast", { event: SYNC_EVENTS.requestState }, () => handlers.onRequestState?.());
     ch.on("broadcast", { event: SYNC_EVENTS.documentsChanged }, () => handlers.onDocumentsChanged?.());
 
@@ -118,6 +126,9 @@ export function connectCockpit(
     sendState(state) {
       if (status === "connected") broadcast(SYNC_EVENTS.state, state);
       else pending = state;
+    },
+    sendInk(message) {
+      if (status === "connected") broadcast(SYNC_EVENTS.ink, message);
     },
     requestState() {
       if (status === "connected") broadcast(SYNC_EVENTS.requestState, {});

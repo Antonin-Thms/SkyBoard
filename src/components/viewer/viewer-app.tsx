@@ -9,6 +9,8 @@ import type { PageRef } from "@/lib/viewer/base-cache";
 import { clampPage } from "@/lib/viewer/fit";
 import { prefetchDocuments } from "@/lib/viewer/doc-cache";
 import { pruneDocumentSources } from "@/lib/viewer/sources";
+import { pageKey } from "@/lib/annotations/model";
+import { applyInk, EMPTY_INK, pruneLive, strokesForPage, type InkState } from "@/lib/annotations/store";
 import type { ViewState } from "@/lib/sync/protocol";
 import { viewReducer } from "@/lib/viewer/view-reducer";
 import { PageView } from "./page-view";
@@ -59,6 +61,20 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
 
   const documents = useMemo(() => data?.documents ?? [], [data]);
 
+  // Annotations : base reçue avec la liste, puis mises à jour en direct.
+  const [ink, setInk] = useState<InkState>(EMPTY_INK);
+  const annotations = data?.annotations;
+  const [inkSource, setInkSource] = useState(annotations);
+  if (annotations !== inkSource) {
+    // Liste rechargée : les traits terminés viennent de la base, les traits en cours restent.
+    setInkSource(annotations);
+    if (annotations) setInk((prev) => ({ pages: annotations, live: prev.live }));
+  }
+  useEffect(() => {
+    const t = setInterval(() => setInk((prev) => pruneLive(prev, Date.now())), 5_000);
+    return () => clearInterval(t);
+  }, []);
+
   // Libère les documents supprimés entre deux rechargements.
   useEffect(() => {
     if (data) pruneDocumentSources(new Set(documents.map((d) => d.id)));
@@ -86,6 +102,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
   // rafale (réseau qui se débloque), seul le plus récent compte.
   useEffect(() => {
     let latest: ViewState | null = null;
+    let connectedOnce = false;
     let frame: number | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const flush = () => {
@@ -104,7 +121,13 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
           timer = setTimeout(flush, 50);
         }
       },
-      onConnected: () => link.requestState(),
+      onInk: (message) => setInk((prev) => applyInk(prev, message, Date.now())),
+      onConnected: () => {
+        link.requestState();
+        // Reconnexion : des annotations ont pu être faites entre-temps.
+        if (connectedOnce) reload();
+        connectedOnce = true;
+      },
       onStatus: setLinkStatus,
       onDocumentsChanged: reload,
     });
@@ -134,6 +157,12 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
     // Rotation : propriété du document (réglée sur la page Documents).
     return { doc, page: clampPage(page, doc.pageCount), rotation: doc.rotation, transform, cursor };
   }, [view, documents, options.showCursor]);
+
+  const currentKey = current ? pageKey(current.doc.id, current.page) : null;
+  const pageStrokes = useMemo(
+    () => (currentKey ? strokesForPage(ink, currentKey) : []),
+    [ink, currentKey],
+  );
 
   // Voisins probables : documents précédent / suivant et pages adjacentes.
   // Seuls le document et la page comptent (pas le zoom ni le curseur).
@@ -215,6 +244,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
           view={current.transform}
           cursor={current.cursor}
           dim={view?.night === true}
+          strokes={pageStrokes}
           onError={handleRenderError}
           neighbors={neighbors}
         />
@@ -224,6 +254,15 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
             Aucun document
           </div>
         )
+      )}
+      {view?.pen && (
+        // Crayon actif sur la remote : le doigt dessine.
+        <div
+          className="pointer-events-none fixed left-2 top-2 rounded-full bg-black/60 px-2.5 py-1 text-base text-white/90"
+          aria-label="Crayon actif"
+        >
+          ✎
+        </div>
       )}
       {options.showStatus && <StatusBadge status={status} detail={detail} />}
       {options.showStatus && hintVisible && !helpOpen && (

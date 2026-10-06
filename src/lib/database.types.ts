@@ -87,6 +87,18 @@ export interface Database {
         };
         Relationships: [];
       };
+      annotations: {
+        Row: {
+          document_id: string;
+          page: number;
+          user_id: string;
+          strokes: Json;
+          updated_at: string;
+        };
+        Insert: never;
+        Update: never;
+        Relationships: [];
+      };
       /** Jumelage par QR code : accessible uniquement côté serveur (service_role). */
       remote_pairings: {
         Row: {
@@ -116,6 +128,18 @@ export interface Database {
       };
       reorder_documents: {
         Args: { ids: string[] };
+        Returns: undefined;
+      };
+      annotation_add: {
+        Args: { document_id: string; page: number; stroke: Json };
+        Returns: undefined;
+      };
+      annotation_remove: {
+        Args: { document_id: string; page: number; ids: string[] };
+        Returns: undefined;
+      };
+      annotation_clear: {
+        Args: { document_ids: string[]; page?: number | null };
         Returns: undefined;
       };
       save_last_state: {

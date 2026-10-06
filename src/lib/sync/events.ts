@@ -6,4 +6,6 @@ export const SYNC_EVENTS = {
   requestState: "request_state",
   /** serveur → viewers : la liste des documents a changé, la recharger */
   documentsChanged: "documents_changed",
+  /** remote → viewers (et autres remotes) : annotations (trait en cours, terminé, effacé) */
+  ink: "ink",
 } as const;
