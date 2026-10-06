@@ -14,7 +14,12 @@ interface MizImportProps {
 
 /** Choix des images de kneeboard à importer depuis un fichier de mission. */
 export function MizImport({ missionFileName, entries, busy, onImport, onCancel }: MizImportProps) {
-  const [selected, setSelected] = useState(() => new Set(entries.map((e) => e.path)));
+  // Kneeboards cochés d'office ; images de briefing à cocher si besoin.
+  const [selected, setSelected] = useState(
+    () => new Set(entries.filter((e) => e.kind === "kneeboard").map((e) => e.path)),
+  );
+  const kneeboardCount = entries.filter((e) => e.kind === "kneeboard").length;
+  const briefingCount = entries.length - kneeboardCount;
   const previews = useMemo(() => entries.map((e) => URL.createObjectURL(e.file)), [entries]);
   useEffect(() => () => previews.forEach((u) => URL.revokeObjectURL(u)), [previews]);
 
@@ -30,7 +35,7 @@ export function MizImport({ missionFileName, entries, busy, onImport, onCancel }
     return (
       <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 p-4 text-sm">
         <p className="text-slate-400">
-          Aucune image de kneeboard dans « {missionFileName} » (dossier KNEEBOARD de la mission).
+          Aucune image de kneeboard ni de briefing dans « {missionFileName} ».
         </p>
         <button type="button" className="btn-secondary" onClick={onCancel}>
           Fermer
@@ -43,10 +48,10 @@ export function MizImport({ missionFileName, entries, busy, onImport, onCancel }
     <div className="space-y-3 rounded-2xl border border-sky-900/60 bg-sky-950/20 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-medium">Kneeboards de la mission « {missionFileName} »</h2>
+          <h2 className="font-medium">Images de « {missionFileName} »</h2>
           <p className="text-sm text-slate-400">
-            {entries.length} image{entries.length > 1 ? "s" : ""} trouvée{entries.length > 1 ? "s" : ""}.
-            Coche celles à ajouter à tes documents.
+            {kneeboardCount} kneeboard{kneeboardCount > 1 ? "s" : ""} · {briefingCount} image
+            {briefingCount > 1 ? "s" : ""} de briefing. Coche celles à ajouter à tes documents.
           </p>
         </div>
         <div className="flex gap-2 text-sm">
@@ -77,7 +82,9 @@ export function MizImport({ missionFileName, entries, busy, onImport, onCancel }
                   <span className="absolute left-1 top-1 rounded bg-slate-900/80 px-1 text-xs">{on ? "✓" : ""}</span>
                 </div>
                 <span className="truncate px-2 pt-1 text-xs">{e.baseName}</span>
-                <span className="truncate px-2 pb-1.5 text-[10px] text-slate-500">{e.aircraft ?? "Tous appareils"}</span>
+                <span className="truncate px-2 pb-1.5 text-[10px] text-slate-500">
+                  {e.kind === "briefing" ? "Briefing" : (e.aircraft ?? "Kneeboard · tous appareils")}
+                </span>
               </button>
             </li>
           );

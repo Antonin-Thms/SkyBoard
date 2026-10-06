@@ -312,10 +312,12 @@ Remote et viewer peuvent donc avoir des écrans de tailles et de formats différ
   - génère une miniature WebP (JPEG sur les anciens Safari).
 - Le bucket refuse de son côté tout fichier trop gros ou d'un type non autorisé.
 - Arborescence : `<user_id>/<uuid>.pdf|png|jpg` et `<user_id>/<uuid>.thumb.webp`.
-- **Import de mission DCS (`.miz`)** : un `.miz` est une archive ZIP.
-  - Le navigateur la décompresse (`fflate`) en n'extrayant que les images `KNEEBOARD/IMAGES/*` (communes) et `KNEEBOARD/<appareil>/IMAGES/*` (par appareil), au format PNG ou JPG.
-  - Tu coches celles à importer : elles deviennent des documents nommés « Mission · Appareil · Image ».
-  - Le `.miz` lui-même n'est pas envoyé (500 Mo max, lu en mémoire).
+- **Import de mission (`.miz`) ou de track (`.trk`) DCS** : ce sont deux archives ZIP. Le navigateur les décompresse (`fflate`) en n'extrayant que les images PNG ou JPG utiles.
+  - **Kneeboards** : `KNEEBOARD/IMAGES/*` (communs) et `KNEEBOARD/<appareil>/IMAGES/*`. Ils sont cochés par défaut.
+  - **Images de briefing** : `l10n/<langue>/*`, dédoublonnées entre les langues. Elles sont décochées par défaut.
+  - Les documents créés sont nommés « Mission · Appareil|Briefing · Image ».
+  - L'archive elle-même n'est pas envoyée (500 Mo max, lue en mémoire).
+  - Sans accès au `.miz` d'un serveur, utilise le **track** de ta session, enregistré dans `Saved Games\DCS\Tracks\Multiplayer`.
 - Le worker pdf.js est copié de `node_modules` vers `public/pdfjs/` avant `dev` et `build` (`scripts/copy-pdf-worker.mjs`). C'est le build *legacy* : le build moderne exige des API JS trop récentes pour le navigateur intégré d'OpenKneeboard et pour Safari.
 
 ## Sécurité (résumé)

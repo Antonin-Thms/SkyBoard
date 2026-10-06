@@ -10,7 +10,7 @@ export const ACCEPTED_MIME_TYPES: readonly DocumentMimeType[] = [
 ];
 
 /** Valeur de l'attribut accept de l'input fichier. */
-export const ACCEPT_ATTRIBUTE = ".pdf,.png,.jpg,.jpeg,.miz,application/pdf,image/png,image/jpeg";
+export const ACCEPT_ATTRIBUTE = ".pdf,.png,.jpg,.jpeg,.miz,.trk,application/pdf,image/png,image/jpeg";
 
 export const EXTENSION_BY_MIME: Record<DocumentMimeType, string> = {
   "application/pdf": "pdf",

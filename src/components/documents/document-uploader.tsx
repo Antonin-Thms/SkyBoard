@@ -87,7 +87,7 @@ export function DocumentUploader({ userId, nextSortOrder, folderId, folderName }
         setMizStatus(null);
       } catch (err) {
         setMission(null);
-        setMizStatus(err instanceof Error ? err.message : "Fichier .miz illisible.");
+        setMizStatus(err instanceof Error ? err.message : "Fichier illisible.");
       }
     }
     if (documents.length) await uploadAll(documents.map((file) => ({ file })));
@@ -111,7 +111,8 @@ export function DocumentUploader({ userId, nextSortOrder, folderId, folderName }
         }`}
       >
         <p className="text-sm text-slate-400">
-          Glisse tes fichiers ici (PDF, PNG, JPG ou mission DCS <span className="font-mono">.miz</span>), ou
+          Glisse tes fichiers ici (PDF, PNG, JPG, mission <span className="font-mono">.miz</span> ou track{" "}
+          <span className="font-mono">.trk</span> DCS), ou
         </p>
         <button
           type="button"

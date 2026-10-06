@@ -7,17 +7,17 @@ export interface ExtractedKneeboard extends MizKneeboardEntry {
   file: File;
 }
 
-/** Extrait les images de kneeboard d'un fichier .miz (décompression dans le navigateur). */
+/** Extrait les images de kneeboard et de briefing d'une mission (.miz) ou d'un track (.trk), dans le navigateur. */
 export async function extractMizKneeboards(miz: File): Promise<ExtractedKneeboard[]> {
-  if (miz.size > MAX_MIZ_BYTES) throw new Error("Fichier de mission trop volumineux (500 Mo max).");
+  if (miz.size > MAX_MIZ_BYTES) throw new Error("Fichier trop volumineux (500 Mo max).");
   const data = new Uint8Array(await miz.arrayBuffer());
 
   const files = await new Promise<Record<string, Uint8Array>>((resolve, reject) => {
     unzip(
       data,
-      // On ne décompresse que les images de kneeboard (pas les sons, scripts…).
+      // On ne décompresse que les images utiles (pas les sons, scripts, données du track…).
       { filter: (f) => findKneeboardEntries([f.name]).length > 0 },
-      (err, out) => (err ? reject(new Error("Fichier .miz illisible.")) : resolve(out)),
+      (err, out) => (err ? reject(new Error("Fichier illisible (mission ou track DCS attendu).")) : resolve(out)),
     );
   });
 

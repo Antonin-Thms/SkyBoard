@@ -47,8 +47,8 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
       <div>
         <h1 className="text-2xl font-semibold">Documents</h1>
         <p className="text-sm text-slate-400">
-          {documents.length} document{documents.length > 1 ? "s" : ""} · PDF, PNG, JPG ou mission
-          DCS (.miz), 50 Mo max
+          {documents.length} document{documents.length > 1 ? "s" : ""} · PDF, PNG, JPG, mission ou
+          track DCS (.miz, .trk), 50 Mo max
         </p>
       </div>
 
@@ -56,10 +56,10 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
         <ul className="list-disc space-y-1 pl-5">
           <li>Ajoute tes kneeboards : PDF (plusieurs pages) ou images PNG / JPG, 50 Mo max.</li>
           <li>
-            Mission DCS : dépose un fichier <span className="font-mono">.miz</span> pour importer
-            les kneeboards qu&apos;il contient. Les missions multijoueur téléchargées sont en
-            général dans <span className="font-mono">Saved Games\DCS\Missions</span> ou{" "}
-            <span className="font-mono">%TEMP%\DCS</span>.
+            Mission ou track DCS : dépose un fichier <span className="font-mono">.miz</span> ou{" "}
+            <span className="font-mono">.trk</span> pour importer ses kneeboards et images de
+            briefing. Tracks multijoueur :{" "}
+            <span className="font-mono">Saved Games\DCS\Tracks\Multiplayer</span>.
           </li>
           <li>
             <strong>Dossiers</strong> (ex. un par serveur) : choisis le dossier actif d&apos;un
