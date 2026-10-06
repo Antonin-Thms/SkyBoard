@@ -67,8 +67,13 @@ export function findKneeboardEntries(paths: string[]): MizKneeboardEntry[] {
 }
 
 /** Nom du document importé : « Mission · Appareil|Briefing · Image », borné à 200 caractères. */
-export function kneeboardDocumentName(missionFileName: string, entry: MizKneeboardEntry): string {
-  const mission = missionFileName.replace(/\.(miz|trk)$/i, "").trim() || "Mission";
-  const group = entry.kind === "briefing" ? "Briefing" : entry.aircraft;
+export function kneeboardDocumentName(
+  missionFileName: string,
+  entry: MizKneeboardEntry,
+  /** Libellés dans la langue de l'interface */
+  labels: { mission: string; briefing: string } = { mission: "Mission", briefing: "Briefing" },
+): string {
+  const mission = missionFileName.replace(/\.(miz|trk)$/i, "").trim() || labels.mission;
+  const group = entry.kind === "briefing" ? labels.briefing : entry.aircraft;
   return [mission, group, entry.baseName].filter(Boolean).join(" · ").slice(0, 200);
 }

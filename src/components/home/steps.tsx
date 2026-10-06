@@ -1,12 +1,12 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
+import { fmt } from "@/lib/i18n/define";
+import { getT } from "@/lib/i18n/server";
 
 const STEPS = [
   {
     href: "/documents",
-    title: "Ajoute tes kneeboards",
-    text: "PDF, images, ou les kneeboards d'une mission (.miz) ou d'un track (.trk). Range-les par dossier, un par serveur par exemple.",
-    cta: "Documents",
+    key: "documents",
     icon: (
       <svg viewBox="0 0 120 90" className="h-20 w-full" aria-hidden="true" fill="none" strokeWidth="2">
         <rect x="34" y="12" width="44" height="58" className="fill-slate-800 stroke-slate-600" />
@@ -18,9 +18,7 @@ const STEPS = [
   },
   {
     href: "/cockpits",
-    title: "Branche le casque",
-    text: "Crée un cockpit, copie son URL et colle-la dans un onglet Web Dashboard d'OpenKneeboard.",
-    cta: "Cockpits",
+    key: "cockpits",
     icon: (
       <svg viewBox="0 0 120 90" className="h-20 w-full" aria-hidden="true" fill="none" strokeWidth="2">
         <rect x="14" y="26" width="46" height="34" rx="4" className="fill-slate-900 stroke-slate-600" />
@@ -34,9 +32,7 @@ const STEPS = [
   },
   {
     href: "/remote",
-    title: "Pilote au doigt",
-    text: "Ouvre la remote sur une tablette ou un téléphone (ou scanne le QR code affiché sur le PC).",
-    cta: "Remote",
+    key: "remote",
     icon: (
       <svg viewBox="0 0 120 90" className="h-20 w-full" aria-hidden="true" fill="none" strokeWidth="2">
         <rect x="34" y="10" width="52" height="70" rx="6" className="fill-slate-900 stroke-slate-600" />
@@ -47,23 +43,27 @@ const STEPS = [
       </svg>
     ),
   },
-];
+] as const;
 
-export function Steps() {
+export async function Steps() {
+  const t = await getT();
   return (
     <ol className="grid gap-4 md:grid-cols-3">
-      {STEPS.map((step, i) => (
-        <li key={step.href} className="flex flex-col gap-3 border border-slate-800 bg-slate-900/50 p-5">
-          <div className="label-caps">Étape {i + 1}</div>
-          {step.icon}
-          <h3 className="text-lg font-medium text-slate-100">{step.title}</h3>
-          <p className="flex-1 text-sm text-slate-400">{step.text}</p>
-          <Link href={step.href} className="flex items-center gap-1.5 self-start text-sm font-medium text-accent hover:text-accent-hover">
-            {step.cta}
-            <ArrowRight size={15} strokeWidth={1.75} />
-          </Link>
-        </li>
-      ))}
+      {STEPS.map((step, i) => {
+        const text = t.home.steps[step.key];
+        return (
+          <li key={step.href} className="flex flex-col gap-3 border border-slate-800 bg-slate-900/50 p-5">
+            <div className="label-caps">{fmt(t.home.step, { n: i + 1 })}</div>
+            {step.icon}
+            <h3 className="text-lg font-medium text-slate-100">{text.title}</h3>
+            <p className="flex-1 text-sm text-slate-400">{text.text}</p>
+            <Link href={step.href} className="flex items-center gap-1.5 self-start text-sm font-medium text-accent hover:text-accent-hover">
+              {text.cta}
+              <ArrowRight size={15} strokeWidth={1.75} />
+            </Link>
+          </li>
+        );
+      })}
     </ol>
   );
 }

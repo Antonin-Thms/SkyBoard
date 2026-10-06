@@ -3,6 +3,8 @@
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Maximize, Moon, PenLine } from "lucide-react";
 import { CachedThumbnail } from "@/components/cached-thumbnail";
 import { Menu, type MenuItem } from "@/components/ui/menu";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 import type { RemoteDocument } from "@/lib/remote/types";
 
 interface PrepModeProps {
@@ -41,6 +43,7 @@ export function PrepMode({
   onToggleNight,
   onAnnotate,
 }: PrepModeProps) {
+  const t = useT().remote.prep;
   const index = current ? documents.findIndex((d) => d.id === current.id) : -1;
   const multiPage = !!current && current.pageCount > 1;
   const single = documents.length < 2;
@@ -54,7 +57,7 @@ export function PrepMode({
       </div>
       {multiPage && (
         <div className="numeric mt-1 text-[11px] tracking-[0.12em] text-muted">
-          PAGE {page}/{current.pageCount}
+          {fmt(t.pageInfo, { page, count: current.pageCount })}
         </div>
       )}
     </div>
@@ -64,45 +67,45 @@ export function PrepMode({
     <div className="min-w-0">
       <div className="label-caps flex items-center gap-1.5">
         <span className="size-1.5 rounded-full bg-accent" />
-        Dans le casque
+        {t.inHeadset}
       </div>
       <div className={`mt-0.5 truncate font-medium ${compact ? "text-base" : "text-xl"}`}>
-        {current ? current.name : "Aucun document"}
+        {current ? current.name : t.noDocument}
       </div>
     </div>
   );
 
   // Téléphone : actions secondaires dans un menu.
   const moreItems: MenuItem[] = [
-    { label: night ? "Mode nuit : activé" : "Mode nuit", icon: <Moon size={16} strokeWidth={1.75} />, onSelect: onToggleNight },
+    { label: night ? t.nightOn : t.night, icon: <Moon size={16} strokeWidth={1.75} />, onSelect: onToggleNight },
     ...(multiPage
       ? [
-          { label: "Page précédente", icon: <ChevronUp size={16} strokeWidth={1.75} />, onSelect: () => onStepPage(-1), disabled: page <= 1 },
-          { label: "Page suivante", icon: <ChevronDown size={16} strokeWidth={1.75} />, onSelect: () => onStepPage(1), disabled: page >= current.pageCount },
+          { label: t.prevPage, icon: <ChevronUp size={16} strokeWidth={1.75} />, onSelect: () => onStepPage(-1), disabled: page <= 1 },
+          { label: t.nextPage, icon: <ChevronDown size={16} strokeWidth={1.75} />, onSelect: () => onStepPage(1), disabled: page >= current.pageCount },
         ]
       : []),
-    ...(zoomed ? [{ label: "Zoom 1:1", icon: <Maximize size={16} strokeWidth={1.75} />, onSelect: onResetZoom }] : []),
+    ...(zoomed ? [{ label: t.resetZoom, icon: <Maximize size={16} strokeWidth={1.75} />, onSelect: onResetZoom }] : []),
   ];
 
   return (
     <div className="space-y-4">
       {compact ? (
-        <section aria-label="Dans le casque" className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border border-line bg-raised px-3.5 py-3">
+        <section aria-label={t.inHeadset} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border border-line bg-raised px-3.5 py-3">
           {title}
           {counter}
         </section>
       ) : (
-        <section aria-label="Dans le casque" className="flex flex-wrap items-stretch border border-line bg-raised">
+        <section aria-label={t.inHeadset} className="flex flex-wrap items-stretch border border-line bg-raised">
           <div className="flex min-w-0 flex-1 items-center px-5 py-4">{title}</div>
           <div className="flex items-center border-x border-line px-6">{counter}</div>
           <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-            <button type="button" className={square} aria-label="Document précédent" onClick={() => onStepDocument(-1)} disabled={single}>
+            <button type="button" className={square} aria-label={t.prevDocument} onClick={() => onStepDocument(-1)} disabled={single}>
               <ChevronLeft size={22} strokeWidth={1.75} />
             </button>
             <button
               type="button"
               className="flex size-14 shrink-0 items-center justify-center rounded-[2px] bg-accent text-on-accent transition hover:bg-accent-hover active:scale-[0.97] disabled:opacity-40"
-              aria-label="Document suivant"
+              aria-label={t.nextDocument}
               onClick={() => onStepDocument(1)}
               disabled={single && !!current}
             >
@@ -111,26 +114,26 @@ export function PrepMode({
             {multiPage && (
               <>
                 <span className="mx-1 h-10 w-px bg-line-strong" />
-                <button type="button" className={`${square} w-12`} aria-label="Page précédente" onClick={() => onStepPage(-1)} disabled={page <= 1}>
+                <button type="button" className={`${square} w-12`} aria-label={t.prevPage} onClick={() => onStepPage(-1)} disabled={page <= 1}>
                   <ChevronUp size={22} strokeWidth={1.75} />
                 </button>
-                <button type="button" className={`${square} w-12`} aria-label="Page suivante" onClick={() => onStepPage(1)} disabled={page >= current.pageCount}>
+                <button type="button" className={`${square} w-12`} aria-label={t.nextPage} onClick={() => onStepPage(1)} disabled={page >= current.pageCount}>
                   <ChevronDown size={22} strokeWidth={1.75} />
                 </button>
               </>
             )}
             <span className="mx-1 h-10 w-px bg-line-strong" />
             {current && (
-              <button type="button" className={`${square} w-auto gap-2 px-4 text-sm`} onClick={onAnnotate} title="Dessiner sur la page affichée (visible en direct dans le casque)">
+              <button type="button" className={`${square} w-auto gap-2 px-4 text-sm`} onClick={onAnnotate} title={t.annotateTitle}>
                 <PenLine size={20} strokeWidth={1.75} />
-                Annoter
+                {t.annotate}
               </button>
             )}
             <button
               type="button"
               aria-pressed={night}
-              aria-label="Mode nuit"
-              title="Atténue la page dans le casque (vol de nuit)"
+              aria-label={t.night}
+              title={t.nightTitle}
               className={night ? `${square} border-accent bg-accent-subtle text-accent` : square}
               onClick={onToggleNight}
             >
@@ -139,7 +142,7 @@ export function PrepMode({
             {zoomed && (
               <button type="button" className={`${square} w-auto gap-2 px-4 text-sm`} onClick={onResetZoom}>
                 <Maximize size={18} strokeWidth={1.75} />
-                Zoom 1:1
+                {t.resetZoom}
               </button>
             )}
           </div>
@@ -161,12 +164,12 @@ export function PrepMode({
                     <CachedThumbnail docId={doc.id} url={doc.thumbnailUrl} rotation={doc.rotation} />
                   ) : (
                     <span className="flex h-full items-center justify-center text-xs text-subtle">
-                      {doc.type === "application/pdf" ? "PDF" : "Image"}
+                      {doc.type === "application/pdf" ? t.pdf : t.image}
                     </span>
                   )}
                   {doc.pageCount > 1 && (
                     <span className="numeric absolute bottom-1.5 right-1.5 bg-surface/85 px-1.5 text-[11px] tracking-wider text-slate-300">
-                      {doc.pageCount} P
+                      {fmt(t.pageCount, { n: doc.pageCount })}
                     </span>
                   )}
                 </span>
@@ -182,10 +185,10 @@ export function PrepMode({
         <>
           <div className="h-20" aria-hidden="true" />
           <nav
-            aria-label="Commandes"
+            aria-label={t.commands}
             className="fixed inset-x-0 bottom-[calc(3.5rem+env(safe-area-inset-bottom))] z-20 grid grid-cols-[56px_minmax(0,1fr)_56px_56px] gap-2 border-t border-line bg-surface/95 px-4 py-2.5 backdrop-blur"
           >
-            <button type="button" className={square} aria-label="Document précédent" onClick={() => onStepDocument(-1)} disabled={single}>
+            <button type="button" className={square} aria-label={t.prevDocument} onClick={() => onStepDocument(-1)} disabled={single}>
               <ChevronLeft size={22} strokeWidth={1.75} />
             </button>
             <button
@@ -194,13 +197,13 @@ export function PrepMode({
               onClick={() => onStepDocument(1)}
               disabled={single && !!current}
             >
-              Suivant
+              {t.next}
               <ChevronRight size={20} strokeWidth={2.25} />
             </button>
-            <button type="button" className={square} aria-label="Annoter" onClick={onAnnotate} disabled={!current}>
+            <button type="button" className={square} aria-label={t.annotate} onClick={onAnnotate} disabled={!current}>
               <PenLine size={20} strokeWidth={1.75} />
             </button>
-            <Menu label="Plus d'actions" items={moreItems} side="top" triggerClassName={square} />
+            <Menu label={t.more} items={moreItems} side="top" triggerClassName={square} />
           </nav>
         </>
       )}

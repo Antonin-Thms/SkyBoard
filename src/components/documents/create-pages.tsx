@@ -4,6 +4,7 @@ import { ChevronDown, FileText, ListChecks, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Menu } from "@/components/ui/menu";
 import { parseChecklistItems, renderChecklist, renderNotePage } from "@/lib/documents/generate";
+import { useT } from "@/lib/i18n/client";
 
 interface CreatePagesProps {
   busy: boolean;
@@ -13,6 +14,7 @@ interface CreatePagesProps {
 
 /** Bouton « Créer » : page de notes vierge à annoter, ou checklist à cocher au doigt. */
 export function CreatePages({ busy, onCreate }: CreatePagesProps) {
+  const t = useT().documents.create;
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
@@ -21,10 +23,10 @@ export function CreatePages({ busy, onCreate }: CreatePagesProps) {
     setWorking(true);
     setError(null);
     try {
-      const name = "Notes";
+      const name = t.noteName;
       onCreate([{ file: await renderNotePage(name), name }]);
     } catch {
-      setError("Création impossible.");
+      setError(t.failed);
     } finally {
       setWorking(false);
     }
@@ -33,25 +35,25 @@ export function CreatePages({ busy, onCreate }: CreatePagesProps) {
   return (
     <>
       <Menu
-        label="Créer une page"
+        label={t.menuLabel}
         align="end"
         triggerClassName="btn-secondary"
         trigger={
           <>
             <Plus size={16} strokeWidth={1.75} />
-            Créer
+            {t.button}
             <ChevronDown size={14} strokeWidth={1.75} className="text-subtle" />
           </>
         }
         items={[
           {
-            label: "Page de notes",
+            label: t.notePage,
             icon: <FileText size={16} strokeWidth={1.75} />,
             disabled: busy || working,
             onSelect: () => void createNote(),
           },
           {
-            label: "Checklist",
+            label: t.checklist,
             icon: <ListChecks size={16} strokeWidth={1.75} />,
             disabled: busy || working,
             onSelect: () => setChecklistOpen(true),
@@ -80,6 +82,7 @@ function ChecklistDialog({
   onClose: () => void;
   onCreate: (items: { file: File; name: string }[]) => void;
 }) {
+  const t = useT().documents.create;
   const dialog = useRef<HTMLDialogElement>(null);
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
@@ -94,18 +97,18 @@ function ChecklistDialog({
 
   async function create() {
     const items = parseChecklistItems(text);
-    const name = title.trim().slice(0, 120) || "Checklist";
+    const name = title.trim().slice(0, 120) || t.defaultTitle;
     if (!items.length) {
-      setError("Ajoute au moins un élément (une ligne par élément).");
+      setError(t.noItems);
       return;
     }
     setWorking(true);
     setError(null);
     try {
-      const files = await renderChecklist(name, items);
+      const files = await renderChecklist(name, items, t.continued);
       onCreate(files.map((file) => ({ file, name: file.name.replace(/\.png$/, "") })));
     } catch {
-      setError("Création impossible.");
+      setError(t.failed);
       setWorking(false);
     }
   }
@@ -126,32 +129,32 @@ function ChecklistDialog({
       >
         <div className="flex items-center justify-between">
           <h2 id="checklist-title" className="text-lg font-medium">
-            Nouvelle checklist
+            {t.dialogTitle}
           </h2>
-          <button type="button" className="btn-icon -mr-2" aria-label="Fermer" onClick={onClose}>
+          <button type="button" className="btn-icon -mr-2" aria-label={t.close} onClick={onClose}>
             <X size={18} strokeWidth={1.75} />
           </button>
         </div>
         <label className="flex flex-col gap-1.5 text-sm text-muted">
-          Titre
+          {t.titleLabel}
           <input className="input" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
         </label>
         <label className="flex flex-col gap-1.5 text-sm text-muted">
-          Éléments, un par ligne
+          {t.itemsLabel}
           <textarea
             className="input min-h-48 font-mono text-[13px]"
             value={text}
             onChange={(e) => setText(e.target.value)}
           />
         </label>
-        <p className="text-xs text-subtle">Chaque élément a sa case ; coche-la au doigt avec le crayon (remote).</p>
+        <p className="text-xs text-subtle">{t.hint}</p>
         {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose}>
-            Annuler
+            {t.cancel}
           </button>
           <button type="submit" className="btn-primary" disabled={working}>
-            {working ? "Création…" : "Créer la checklist"}
+            {working ? t.creating : t.submit}
           </button>
         </div>
       </form>

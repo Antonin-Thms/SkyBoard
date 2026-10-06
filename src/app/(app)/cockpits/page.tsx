@@ -4,11 +4,16 @@ import { HelpPanel } from "@/components/help-panel";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { getFolders } from "@/lib/documents/server";
+import { getT } from "@/lib/i18n/server";
 import { createClient } from "@/lib/supabase/server";
 
-export const metadata = { title: "Cockpits · SkyBoard" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: t.cockpits.page.metaTitle };
+}
 
 export default async function CockpitsPage() {
+  const t = await getT();
   const supabase = await createClient();
   const [{ data, error }, folders] = await Promise.all([
     supabase.from("cockpits").select("id, name, viewer_token, active_folder_id").order("created_at"),
@@ -20,42 +25,44 @@ export default async function CockpitsPage() {
     <div className="space-y-6">
       <PageHeader
         eyebrow="OpenKneeboard"
-        title="Cockpits"
+        title={t.cockpits.page.title}
         description={
           <>
-            Un cockpit = une URL viewer à coller dans un onglet <em>Web Dashboard</em> d&apos;OpenKneeboard.
-            Garde cette URL secrète : elle donne accès à tes documents.
+            {t.cockpits.page.descriptionBefore}
+            <em>Web Dashboard</em>
+            {t.cockpits.page.descriptionAfter}
           </>
         }
       />
 
       <HelpPanel>
         <ol className="list-decimal space-y-1 pl-5">
-          <li>Crée un cockpit (par ex. un par avion, ou un seul pour tout).</li>
+          <li>{t.cockpits.help.step1}</li>
           <li>
-            Clique sur <strong>Copier</strong>, puis colle l&apos;URL dans un onglet{" "}
-            <em>Web Dashboard</em> d&apos;OpenKneeboard.
+            {t.cockpits.help.step2Before}
+            <strong>{t.cockpits.help.step2Copy}</strong>
+            {t.cockpits.help.step2Middle}
+            <em>Web Dashboard</em>
+            {t.cockpits.help.step2After}
           </li>
           <li>
-            <strong>Ouvrir</strong> affiche le viewer dans un onglet du navigateur pour tester hors
-            VR. Dans le viewer, appuie sur <kbd className="rounded bg-slate-800 px-1">H</kbd> pour
-            l&apos;aide.
+            <strong>{t.cockpits.help.step3Open}</strong>
+            {t.cockpits.help.step3Middle}
+            <kbd className="rounded bg-slate-800 px-1">H</kbd>
+            {t.cockpits.help.step3After}
           </li>
         </ol>
-        <p className="text-slate-400">
-          Le viewer affiche tous tes documents (page Documents), dans l&apos;ordre choisi. Il
-          s&apos;ouvre sur le dernier document et la dernière page affichés.
-        </p>
+        <p className="text-slate-400">{t.cockpits.help.note}</p>
       </HelpPanel>
 
       <CreateCockpitForm />
 
-      {error && <p className="text-sm text-danger">Impossible de charger les cockpits.</p>}
+      {error && <p className="text-sm text-danger">{t.cockpits.page.loadError}</p>}
 
       {cockpits.length === 0 && !error ? (
         <EmptyState
-          title="Aucun cockpit pour l'instant"
-          text="Crée un cockpit ci-dessus, puis colle son URL dans un onglet Web Dashboard d'OpenKneeboard."
+          title={t.cockpits.page.emptyTitle}
+          text={t.cockpits.page.emptyText}
         />
       ) : (
         <ul className="space-y-4">

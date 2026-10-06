@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { createRemoteLink } from "@/app/(app)/remote/actions";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 
 /** Le QR code est masqué quand son code de jumelage expire. */
 const QR_VISIBLE_MS = 2 * 60 * 1000;
@@ -17,6 +19,8 @@ export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
   const [qr, setQr] = useState<{ svg: string; autoLogin: boolean } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const tr = useT().remote;
+  const t = tr.qr;
 
   // Masque le QR code après un délai, et dès qu'on change de cockpit.
   useEffect(() => {
@@ -29,7 +33,7 @@ export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
     startTransition(async () => {
       const res = await createRemoteLink(cockpitId, autoLogin);
       if (!res.url) {
-        setError(res.error ?? "Impossible de créer le QR code. Réessaie.");
+        setError(res.error ?? tr.errors.qrFailed);
         setQr(null);
         return;
       }
@@ -43,10 +47,9 @@ export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
   return (
     <div className="flex flex-wrap items-start gap-4 border border-line bg-raised p-4">
       <div className="min-w-0 flex-1 space-y-2 text-sm">
-        <h2 className="font-medium text-slate-200">Piloter depuis une tablette ou un téléphone</h2>
+        <h2 className="font-medium text-slate-200">{t.title}</h2>
         <p className="text-slate-400">
-          Scanne le QR code avec l&apos;appareil photo : la remote s&apos;ouvre directement en mode
-          vol sur le cockpit « {cockpitName} ».
+          {fmt(t.text, { name: cockpitName })}
         </p>
         <label className="flex items-start gap-2 text-slate-300">
           <input
@@ -59,14 +62,12 @@ export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
             }}
           />
           <span>
-            Connexion automatique
-            <span className="block text-xs text-slate-500">
-              Code à usage unique, valable 2 minutes. Évite de l&apos;afficher en stream.
-            </span>
+            {t.autoLogin}
+            <span className="block text-xs text-slate-500">{t.autoLoginHint}</span>
           </span>
         </label>
         <button type="button" className="btn-primary" onClick={generate} disabled={pending}>
-          {pending ? "Génération…" : qr ? "Nouveau QR code" : "Afficher le QR code"}
+          {pending ? t.generating : qr ? t.regenerate : t.show}
         </button>
         {error && <p className="text-danger">{error}</p>}
       </div>
@@ -77,7 +78,7 @@ export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
             // SVG généré localement par la bibliothèque qrcode à partir de notre URL.
             dangerouslySetInnerHTML={{ __html: qr.svg }}
           />
-          <p className="text-xs text-slate-500">{qr.autoLogin ? "Usage unique" : "Connexion requise"}</p>
+          <p className="text-xs text-slate-500">{qr.autoLogin ? t.singleUse : t.loginRequired}</p>
         </div>
       )}
     </div>

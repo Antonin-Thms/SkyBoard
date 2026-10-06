@@ -11,6 +11,8 @@ import { folderOptions } from "@/components/ui/folder-options";
 import { Menu } from "@/components/ui/menu";
 import { Select } from "@/components/ui/select";
 import type { FolderSummary } from "@/lib/documents/folders";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 import type { DocumentItem } from "./document-grid";
 
 const TYPE_LABEL: Record<DocumentItem["type"], string> = {
@@ -49,6 +51,7 @@ export function DocumentCard({
 }: DocumentCardProps) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.id });
+  const { documents: t, common: tc } = useT();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.name);
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +103,7 @@ export function DocumentCard({
           {...attributes}
           {...listeners}
           type="button"
-          aria-label="Déplacer"
+          aria-label={t.card.move}
           className={`absolute left-2 top-2 cursor-grab touch-none active:cursor-grabbing ${overlayButton} ${reveal}`}
         >
           <GripVertical size={16} strokeWidth={1.75} />
@@ -110,7 +113,7 @@ export function DocumentCard({
         <Checkbox
           checked={selected}
           onToggle={(e) => onToggleSelect(e.shiftKey)}
-          label={`Sélectionner ${item.name}`}
+          label={fmt(t.card.select, { name: item.name })}
           className={`absolute right-0 top-0 h-11 w-11 items-start justify-end p-2.5 ${
             selected || selecting ? "" : reveal
           }`}
@@ -119,17 +122,17 @@ export function DocumentCard({
         {/* Rotation */}
         {/* Au doigt, la rotation passe par le menu ⋯ (miniature dégagée). */}
         <div className={`absolute bottom-2 left-2 flex gap-1 ${reveal} pointer-coarse:hidden`}>
-          <button type="button" aria-label="Tourner vers la gauche" title="Tourner vers la gauche" className={overlayButton} onClick={() => onRotate(-1)}>
+          <button type="button" aria-label={t.card.rotateLeft} title={t.card.rotateLeft} className={overlayButton} onClick={() => onRotate(-1)}>
             <RotateCcw size={16} strokeWidth={1.75} />
           </button>
-          <button type="button" aria-label="Tourner vers la droite" title="Tourner vers la droite" className={overlayButton} onClick={() => onRotate(1)}>
+          <button type="button" aria-label={t.card.rotateRight} title={t.card.rotateRight} className={overlayButton} onClick={() => onRotate(1)}>
             <RotateCw size={16} strokeWidth={1.75} />
           </button>
         </div>
 
         <span className="numeric absolute bottom-2 right-2 bg-surface/85 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-slate-300">
           {TYPE_LABEL[item.type]}
-          {isPdf && item.pageCount > 1 && ` · ${item.pageCount} p`}
+          {isPdf && item.pageCount > 1 && ` · ${fmt(t.card.pages, { n: item.pageCount })}`}
           {item.rotation !== 0 && ` · ${item.rotation}°`}
         </span>
       </div>
@@ -144,7 +147,7 @@ export function DocumentCard({
           >
             <input
               className="input"
-              aria-label="Nouveau nom"
+              aria-label={t.card.newName}
               value={draft}
               maxLength={200}
               autoFocus
@@ -166,10 +169,10 @@ export function DocumentCard({
         <div className="flex items-center justify-between gap-2">
           <Select
             variant="chip"
-            label="Dossier"
+            label={t.card.folder}
             value={item.folderId ?? ""}
             disabled={pending}
-            options={folderOptions(folders, [{ value: "", label: "Communs" }])}
+            options={folderOptions(folders, [{ value: "", label: tc.folders.common }], tc.folders.squadronGroup)}
             onChange={(value) => {
               const folderId = value || null;
               startTransition(async () => {
@@ -180,20 +183,20 @@ export function DocumentCard({
             className="flex min-w-0 flex-1"
           />
           <Menu
-            label={`Actions pour ${item.name}`}
+            label={fmt(t.card.actionsFor, { name: item.name })}
             triggerClassName="btn-icon -mr-2 size-8"
             items={[
-              { label: "Tourner à gauche", icon: <RotateCcw size={16} strokeWidth={1.75} />, onSelect: () => onRotate(-1) },
-              { label: "Tourner à droite", icon: <RotateCw size={16} strokeWidth={1.75} />, onSelect: () => onRotate(1) },
+              { label: t.card.menuRotateLeft, icon: <RotateCcw size={16} strokeWidth={1.75} />, onSelect: () => onRotate(-1) },
+              { label: t.card.menuRotateRight, icon: <RotateCw size={16} strokeWidth={1.75} />, onSelect: () => onRotate(1) },
               {
-                label: "Renommer",
+                label: t.card.rename,
                 icon: <Pencil size={16} strokeWidth={1.75} />,
                 onSelect: () => {
                   setDraft(item.name);
                   setEditing(true);
                 },
               },
-              { label: "Supprimer", icon: <Trash2 size={16} strokeWidth={1.75} />, onSelect: onDelete, danger: true, separator: true },
+              { label: t.card.delete, icon: <Trash2 size={16} strokeWidth={1.75} />, onSelect: onDelete, danger: true, separator: true },
             ]}
           />
         </div>

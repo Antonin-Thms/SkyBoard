@@ -2,6 +2,7 @@
 
 import { Check, ChevronsUpDown } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useT } from "@/lib/i18n/client";
 
 export interface SelectOption {
   value: string;
@@ -38,7 +39,7 @@ export function Select({
   options,
   onChange,
   label,
-  placeholder = "Choisir…",
+  placeholder,
   disabled = false,
   icon,
   size = "md",
@@ -46,6 +47,7 @@ export function Select({
   align = "start",
   className = "",
 }: SelectProps) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const root = useRef<HTMLDivElement>(null);
@@ -95,7 +97,7 @@ export function Select({
         className={`flex min-w-0 items-center rounded-[2px] border text-left transition duration-[120ms] disabled:cursor-not-allowed disabled:opacity-40 ${look}`}
       >
         {(selected?.icon ?? icon) && <span className="flex shrink-0 text-muted">{selected?.icon ?? icon}</span>}
-        <span className={`min-w-0 flex-1 truncate ${selected ? "" : "text-subtle"}`}>{selected?.label ?? placeholder}</span>
+        <span className={`min-w-0 flex-1 truncate ${selected ? "" : "text-subtle"}`}>{selected?.label ?? placeholder ?? t.common.choose}</span>
         <ChevronsUpDown size={variant === "chip" ? 12 : 14} strokeWidth={1.75} className="shrink-0 text-subtle" />
       </button>
       {open && (

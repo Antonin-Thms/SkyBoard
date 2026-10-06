@@ -1,5 +1,8 @@
+"use client";
+
 import { ChevronDown, CircleHelp } from "lucide-react";
 import type { ReactNode } from "react";
+import { useT } from "@/lib/i18n/client";
 
 /** Encadré d'aide repliable. */
 interface HelpPanelProps {
@@ -8,12 +11,13 @@ interface HelpPanelProps {
   children: ReactNode;
 }
 
-export function HelpPanel({ title = "Mode d'emploi", defaultOpen = true, children }: HelpPanelProps) {
+export function HelpPanel({ title, defaultOpen = true, children }: HelpPanelProps) {
+  const t = useT();
   return (
     <details open={defaultOpen} className="group border border-line text-sm text-slate-300">
       <summary className="flex cursor-pointer select-none list-none items-center gap-2 px-4 py-3 font-medium text-slate-200 [&::-webkit-details-marker]:hidden">
         <CircleHelp size={16} strokeWidth={1.75} className="text-muted" />
-        <span className="flex-1">{title}</span>
+        <span className="flex-1">{title ?? t.common.help.title}</span>
         <ChevronDown size={16} strokeWidth={1.75} className="text-subtle transition group-open:rotate-180" />
       </summary>
       <div className="space-y-2 px-4 pb-4">{children}</div>

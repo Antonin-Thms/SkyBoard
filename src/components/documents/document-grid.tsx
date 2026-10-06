@@ -32,6 +32,8 @@ import type { FolderSummary } from "@/lib/documents/folders";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Menu } from "@/components/ui/menu";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 import { DocumentCard } from "./document-card";
 
 /** Délai pendant lequel une suppression peut être annulée. */
@@ -58,6 +60,8 @@ interface DocumentGridProps {
 }
 
 export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
+  const { documents: t, common: tc } = useT();
+  const g = t.grid;
   const [items, setItems] = useState(initialItems);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -101,7 +105,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
       try {
         res = await action();
       } catch {
-        res = { error: "Connexion au serveur impossible." };
+        res = { error: t.errors.server };
       }
       if (res.error) {
         setItems(previous);
@@ -148,7 +152,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
     if (pendingRef.current === pending) pendingRef.current = null;
     setPendingDelete((current) => (current === pending ? null : current));
     void deleteDocuments(pending.removed.map((r) => r.item.id))
-      .catch(() => ({ error: "Connexion au serveur impossible." }))
+      .catch(() => ({ error: t.errors.server }))
       .then((res) => {
         if (res.error) {
           restore(pending);
@@ -208,7 +212,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
 
   const clearSelectedAnnotations = () => {
     const ids = selectedIds;
-    if (!window.confirm(`Effacer les annotations de ${ids.length} document${ids.length > 1 ? "s" : ""} ?`)) return;
+    if (!window.confirm(fmt(ids.length > 1 ? g.confirmClearOther : g.confirmClearOne, { n: ids.length }))) return;
     run((list) => list, () => clearDocumentAnnotations(ids));
   };
 
@@ -243,11 +247,11 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
       <Trash2 size={16} strokeWidth={1.75} className="shrink-0 text-muted" />
       <span className="min-w-0 flex-1 truncate">
         {pendingDelete.removed.length > 1
-          ? `${pendingDelete.removed.length} documents supprimés`
-          : `« ${pendingDelete.removed[0].item.name} » supprimé`}
+          ? fmt(g.deletedMany, { n: pendingDelete.removed.length })
+          : fmt(g.deletedOne, { name: pendingDelete.removed[0].item.name })}
       </span>
       <button type="button" className="btn min-h-9 px-3 font-semibold text-accent hover:bg-raised" onClick={undoDelete}>
-        Annuler
+        {g.undo}
       </button>
     </div>
   );
@@ -255,7 +259,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
   if (items.length === 0) {
     return (
       <>
-        <EmptyState title="Rien ici pour l'instant" text="Ajoute un kneeboard, crée une page de notes ou importe une mission .miz." />
+        <EmptyState title={t.emptyTitle} text={g.emptyText} />
         {undoToast}
       </>
     );
@@ -269,33 +273,33 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
           checked={allSelected}
           indeterminate={count > 0 && !allSelected}
           onToggle={() => setSelected(count > 0 ? new Set() : new Set(items.map((i) => i.id)))}
-          label="Tout sélectionner"
+          label={g.selectAll}
           className="mr-2"
         >
           <span className={count > 0 ? "font-semibold text-accent" : "text-muted"}>
-            {count > 0 ? `${count} sélectionné${count > 1 ? "s" : ""}` : "Tout sélectionner"}
+            {count > 0 ? fmt(count > 1 ? g.selectedOther : g.selectedOne, { n: count }) : g.selectAll}
           </span>
         </Checkbox>
         {count > 0 && (
           <>
-            <button type="button" className="btn-icon text-fg" title="Tourner vers la gauche" aria-label="Tourner la sélection vers la gauche" onClick={() => rotateSelected(-1)}>
+            <button type="button" className="btn-icon text-fg" title={g.rotateLeft} aria-label={g.rotateSelectionLeft} onClick={() => rotateSelected(-1)}>
               <RotateCcw size={17} strokeWidth={1.75} />
             </button>
-            <button type="button" className="btn-icon text-fg" title="Tourner vers la droite" aria-label="Tourner la sélection vers la droite" onClick={() => rotateSelected(1)}>
+            <button type="button" className="btn-icon text-fg" title={g.rotateRight} aria-label={g.rotateSelectionRight} onClick={() => rotateSelected(1)}>
               <RotateCw size={17} strokeWidth={1.75} />
             </button>
             <Menu
-              label="Déplacer la sélection vers un dossier"
+              label={g.moveMenu}
               align="start"
               triggerClassName="btn-ghost text-fg"
               trigger={
                 <>
                   <FolderInput size={17} strokeWidth={1.75} />
-                  <span className="hidden sm:inline">Déplacer vers…</span>
+                  <span className="hidden sm:inline">{g.moveTo}</span>
                 </>
               }
               items={[
-                { label: "Communs", icon: <Folder size={16} strokeWidth={1.75} />, onSelect: () => moveSelected(null) },
+                { label: tc.folders.common, icon: <Folder size={16} strokeWidth={1.75} />, onSelect: () => moveSelected(null) },
                 ...folders.map((f) => ({
                   label: f.name,
                   icon: <Folder size={16} strokeWidth={1.75} />,
@@ -303,15 +307,15 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
                 })),
               ]}
             />
-            <button type="button" className="btn-ghost text-fg" title="Efface les annotations au doigt des documents sélectionnés" onClick={clearSelectedAnnotations}>
+            <button type="button" className="btn-ghost text-fg" title={g.clearTitle} onClick={clearSelectedAnnotations}>
               <PenLine size={17} strokeWidth={1.75} />
-              <span className="hidden sm:inline">Effacer les annotations</span>
+              <span className="hidden sm:inline">{g.clear}</span>
             </button>
-            <button type="button" className="btn-icon text-danger hover:text-danger-hover" title="Supprimer" aria-label="Supprimer la sélection" onClick={deleteSelected}>
+            <button type="button" className="btn-icon text-danger hover:text-danger-hover" title={g.delete} aria-label={g.deleteSelection} onClick={deleteSelected}>
               <Trash2 size={17} strokeWidth={1.75} />
             </button>
             <button type="button" className="btn-ghost ml-auto" onClick={() => setSelected(new Set())}>
-              Annuler
+              {g.cancel}
             </button>
           </>
         )}
@@ -339,9 +343,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
         </SortableContext>
       </DndContext>
       <p className="hidden pt-4 text-xs text-subtle md:block">
-        Astuce : coche plusieurs documents (Maj+clic pour une plage) pour les tourner, les déplacer
-        ou les supprimer d&apos;un coup ; la poignée en haut à gauche d&apos;une miniature sert à les
-        réordonner.
+        {g.tip}
       </p>
     </div>
   );

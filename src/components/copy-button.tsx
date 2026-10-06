@@ -2,6 +2,7 @@
 
 import { Check, Copy } from "lucide-react";
 import { useState } from "react";
+import { useT } from "@/lib/i18n/client";
 
 /** Copie dans le presse-papiers, avec repli pour les contextes non sécurisés (http sur le LAN). */
 async function copyText(text: string): Promise<boolean> {
@@ -31,6 +32,7 @@ async function copyText(text: string): Promise<boolean> {
 }
 
 export function CopyButton({ text, className = "btn-secondary" }: { text: string; className?: string }) {
+  const t = useT();
   const [state, setState] = useState<"idle" | "copied" | "failed">("idle");
 
   return (
@@ -43,7 +45,7 @@ export function CopyButton({ text, className = "btn-secondary" }: { text: string
       }}
     >
       {state === "copied" ? <Check size={16} strokeWidth={2} className="text-success" /> : <Copy size={16} strokeWidth={1.75} />}
-      {state === "copied" ? "Copié" : state === "failed" ? "Échec, copie à la main" : "Copier"}
+      {state === "copied" ? t.common.copy.copied : state === "failed" ? t.common.copy.failed : t.common.copy.copy}
     </button>
   );
 }

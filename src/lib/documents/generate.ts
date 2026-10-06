@@ -6,6 +6,8 @@
  * n'importe quel document (miniature, viewer, annotations…).
  */
 
+import { fmt } from "@/lib/i18n/define";
+
 /** Format A4 portrait à 150 dpi. */
 const PAGE = { width: 1240, height: 1754 };
 const MARGIN = 90;
@@ -68,7 +70,12 @@ export function parseChecklistItems(text: string): string[] {
  * Checklist : titre puis une case par élément, sur autant de pages que
  * nécessaire. Les cases se cochent au doigt avec le crayon.
  */
-export async function renderChecklist(title: string, items: string[]): Promise<File[]> {
+export async function renderChecklist(
+  title: string,
+  items: string[],
+  /** Titre des pages suivantes, gabarit avec {title} (ex. « {title} (suite) ») */
+  continuedTitle: string,
+): Promise<File[]> {
   const pages: HTMLCanvasElement[] = [];
   const box = 38;
   const textX = MARGIN + box + 28;
@@ -82,7 +89,7 @@ export async function renderChecklist(title: string, items: string[]): Promise<F
     ctx.fillStyle = INK;
     ctx.font = "600 56px sans-serif";
     ctx.textBaseline = "alphabetic";
-    ctx.fillText(continued ? `${title} (suite)` : title, MARGIN, MARGIN + 50);
+    ctx.fillText(continued ? fmt(continuedTitle, { title }) : title, MARGIN, MARGIN + 50);
     ctx.fillRect(MARGIN, MARGIN + 80, PAGE.width - 2 * MARGIN, 4);
     return MARGIN + 150;
   };

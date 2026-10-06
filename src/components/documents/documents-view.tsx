@@ -11,6 +11,8 @@ import { DocumentUploader } from "./document-uploader";
 import { FolderBar } from "./folder-bar";
 import { SharedDocumentGrid } from "./shared-document-grid";
 import { PageHeader } from "@/components/ui/page-header";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 
 interface DocumentsViewProps {
   userId: string;
@@ -24,6 +26,7 @@ interface DocumentsViewProps {
 /** Page Documents, filtrée par dossier dans le navigateur (changement instantané). */
 export function DocumentsView({ userId, documents, folders, squadrons, nextSortOrder }: DocumentsViewProps) {
   const params = useSearchParams();
+  const { documents: t, common: tc } = useT();
 
   // Retire du cache navigateur les miniatures des documents supprimés.
   const docIds = documents.map((d) => d.id).join(",");
@@ -49,13 +52,13 @@ export function DocumentsView({ userId, documents, folders, squadrons, nextSortO
   const currentFolder = filter.kind === "folder" ? folders.find((f) => f.id === filter.id) : undefined;
   const contextLabel =
     filter.kind === "all"
-      ? "Tous les documents"
+      ? tc.folders.allDocuments
       : filter.kind === "common"
-        ? "Communs"
+        ? tc.folders.common
         : currentFolder?.readOnly
-          ? `${currentFolder.name} · escadron ${currentFolder.squadronName ?? ""}`
+          ? fmt(t.view.squadronFolder, { folder: currentFolder.name, squadron: currentFolder.squadronName ?? "" })
           : currentFolder?.squadronName
-            ? `${currentFolder.name} · partagé avec ${currentFolder.squadronName}`
+            ? fmt(t.view.sharedWith, { folder: currentFolder.name, squadron: currentFolder.squadronName })
             : (currentFolder?.name ?? "");
   const own = documents.filter((d) => !d.readOnly);
   const folderCounts = folders.map((f) => ({
@@ -79,7 +82,7 @@ export function DocumentsView({ userId, documents, folders, squadrons, nextSortO
     // Dossier d'un coéquipier : consultation seulement.
     return (
       <div className="space-y-6">
-        <PageHeader eyebrow={contextLabel} title="Documents" />
+        <PageHeader eyebrow={contextLabel} title={t.title} />
         {folderBar}
         <SharedDocumentGrid documents={documents.filter((d) => d.folderId === currentFolder.id)} />
       </div>

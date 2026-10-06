@@ -22,13 +22,6 @@ export interface Stroke {
 /** Couleurs disponibles (lisibles sur un kneeboard blanc). */
 export const INK_COLORS = ["#d62828", "#1d4ed8", "#111111", "#15803d"] as const;
 export type InkColor = (typeof INK_COLORS)[number];
-export const INK_COLOR_NAMES: Record<InkColor, string> = {
-  "#d62828": "Rouge",
-  "#1d4ed8": "Bleu",
-  "#111111": "Noir",
-  "#15803d": "Vert",
-};
-
 /** Épaisseurs proposées (fraction de la largeur de la page). */
 export const INK_WIDTHS = { fin: 0.005, epais: 0.011 } as const;
 export const DEFAULT_INK = { color: INK_COLORS[0] as InkColor, width: INK_WIDTHS.fin };

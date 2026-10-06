@@ -4,6 +4,8 @@ import { Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ExtractedKneeboard } from "@/lib/documents/miz-extract";
 import { kneeboardDocumentName } from "@/lib/documents/miz";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 
 interface MizImportProps {
   missionFileName: string;
@@ -15,6 +17,7 @@ interface MizImportProps {
 
 /** Choix des images de kneeboard à importer depuis un fichier de mission. */
 export function MizImport({ missionFileName, entries, busy, onImport, onCancel }: MizImportProps) {
+  const t = useT().documents.miz;
   // Kneeboards cochés d'office ; images de briefing à cocher si besoin.
   const [selected, setSelected] = useState(
     () => new Set(entries.filter((e) => e.kind === "kneeboard").map((e) => e.path)),
@@ -35,11 +38,9 @@ export function MizImport({ missionFileName, entries, busy, onImport, onCancel }
   if (entries.length === 0) {
     return (
       <div className="flex items-center justify-between gap-3 border border-line bg-raised p-4 text-sm">
-        <p className="text-slate-400">
-          Aucune image de kneeboard ni de briefing dans « {missionFileName} ».
-        </p>
+        <p className="text-slate-400">{fmt(t.noImages, { name: missionFileName })}</p>
         <button type="button" className="btn-secondary" onClick={onCancel}>
-          Fermer
+          {t.close}
         </button>
       </div>
     );
@@ -49,18 +50,19 @@ export function MizImport({ missionFileName, entries, busy, onImport, onCancel }
     <div className="space-y-4 border border-line bg-raised p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-medium">Images de « {missionFileName} »</h2>
+          <h2 className="font-medium">{fmt(t.imagesOf, { name: missionFileName })}</h2>
           <p className="text-sm text-slate-400">
-            {kneeboardCount} kneeboard{kneeboardCount > 1 ? "s" : ""} · {briefingCount} image
-            {briefingCount > 1 ? "s" : ""} de briefing. Coche celles à ajouter à tes documents.
+            {fmt(kneeboardCount > 1 ? t.kneeboardsOther : t.kneeboardsOne, { n: kneeboardCount })} ·{" "}
+            {fmt(briefingCount > 1 ? t.briefingOther : t.briefingOne, { n: briefingCount })}
+            {t.summaryEnd}
           </p>
         </div>
         <div className="flex gap-2 text-sm">
           <button type="button" className="text-slate-400 hover:text-white" onClick={() => setSelected(new Set(entries.map((e) => e.path)))}>
-            Tout
+            {t.all}
           </button>
           <button type="button" className="text-slate-400 hover:text-white" onClick={() => setSelected(new Set())}>
-            Aucun
+            {t.none}
           </button>
         </div>
       </div>
@@ -89,7 +91,7 @@ export function MizImport({ missionFileName, entries, busy, onImport, onCancel }
                 </div>
                 <span className="truncate pt-2 text-[13px]">{e.baseName}</span>
                 <span className="truncate text-[11px] text-subtle">
-                  {e.kind === "briefing" ? "Briefing" : (e.aircraft ?? "Kneeboard · tous appareils")}
+                  {e.kind === "briefing" ? t.briefing : (e.aircraft ?? t.allAircraft)}
                 </span>
               </button>
             </li>
@@ -106,14 +108,14 @@ export function MizImport({ missionFileName, entries, busy, onImport, onCancel }
             onImport(
               entries
                 .filter((e) => selected.has(e.path))
-                .map((e) => ({ file: e.file, name: kneeboardDocumentName(missionFileName, e) })),
+                .map((e) => ({ file: e.file, name: kneeboardDocumentName(missionFileName, e, t) })),
             )
           }
         >
-          Importer {selected.size} image{selected.size > 1 ? "s" : ""}
+          {fmt(selected.size > 1 ? t.importOther : t.importOne, { n: selected.size })}
         </button>
         <button type="button" className="btn-secondary" onClick={onCancel} disabled={busy}>
-          Annuler
+          {t.cancel}
         </button>
       </div>
     </div>

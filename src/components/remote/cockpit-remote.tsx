@@ -5,6 +5,7 @@ import { useMemo, useOptimistic, useRef, useState, useTransition } from "react";
 import { setActiveFolder } from "@/app/(app)/cockpits/actions";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useInkSession } from "@/hooks/use-ink-session";
+import { useT } from "@/lib/i18n/client";
 import { useRemoteSync } from "@/hooks/use-remote-sync";
 import type { DeviceKind } from "@/lib/device/kind";
 import { isVisibleInActiveFolder, type FolderSummary } from "@/lib/documents/folders";
@@ -43,6 +44,8 @@ export function CockpitRemote({
   onExitFlight,
 }: CockpitRemoteProps) {
   const router = useRouter();
+  const tAll = useT();
+  const t = tAll.remote.cockpit;
   // Documents modifiés ailleurs (upload, autre remote, page Cockpits) : on recharge.
   // Sauf juste après notre propre changement de dossier, déjà rechargé par l'action.
   const ownChangeAt = useRef(0);
@@ -208,12 +211,12 @@ export function CockpitRemote({
       <div className="flex flex-wrap items-center justify-between gap-3">
         {folders.length > 0 && (
           <Select
-            label="Dossier actif"
+            label={t.activeFolder}
             value={activeFolderId ?? ""}
             onChange={(v) => changeFolder(v || null)}
             disabled={folderPending}
             className="w-full sm:w-64"
-            options={folderOptions(folders, [{ value: "", label: "Tous les documents" }])}
+            options={folderOptions(folders, [{ value: "", label: tAll.common.folders.allDocuments }], tAll.common.folders.squadronGroup)}
           />
         )}
         <SyncStatus status={status} direct={direct} />

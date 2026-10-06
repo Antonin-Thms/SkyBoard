@@ -1,15 +1,18 @@
-import type { Viewport } from "next";
+import type { Metadata, Viewport } from "next";
 import Link from "next/link";
 import { RemoteApp } from "@/components/remote/remote-app";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { getDocuments, getFolders } from "@/lib/documents/server";
+import { getT } from "@/lib/i18n/server";
 import type { RemoteCockpit, RemoteDocument } from "@/lib/remote/types";
 import { createClient } from "@/lib/supabase/server";
 import { channelNameForToken } from "@/lib/sync/channel";
 import { parseViewState } from "@/lib/sync/protocol";
 
-export const metadata = { title: "Remote · SkyBoard" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getT()).remote.page.metaTitle };
+}
 
 // Remote tactile : pas de zoom natif du navigateur (le zoom pilote le viewer).
 export const viewport: Viewport = {
@@ -22,6 +25,7 @@ export const viewport: Viewport = {
 
 export default async function RemotePage({ searchParams }: PageProps<"/remote">) {
   const query = await searchParams;
+  const t = (await getT()).remote.page;
   const supabase = await createClient();
   const [{ data: rows }, { documents: docs }, folders] = await Promise.all([
     supabase
@@ -56,11 +60,11 @@ export default async function RemotePage({ searchParams }: PageProps<"/remote">)
   if (cockpits.length === 0) {
     return (
       <EmptyState
-        title="Aucun cockpit"
-        text="Crée d'abord un cockpit, puis colle son URL dans OpenKneeboard."
+        title={t.emptyTitle}
+        text={t.emptyText}
         action={
           <Link href="/cockpits" className="btn-primary">
-            Créer un cockpit
+            {t.emptyAction}
           </Link>
         }
       />
@@ -71,7 +75,7 @@ export default async function RemotePage({ searchParams }: PageProps<"/remote">)
   return (
     <div className="space-y-5">
       <div className="hidden md:block">
-        <PageHeader eyebrow="Pilotage" title="Remote" />
+        <PageHeader eyebrow={t.eyebrow} title="Remote" />
       </div>
       <RemoteApp
         cockpits={cockpits}

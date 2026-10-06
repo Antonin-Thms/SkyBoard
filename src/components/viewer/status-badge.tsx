@@ -1,10 +1,12 @@
+import { useT } from "@/lib/i18n/client";
+
 export type ViewerStatus = "connecting" | "ok" | "degraded" | "error";
 
-const STYLE: Record<ViewerStatus, { color: string; label: string }> = {
-  connecting: { color: "bg-accent", label: "Connexion…" },
-  ok: { color: "bg-success", label: "Connecté" },
-  degraded: { color: "bg-accent", label: "Hors ligne (dernier état affiché)" },
-  error: { color: "bg-danger", label: "Erreur" },
+const COLOR: Record<ViewerStatus, string> = {
+  connecting: "bg-accent",
+  ok: "bg-success",
+  degraded: "bg-accent",
+  error: "bg-danger",
 };
 
 /**
@@ -21,13 +23,15 @@ export function StatusBadge({
   /** Liaison directe avec la remote (réseau local) */
   direct?: boolean;
 }) {
-  const { color, label } = STYLE[status];
+  const t = useT().viewer.status;
+  const color = COLOR[status];
+  const label = t[status];
   if (status === "ok") {
     return (
       <div
         className="pointer-events-none fixed bottom-2.5 right-2.5 flex items-center gap-1.5 text-[11px] text-white/40"
         aria-live="polite"
-        title={direct ? "Connecté · liaison directe avec la remote" : "Connecté"}
+        title={direct ? t.okDirect : t.ok}
       >
         {direct && <span className="font-condensed font-semibold tracking-widest">LAN</span>}
         <span className={`size-1.5 rounded-full opacity-40 ${color}`} />

@@ -8,6 +8,8 @@ import { useState, useTransition } from "react";
 import { createFolder, deleteFolder, renameFolder } from "@/app/(app)/documents/actions";
 import { shareFolder } from "@/app/(app)/escadrons/actions";
 import type { FolderFilter, FolderSummary } from "@/lib/documents/folders";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 
 interface FolderBarProps {
   folders: (FolderSummary & { count: number })[];
@@ -25,6 +27,8 @@ const pill = (active: boolean) =>
 /** Filtre par dossier + gestion des dossiers. */
 export function FolderBar({ folders, filter, totalCount, commonCount, squadrons }: FolderBarProps) {
   const router = useRouter();
+  const { documents: t, common: tc } = useT();
+  const f = t.folderBar;
   const [creating, setCreating] = useState(false);
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState("");
@@ -63,7 +67,7 @@ export function FolderBar({ folders, filter, totalCount, commonCount, squadrons 
     if (!current) return;
     if (
       !window.confirm(
-        `Supprimer le dossier « ${current.name} » ? Ses documents ne sont pas effacés : ils redeviennent « Communs ».`,
+        fmt(f.confirmDelete, { name: current.name }),
       )
     )
       return;
@@ -77,25 +81,25 @@ export function FolderBar({ folders, filter, totalCount, commonCount, squadrons 
   return (
     <div className={`space-y-3 ${pending ? "opacity-60" : ""}`}>
       {/* Sur ordinateur, les dossiers sont dans la barre latérale. */}
-      <nav className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:hidden" aria-label="Dossiers">
+      <nav className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:hidden" aria-label={f.nav}>
         <FolderLink href="/documents" className={pill(filter.kind === "all")}>
-          Tous <span className="numeric">{totalCount}</span>
+          {f.all} <span className="numeric">{totalCount}</span>
         </FolderLink>
         <FolderLink
           href="/documents?folder=common"
           className={pill(filter.kind === "common")}
-          title="Documents sans dossier : toujours affichés, quel que soit le dossier actif"
+          title={f.commonTitle}
         >
-          Communs <span className="numeric">{commonCount}</span>
+          {tc.folders.common} <span className="numeric">{commonCount}</span>
         </FolderLink>
-        {folders.map((f) => (
+        {folders.map((folder) => (
           <FolderLink
-            key={f.id}
-            href={`/documents?folder=${f.id}`}
-            className={pill(filter.kind === "folder" && filter.id === f.id)}
+            key={folder.id}
+            href={`/documents?folder=${folder.id}`}
+            className={pill(filter.kind === "folder" && filter.id === folder.id)}
           >
-            {(f.readOnly || f.squadronId) && <Users size={14} strokeWidth={1.75} className="text-subtle" />}
-            {f.name} <span className="numeric">{f.count}</span>
+            {(folder.readOnly || folder.squadronId) && <Users size={14} strokeWidth={1.75} className="text-subtle" />}
+            {folder.name} <span className="numeric">{folder.count}</span>
           </FolderLink>
         ))}
         {!creating && (
@@ -108,7 +112,7 @@ export function FolderBar({ folders, filter, totalCount, commonCount, squadrons 
             }}
           >
             <Plus size={14} strokeWidth={1.75} />
-            Dossier
+            {f.newFolder}
           </button>
         )}
       </nav>
@@ -125,15 +129,15 @@ export function FolderBar({ folders, filter, totalCount, commonCount, squadrons 
             className="input max-w-xs"
             autoFocus
             maxLength={100}
-            aria-label="Nom du nouveau dossier"
+            aria-label={f.newFolderName}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
           />
           <button type="submit" className="btn-primary">
-            Créer
+            {f.create}
           </button>
           <button type="button" className="btn-ghost" onClick={() => setCreating(false)}>
-            Annuler
+            {f.cancel}
           </button>
         </form>
       )}
@@ -141,10 +145,7 @@ export function FolderBar({ folders, filter, totalCount, commonCount, squadrons 
       {current?.readOnly && (
         <p className="flex items-start gap-2 text-sm text-muted">
           <Users size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-accent" />
-          <span>
-            Partagé par l&apos;escadron {current.squadronName}, en lecture seule. Choisis-le comme
-            dossier actif d&apos;un cockpit (page Remote ou Cockpits) pour l&apos;afficher dans le casque.
-          </span>
+          <span>{fmt(f.sharedReadOnly, { squadron: current.squadronName ?? "" })}</span>
         </p>
       )}
       {current &&
@@ -162,15 +163,15 @@ export function FolderBar({ folders, filter, totalCount, commonCount, squadrons 
               className="input max-w-xs"
               autoFocus
               maxLength={100}
-              aria-label="Nouveau nom du dossier"
+              aria-label={f.renameLabel}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
             />
             <button type="submit" className="btn-primary">
-              Enregistrer
+              {f.save}
             </button>
             <button type="button" className="btn-ghost" onClick={() => setRenaming(false)}>
-              Annuler
+              {f.cancel}
             </button>
           </form>
         ) : (
@@ -178,16 +179,16 @@ export function FolderBar({ folders, filter, totalCount, commonCount, squadrons 
             {squadrons.length > 0 && (
               <Select
                 size="sm"
-                label="Partager le dossier avec un escadron"
+                label={f.shareLabel}
                 value={current.squadronId ?? ""}
                 onChange={(v) => share(v || null)}
                 icon={<Users size={14} strokeWidth={1.75} />}
                 className="mr-1 w-52"
                 options={[
-                  { value: "", label: "Non partagé", icon: <Users size={14} strokeWidth={1.75} /> },
+                  { value: "", label: f.notShared, icon: <Users size={14} strokeWidth={1.75} /> },
                   ...squadrons.map((s) => ({
                     value: s.id,
-                    label: `Partagé avec ${s.name}`,
+                    label: fmt(f.sharedWith, { squadron: s.name }),
                     icon: <Users size={14} strokeWidth={1.75} />,
                   })),
                 ]}
@@ -202,11 +203,11 @@ export function FolderBar({ folders, filter, totalCount, commonCount, squadrons 
               }}
             >
               <Pencil size={14} strokeWidth={1.75} />
-              Renommer
+              {f.rename}
             </button>
             <button type="button" className="btn-ghost min-h-8 hover:text-danger" onClick={remove}>
               <Trash2 size={14} strokeWidth={1.75} />
-              Supprimer le dossier
+              {f.deleteFolder}
             </button>
           </div>
         ))}

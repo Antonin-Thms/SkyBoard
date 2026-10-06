@@ -8,7 +8,6 @@ import { useElementSize } from "@/hooks/use-element-size";
 import { forgetSessionStrokes, INK_PREF_KEY, readInkPref, useInkSession } from "@/hooks/use-ink-session";
 import { writeLocalStorage } from "@/hooks/use-local-storage";
 import {
-  INK_COLOR_NAMES,
   INK_COLORS,
   INK_WIDTHS,
   pageKey,
@@ -20,6 +19,8 @@ import {
   type Stroke,
 } from "@/lib/annotations/model";
 import { clearAnnotations, removeStrokes } from "@/lib/annotations/persist";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 import type { RemoteDocument } from "@/lib/remote/types";
 import { createClient } from "@/lib/supabase/client";
 import { renderBase, type BaseRender } from "@/lib/viewer/base-cache";
@@ -36,15 +37,26 @@ interface InkEditorProps {
 /** Tolérance de la gomme (repère normalisé de la page). */
 const ERASER_TOLERANCE = 0.015;
 
+/** Nom (traduit) de chaque couleur d'encre. */
+const COLOR_KEYS: Record<InkColor, "red" | "blue" | "black" | "green"> = {
+  "#d62828": "red",
+  "#1d4ed8": "blue",
+  "#111111": "black",
+  "#15803d": "green",
+};
+
 /**
  * Éditeur d'annotations du mode préparation : la page est affichée sur la
  * tablette et l'on dessine en la regardant (doigt ou stylet). Chaque trait
  * apparaît en direct dans le casque et est enregistré.
  */
 export function InkEditor({ doc, page, sendInk, onClose }: InkEditorProps) {
+  const tr = useT().remote;
+  const t = tr.ink;
   const areaRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const area = useElementSize(areaRef);
+  const { fileUnavailable, renderFailed } = tr.errors;
   const [display, setDisplay] = useState<Size | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
@@ -78,7 +90,7 @@ export function InkEditor({ doc, page, sendInk, onClose }: InkEditorProps) {
     let cancelled = false;
     (async () => {
       const res = await getDocumentFileUrl(doc.id);
-      if (!res.url) throw new Error(res.error ?? "Fichier indisponible.");
+      if (!res.url) throw new Error(res.error ?? fileUnavailable);
       const ref = {
         doc: { id: doc.id, name: doc.name, type: doc.type, pageCount: doc.pageCount, rotation: doc.rotation, url: res.url },
         page,
@@ -90,12 +102,12 @@ export function InkEditor({ doc, page, sendInk, onClose }: InkEditorProps) {
       setDisplay(render.display);
       setLoadError(null);
     })().catch((err: unknown) => {
-      if (!cancelled) setLoadError(err instanceof Error ? err.message : "Affichage impossible.");
+      if (!cancelled) setLoadError(err instanceof Error ? err.message : renderFailed);
     });
     return () => {
       cancelled = true;
     };
-  }, [area, doc.id, doc.name, doc.type, doc.pageCount, doc.rotation, page]);
+  }, [area, doc.id, doc.name, doc.type, doc.pageCount, doc.rotation, page, fileUnavailable, renderFailed]);
 
   const choose = (patch: Partial<{ color: InkColor; width: number }>) => {
     const next = { ...ink, ...patch };
@@ -174,7 +186,7 @@ export function InkEditor({ doc, page, sendInk, onClose }: InkEditorProps) {
   };
 
   const clearPage = () => {
-    if (!strokes.length || !window.confirm("Effacer toutes les annotations de cette page ?")) return;
+    if (!strokes.length || !window.confirm(t.clearConfirm)) return;
     setStrokes([]);
     forgetSessionStrokes(pageKey(doc.id, page), null);
     sendInk({ op: "clear", docId: doc.id, page });
@@ -196,18 +208,18 @@ export function InkEditor({ doc, page, sendInk, onClose }: InkEditorProps) {
       <div className="flex flex-wrap items-center gap-2 border-b border-line bg-surface px-3 py-2">
         <button type="button" className="btn-secondary" onClick={onClose}>
           <X size={18} strokeWidth={1.75} />
-          Fermer
+          {t.close}
         </button>
         <span className="mr-auto min-w-0 truncate px-2 text-sm text-muted">
           {doc.name}
-          {doc.pageCount > 1 && ` · page ${page}`}
+          {doc.pageCount > 1 && fmt(t.pageSuffix, { page })}
         </span>
-        <div className="flex items-center gap-1" role="group" aria-label="Couleur">
+        <div className="flex items-center gap-1" role="group" aria-label={t.color}>
           {INK_COLORS.map((c) => (
             <button
               key={c}
               type="button"
-              aria-label={INK_COLOR_NAMES[c]}
+              aria-label={t.colors[COLOR_KEYS[c]]}
               aria-pressed={tool === "pen" && ink.color === c}
               onClick={() => choose({ color: c })}
               className={`flex h-11 w-11 items-center justify-center ${
@@ -223,26 +235,26 @@ export function InkEditor({ doc, page, sendInk, onClose }: InkEditorProps) {
           className={toolBtn(tool === "pen" && ink.width === INK_WIDTHS.fin)}
           onClick={() => choose({ width: INK_WIDTHS.fin })}
         >
-          Fin
+          {t.thin}
         </button>
         <button
           type="button"
           className={toolBtn(tool === "pen" && ink.width === INK_WIDTHS.epais)}
           onClick={() => choose({ width: INK_WIDTHS.epais })}
         >
-          Épais
+          {t.thick}
         </button>
         <button type="button" className={toolBtn(tool === "eraser")} onClick={() => setTool("eraser")}>
           <Eraser size={18} strokeWidth={1.75} />
-          Gomme
+          {t.eraser}
         </button>
         <button type="button" className={toolBtn(false)} onClick={undo}>
           <Undo2 size={18} strokeWidth={1.75} />
-          Annuler
+          {t.undo}
         </button>
         <button type="button" className={`${toolBtn(false)} text-danger`} onClick={clearPage}>
           <Trash2 size={18} strokeWidth={1.75} />
-          Effacer la page
+          {t.clearPage}
         </button>
       </div>
 

@@ -3,9 +3,25 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, DocumentRow } from "@/lib/database.types";
 import { analyzeFile } from "./analyze";
-import { checkFile, defaultDocumentName, EXTENSION_BY_MIME } from "./file-type";
+import { checkFile, defaultDocumentName, EXTENSION_BY_MIME, formatBytes, MAX_UPLOAD_BYTES, type ByteUnits } from "./file-type";
+import { fmt } from "@/lib/i18n/define";
 import { STORAGE_BUCKET } from "./storage";
 import { uuid } from "@/lib/uuid";
+
+/** Messages d'erreur affichés (dans la langue de l'interface). */
+export interface UploadTexts extends ByteUnits {
+  empty: string;
+  /** Gabarit avec {size} et {max} */
+  tooLarge: string;
+  unsupported: string;
+  unreadable: string;
+  storageFull: string;
+  uploadFailed: string;
+  maxDocuments: string;
+  saveFailed: string;
+  /** Nom par défaut d'un fichier sans nom */
+  defaultName: string;
+}
 
 /**
  * Upload complet d'un document : vérification, analyse (pages + miniature),
@@ -18,19 +34,26 @@ export async function uploadDocument(
   file: File,
   sortOrder: number,
   /** Nom affiché (par défaut : nom du fichier sans extension) */
-  name?: string,
+  name: string | undefined,
   /** Dossier de destination (null : Communs) */
-  folderId: string | null = null,
+  folderId: string | null,
+  texts: UploadTexts,
 ): Promise<DocumentRow> {
   const check = await checkFile(file);
-  if (!check.ok) throw new Error(check.error);
+  if (!check.ok) {
+    throw new Error(
+      check.error === "tooLarge"
+        ? fmt(texts.tooLarge, { size: formatBytes(file.size, texts), max: formatBytes(MAX_UPLOAD_BYTES, texts) })
+        : texts[check.error],
+    );
+  }
   const { mime } = check;
 
   let analysis;
   try {
     analysis = await analyzeFile(file, mime);
   } catch {
-    throw new Error("Fichier illisible ou corrompu.");
+    throw new Error(texts.unreadable);
   }
 
   const id = uuid();
@@ -47,8 +70,8 @@ export async function uploadDocument(
       // Refus de la politique Storage : quota de 1 Go atteint (le chemin est toujours le nôtre).
       throw new Error(
         /row-level security|unauthorized|403/i.test(fileError.message)
-          ? "Espace de stockage plein (1 Go) : supprime des documents pour en ajouter."
-          : "Envoi du fichier impossible. Vérifie la connexion et réessaie.",
+          ? texts.storageFull
+          : texts.uploadFailed,
       );
     }
     uploaded.push(storagePath);
@@ -71,7 +94,7 @@ export async function uploadDocument(
     const { data, error } = await supabase
       .from("documents")
       .insert({
-        name: (name?.trim() || defaultDocumentName(file.name)).slice(0, 200),
+        name: (name?.trim() || defaultDocumentName(file.name, texts.defaultName)).slice(0, 200),
         type: mime,
         storage_path: storagePath,
         thumbnail_path: thumbnailPath,
@@ -84,8 +107,8 @@ export async function uploadDocument(
     if (error) {
       throw new Error(
         error.code === "53400"
-          ? "Nombre maximal de documents atteint (500)."
-          : "Enregistrement impossible. Réessaie.",
+          ? texts.maxDocuments
+          : texts.saveFailed,
       );
     }
     return data;

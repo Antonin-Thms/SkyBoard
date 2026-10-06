@@ -8,6 +8,14 @@ import type { ViewerDocument } from "./types";
  * signée a expiré. Les documents sont immuables (pas de remplacement de
  * fichier), un id suffit donc comme clé.
  */
+/** Échec du téléchargement d'un fichier (le texte affiché est traduit par l'appelant). */
+export class DocumentDownloadError extends Error {
+  constructor(readonly status: number) {
+    super(`Téléchargement impossible (${status})`);
+    this.name = "DocumentDownloadError";
+  }
+}
+
 const CACHE_NAME = "skyboard-docs-v1";
 const keyFor = (docId: string) => `/__skyboard/doc/${docId}`;
 
@@ -28,7 +36,7 @@ export async function getDocumentBlob(doc: ViewerDocument): Promise<Blob> {
   if (hit) return hit.blob();
 
   const res = await fetch(doc.url);
-  if (!res.ok) throw new Error(`Téléchargement impossible (${res.status})`);
+  if (!res.ok) throw new DocumentDownloadError(res.status);
   const blob = await res.blob();
   await cache
     ?.put(keyFor(doc.id), new Response(blob, { headers: { "Content-Type": doc.type } }))

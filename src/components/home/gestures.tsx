@@ -1,5 +1,7 @@
 /** Pictogrammes des gestes du mode vol (écran de tablette + doigts). */
 
+import { getT } from "@/lib/i18n/server";
+
 const Tablet = ({ children }: { children?: React.ReactNode }) => (
   <svg viewBox="0 0 160 110" className="h-24 w-full" aria-hidden="true" fill="none" strokeWidth="2">
     <defs>
@@ -17,8 +19,7 @@ const Arrow = ({ d }: { d: string }) => <path d={d} className="stroke-sky-500" m
 
 const GESTURES = [
   {
-    title: "Pincer",
-    text: "Zoom centré entre les doigts (×1 à ×6)",
+    key: "pinch",
     art: (
       <Tablet>
         <Finger x={66} y={64} />
@@ -29,8 +30,7 @@ const GESTURES = [
     ),
   },
   {
-    title: "Glisser à deux doigts",
-    text: "Déplacer la page (ou à un doigt si zoomé)",
+    key: "pan",
     art: (
       <Tablet>
         <Finger x={60} y={48} />
@@ -40,8 +40,7 @@ const GESTURES = [
     ),
   },
   {
-    title: "Swipe horizontal",
-    text: "← document suivant · → document précédent",
+    key: "swipe",
     art: (
       <Tablet>
         <Finger x={80} y={56} />
@@ -51,8 +50,7 @@ const GESTURES = [
     ),
   },
   {
-    title: "Double tap",
-    text: "Revenir à la page entière",
+    key: "doubleTap",
     art: (
       <Tablet>
         <Finger x={80} y={56} />
@@ -62,8 +60,7 @@ const GESTURES = [
     ),
   },
   {
-    title: "Bords de l'écran",
-    text: "Swipe vertical : ↓ page suivante · ↑ précédente (PDF de plusieurs pages)",
+    key: "edges",
     art: (
       <Tablet>
         <rect x="12" y="10" width="16" height="90" className="fill-slate-800" />
@@ -75,8 +72,7 @@ const GESTURES = [
     ),
   },
   {
-    title: "Curseur",
-    text: "Bouton « Curseur » : ton doigt apparaît dans le casque",
+    key: "cursor",
     art: (
       <Tablet>
         <Finger x={70} y={60} />
@@ -85,16 +81,17 @@ const GESTURES = [
       </Tablet>
     ),
   },
-];
+] as const;
 
-export function Gestures() {
+export async function Gestures() {
+  const t = await getT();
   return (
     <ul className="grid grid-cols-2 gap-4 md:grid-cols-3">
       {GESTURES.map((g) => (
-        <li key={g.title} className="flex flex-col gap-2 border border-slate-800 p-4">
+        <li key={g.key} className="flex flex-col gap-2 border border-slate-800 p-4">
           {g.art}
-          <div className="font-medium text-slate-100">{g.title}</div>
-          <div className="text-sm text-slate-400">{g.text}</div>
+          <div className="font-medium text-slate-100">{t.home.gestures[g.key].title}</div>
+          <div className="text-sm text-slate-400">{t.home.gestures[g.key].text}</div>
         </li>
       ))}
     </ul>

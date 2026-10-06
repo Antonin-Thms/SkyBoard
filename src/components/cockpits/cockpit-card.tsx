@@ -13,6 +13,8 @@ import { folderOptions } from "@/components/ui/folder-options";
 import { Menu } from "@/components/ui/menu";
 import { Select } from "@/components/ui/select";
 import { buildViewerUrl } from "@/lib/cockpits/token";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 import type { FolderSummary } from "@/lib/documents/folders";
 
 interface CockpitCardProps {
@@ -35,6 +37,7 @@ function useOrigin(): string {
 }
 
 export function CockpitCard({ id, name, token, activeFolderId, folders }: CockpitCardProps) {
+  const t = useT();
   const origin = useOrigin();
   const [editing, setEditing] = useState(false);
   const [folder, setFolder] = useState(activeFolderId ?? "");
@@ -74,7 +77,7 @@ export function CockpitCard({ id, name, token, activeFolderId, folders }: Cockpi
               onChange={(e) => setDraft(e.target.value)}
             />
             <button type="submit" className="btn-primary">
-              Enregistrer
+              {t.cockpits.card.save}
             </button>
             <button
               type="button"
@@ -84,7 +87,7 @@ export function CockpitCard({ id, name, token, activeFolderId, folders }: Cockpi
                 setEditing(false);
               }}
             >
-              Annuler
+              {t.cockpits.card.cancel}
             </button>
           </form>
         ) : (
@@ -95,29 +98,27 @@ export function CockpitCard({ id, name, token, activeFolderId, folders }: Cockpi
         )}
         {!editing && (
           <Menu
-            label={`Actions pour ${name}`}
+            label={fmt(t.cockpits.card.menuLabel, { name })}
             items={[
-              { label: "Renommer", icon: <Pencil size={16} strokeWidth={1.75} />, onSelect: () => setEditing(true) },
+              { label: t.cockpits.card.rename, icon: <Pencil size={16} strokeWidth={1.75} />, onSelect: () => setEditing(true) },
               {
-                label: "Régénérer l'URL",
+                label: t.cockpits.card.regenerate,
                 icon: <RefreshCw size={16} strokeWidth={1.75} />,
                 onSelect: () => {
                   if (
-                    window.confirm(
-                      "Régénérer l'URL ? L'URL actuelle cessera immédiatement de fonctionner : il faudra coller la nouvelle dans OpenKneeboard.",
-                    )
+                    window.confirm(t.cockpits.card.regenerateConfirm)
                   ) {
                     run(() => regenerateCockpitToken(id));
                   }
                 },
               },
               {
-                label: "Supprimer le cockpit",
+                label: t.cockpits.card.delete,
                 icon: <Trash2 size={16} strokeWidth={1.75} />,
                 danger: true,
                 separator: true,
                 onSelect: () => {
-                  if (window.confirm(`Supprimer le cockpit « ${name} » ? Son URL viewer cessera de fonctionner.`)) {
+                  if (window.confirm(fmt(t.cockpits.card.deleteConfirm, { name }))) {
                     run(() => deleteCockpit(id));
                   }
                 },
@@ -129,28 +130,28 @@ export function CockpitCard({ id, name, token, activeFolderId, folders }: Cockpi
 
       {folders.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <span className="label-caps w-full">Dossier actif</span>
+          <span className="label-caps w-full">{t.cockpits.card.activeFolder}</span>
           <Select
-            label="Dossier actif"
+            label={t.cockpits.card.activeFolder}
             value={folder}
             disabled={pending}
             className="w-full sm:w-72"
-            options={folderOptions(folders, [{ value: "", label: "Tous les documents" }])}
+            options={folderOptions(folders, [{ value: "", label: t.cockpits.card.allDocuments }], t.common.folders.squadronGroup)}
             onChange={(v) => {
               setFolder(v);
               run(() => setActiveFolder(id, v || null));
             }}
           />
-          <span className="text-xs text-subtle">+ les documents Communs</span>
+          <span className="text-xs text-subtle">{t.cockpits.card.plusCommon}</span>
         </div>
       )}
 
       <div className="space-y-1.5">
-        <span className="label-caps">URL viewer · onglet Web Dashboard d&apos;OpenKneeboard</span>
+        <span className="label-caps">{t.cockpits.card.urlLabel}</span>
         <div className="flex flex-wrap gap-2">
           <input
             className="input min-w-0 basis-full font-mono sm:basis-0 sm:flex-1 text-xs text-slate-300"
-            aria-label="URL viewer"
+            aria-label={t.cockpits.card.urlAria}
             value={url}
             readOnly
             onFocus={(e) => e.currentTarget.select()}
@@ -158,10 +159,10 @@ export function CockpitCard({ id, name, token, activeFolderId, folders }: Cockpi
           <CopyButton text={url} />
           <a className="btn-secondary" href={url || undefined} target="_blank" rel="noreferrer">
             <ExternalLink size={16} strokeWidth={1.75} />
-            Ouvrir
+            {t.cockpits.card.open}
           </a>
         </div>
-        <p className="text-xs text-subtle">Garde-la secrète. Si elle a fuité : menu ⋯ → Régénérer l&apos;URL.</p>
+        <p className="text-xs text-subtle">{t.cockpits.card.keepSecret}</p>
       </div>
 
       {error && <p className="text-sm text-danger">{error}</p>}

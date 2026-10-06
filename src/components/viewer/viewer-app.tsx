@@ -3,6 +3,8 @@
 import { PenLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useViewerData } from "@/hooks/use-viewer-data";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 import { createAnonClient } from "@/lib/supabase/anon";
 import { connectCockpit, type LinkStatus } from "@/lib/sync/cockpit-link";
 import { clampView, IDENTITY_VIEW } from "@/lib/gestures/transform";
@@ -35,6 +37,7 @@ interface ViewerAppProps {
 }
 
 export function ViewerApp({ token, channel, options }: ViewerAppProps) {
+  const t = useT().viewer;
   const { data, status: dataStatus, reload } = useViewerData(token);
   const [view, dispatch] = useReducer(viewReducer, null);
   const [linkStatus, setLinkStatus] = useState<LinkStatus>("connecting");
@@ -237,10 +240,10 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
   let detail: string | null = null;
   if (dataStatus === "not_found") {
     status = "error";
-    detail = "URL invalide ou révoquée";
+    detail = t.errors.notFound;
   } else if (dataStatus === "error") {
     status = "error";
-    detail = "Serveur injoignable";
+    detail = t.errors.unreachable;
   } else if (dataStatus === "loading" || linkStatus === "connecting") {
     status = "connecting";
   } else if (linkStatus === "disconnected" || dataStatus === "stale") {
@@ -269,7 +272,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
       ) : (
         data && (
           <div className="flex h-full items-center justify-center text-base text-white/70">
-            Aucun document
+            {t.app.noDocuments}
           </div>
         )
       )}
@@ -277,23 +280,25 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
         // Crayon actif sur la remote : le doigt dessine. Visible en périphérie.
         <div
           className="pointer-events-none fixed left-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent"
-          aria-label="Crayon actif"
+          aria-label={t.app.penActive}
         >
           <PenLine size={18} strokeWidth={2} />
-          Crayon
+          {t.app.pen}
         </div>
       )}
       {options.showStatus && <StatusBadge status={status} detail={detail} direct={direct} />}
       {options.showStatus && hintVisible && !helpOpen && (
         <div className="pointer-events-none fixed bottom-2 left-2 rounded-full bg-black/70 px-3 py-1.5 text-sm text-white/80">
-          H : aide
+          {t.app.helpHint}
         </div>
       )}
       {helpOpen && (
         <ViewerHelp
           cockpitName={
             data
-              ? `${data.cockpit.name}${data.folder ? ` · dossier ${data.folder.name}` : ""}`
+              ? data.folder
+                ? fmt(t.app.cockpitWithFolder, { cockpit: data.cockpit.name, folder: data.folder.name })
+                : data.cockpit.name
               : null
           }
           docName={current?.doc.name ?? null}

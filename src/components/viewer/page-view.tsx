@@ -19,6 +19,9 @@ import type { Size } from "@/lib/viewer/fit";
 import { baseKey, peekBaseRender, renderBase, type BaseRender, type PageRef } from "@/lib/viewer/base-cache";
 import { blit, naturalSize, renderRegion } from "@/lib/viewer/render";
 import { loadDocumentSource } from "@/lib/viewer/sources";
+import { DocumentDownloadError } from "@/lib/viewer/doc-cache";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 import type { Stroke } from "@/lib/annotations/model";
 import { InkLayer } from "./ink-layer";
 import type { ViewerDocument } from "@/lib/viewer/types";
@@ -72,6 +75,7 @@ export function PageView({
   onError,
   neighbors,
 }: PageViewProps) {
+  const errorTexts = useT().viewer.errors;
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detailRef = useRef<HTMLCanvasElement>(null);
@@ -125,14 +129,20 @@ export function PageView({
       })
       .catch((err: unknown) => {
         if (cancelled || isCancellation(err)) return;
-        onError?.(err instanceof Error ? err.message : "Erreur de rendu");
+        onError?.(
+          err instanceof DocumentDownloadError
+            ? fmt(errorTexts.download, { status: err.status })
+            : err instanceof Error
+              ? err.message
+              : errorTexts.render,
+        );
       });
 
     return () => {
       cancelled = true;
       cancelRender?.();
     };
-  }, [docId, page, rotation, container, onError]);
+  }, [docId, page, rotation, container, onError, errorTexts]);
 
   // Pré-rendu des voisins, un par un, une fois la page courante affichée.
   useEffect(() => {

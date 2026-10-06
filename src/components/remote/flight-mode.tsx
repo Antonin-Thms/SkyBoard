@@ -5,6 +5,8 @@ import type { DeviceKind } from "@/lib/device/kind";
 import { DEVICE_GESTURE_OVERRIDES, GESTURE_CONFIG } from "@/lib/gestures/constants";
 import { GestureRecognizer, type GestureAction } from "@/lib/gestures/recognizer";
 import type { ViewTransform } from "@/lib/gestures/transform";
+import { fmt } from "@/lib/i18n/define";
+import { useLocale, useT } from "@/lib/i18n/client";
 import type { LinkStatus } from "@/lib/sync/cockpit-link";
 import { LogOut, Moon, MousePointer2, PenLine } from "lucide-react";
 import { HoldButton } from "@/components/hold-button";
@@ -24,12 +26,6 @@ interface FlightModeProps {
   pen: boolean;
   info: { docName: string | null; page: number; pageCount: number; zoom: number };
 }
-
-const STATUS_LABEL: Record<LinkStatus, string> = {
-  connecting: "Connexion…",
-  connected: "Connecté",
-  disconnected: "Reconnexion…",
-};
 
 const STATUS_TONE: Record<LinkStatus, StatusTone> = {
   connecting: "pending",
@@ -61,6 +57,14 @@ export function FlightMode({
   const surfaceRef = useRef<HTMLDivElement>(null);
   const config = { ...GESTURE_CONFIG, ...DEVICE_GESTURE_OVERRIDES[device] };
   const compact = device === "phone";
+  const t = useT().remote.flight;
+  const locale = useLocale();
+  const statusLabel = {
+    connecting: t.statusConnecting,
+    connected: t.statusConnected,
+    disconnected: t.statusDisconnected,
+  }[status];
+  const holdSeconds = new Intl.NumberFormat(locale).format(config.penHoldMs / 1000);
   // Références stables pour les écouteurs natifs.
   const getViewRef = useRef(getView);
   const onActionsRef = useRef(onActions);
@@ -162,33 +166,33 @@ export function FlightMode({
       <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-line px-2 text-sm">
         {/* Appui long : un tap à l'aveugle près du bord ne fait pas sortir du mode vol. */}
         <HoldButton
-          label="Quitter le mode vol (maintenir)"
+          label={t.exitLabel}
           onHold={onExit}
           className={`${topButton(false)} text-slate-300`}
         >
           <LogOut size={18} strokeWidth={1.75} className="rotate-180" />
-          {compact ? "Quitter" : "Quitter (maintenir)"}
+          {compact ? t.exit : t.exitHold}
         </HoldButton>
-        <span role="status" className="flex items-center gap-2" aria-label={STATUS_LABEL[status]}>
+        <span role="status" className="flex items-center gap-2" aria-label={statusLabel}>
           <StatusDot tone={STATUS_TONE[status]} />
-          {status !== "connected" && <span className="text-xs text-muted">{STATUS_LABEL[status]}</span>}
+          {status !== "connected" && <span className="text-xs text-muted">{statusLabel}</span>}
         </span>
         <span className="flex items-center gap-1">
           <HoldButton
-            label={`Mode nuit ${night ? "activé" : "désactivé"} (maintenir pour basculer)`}
+            label={night ? t.nightOnLabel : t.nightOffLabel}
             onHold={onToggleNight}
             className={topButton(night)}
           >
             <Moon size={18} strokeWidth={1.75} />
-            {!compact && "Nuit"}
+            {!compact && t.night}
           </HoldButton>
           <HoldButton
-            label={`Curseur ${cursorEnabled ? "activé" : "désactivé"} (maintenir pour basculer)`}
+            label={cursorEnabled ? t.cursorOnLabel : t.cursorOffLabel}
             onHold={onToggleCursor}
             className={topButton(cursorEnabled)}
           >
             <MousePointer2 size={18} strokeWidth={1.75} />
-            {!compact && "Curseur"}
+            {!compact && t.cursor}
           </HoldButton>
         </span>
       </div>
@@ -210,13 +214,13 @@ export function FlightMode({
           {pen && (
             <p className="mb-2 flex items-center gap-2 text-lg font-semibold text-accent">
               <PenLine size={22} strokeWidth={1.75} />
-              Crayon actif
+              {t.penActive}
             </p>
           )}
-          <p className={`max-w-full truncate text-slate-300 ${compact ? "text-base" : "text-lg"}`}>{info.docName ?? "Aucun document"}</p>
+          <p className={`max-w-full truncate text-slate-300 ${compact ? "text-base" : "text-lg"}`}>{info.docName ?? t.noDocument}</p>
           {info.docName && (
             <p className="numeric text-sm tracking-wider text-subtle">
-              PAGE {info.page}/{info.pageCount} · ×{info.zoom.toFixed(1)}
+              {fmt(t.pageInfo, { page: info.page, count: info.pageCount, zoom: info.zoom.toFixed(1) })}
             </p>
           )}
         </div>
@@ -226,10 +230,10 @@ export function FlightMode({
           style={{ paddingInline: config.edgeWidthPx + 12 }}
         >
           {pen
-            ? "1 doigt : dessiner · Tap 2 doigts : annuler le dernier trait · Pincer : zoom · Appui long 1,5 s : arrêter le crayon"
+            ? fmt(t.hintPen, { s: holdSeconds })
             : compact
-              ? "Pincer : zoom · Swipe ← → : document · Double tap : reset · Bords ↕ : page · Appui long : crayon"
-              : "Pincer : zoom · 2 doigts : déplacer · 1 doigt (zoomé) : déplacer · Swipe ← → : document · Double tap : réinitialiser · Bords ↕ : page · Appui long 1,5 s : crayon"}
+              ? t.hintCompact
+              : fmt(t.hint, { s: holdSeconds })}
         </p>
       </div>
     </div>

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { DocumentsView } from "@/components/documents/documents-view";
@@ -5,25 +6,31 @@ import { HelpPanel } from "@/components/help-panel";
 import { getDocuments, getFolders } from "@/lib/documents/server";
 import { getSquadrons } from "@/lib/squadrons/server";
 import { getSessionClaims } from "@/lib/supabase/server";
+import { getT } from "@/lib/i18n/server";
 
-export const metadata = { title: "Documents · SkyBoard" };
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getT();
+  return { title: t.documents.metaTitle };
+}
 
 export default async function DocumentsPage() {
   const userId = (await getSessionClaims())?.sub;
   if (!userId) redirect("/login");
 
-  const [{ documents, error }, folders, squadrons] = await Promise.all([
+  const [{ documents, error }, folders, squadrons, t] = await Promise.all([
     getDocuments(),
     getFolders(),
     getSquadrons(),
+    getT(),
   ]);
+  const help = t.documents.help;
   const nextSortOrder =
     documents.filter((d) => !d.readOnly).reduce((max, d) => Math.max(max, d.sortOrder), 0) + 1;
 
   return (
     <div className="space-y-6">
       {error ? (
-        <p className="text-sm text-danger">Impossible de charger les documents.</p>
+        <p className="text-sm text-danger">{t.documents.loadError}</p>
       ) : (
         // Filtrage par dossier côté navigateur : changement de dossier instantané.
         <Suspense>
@@ -39,22 +46,23 @@ export default async function DocumentsPage() {
 
       <HelpPanel defaultOpen={false}>
         <ul className="list-disc space-y-1 pl-5">
-          <li>Ajoute tes kneeboards : PDF (plusieurs pages) ou images PNG / JPG, 50 Mo max.</li>
+          <li>{help.files}</li>
           <li>
-            Mission ou track DCS : dépose un fichier <span className="font-mono">.miz</span> ou{" "}
-            <span className="font-mono">.trk</span> pour importer ses kneeboards et images de
-            briefing. Tracks multijoueur :{" "}
-            <span className="font-mono">Saved Games\DCS\Tracks\Multiplayer</span>.
+            {help.missionBefore}
+            <span className="font-mono">.miz</span>
+            {help.missionOr}
+            <span className="font-mono">.trk</span>
+            {help.missionAfter}
+            <span className="font-mono">Saved Games\DCS\Tracks\Multiplayer</span>
+            {help.missionEnd}
           </li>
           <li>
-            <strong>Dossiers</strong> (ex. un par serveur) : choisis le dossier actif d&apos;un
-            cockpit sur la page Remote ou Cockpits. Le casque affiche alors ce dossier et les
-            documents <strong>Communs</strong> (sans dossier), toujours présents.
+            <strong>{help.foldersLabel}</strong>
+            {help.foldersText}
+            <strong>{help.commonLabel}</strong>
+            {help.foldersEnd}
           </li>
-          <li>
-            Pour réordonner, fais glisser la poignée en haut à
-            gauche d&apos;une miniature (au doigt : appui long, puis glisse).
-          </li>
+          <li>{help.reorder}</li>
         </ul>
       </HelpPanel>
     </div>

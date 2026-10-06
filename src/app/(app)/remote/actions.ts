@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/validation";
 import { STORAGE_BUCKET } from "@/lib/documents/storage";
 import { hashPairingCode, newPairingCode, PAIRING_TTL_MS } from "@/lib/auth/pairing";
+import { getT } from "@/lib/i18n/server";
 
 export interface RemoteLinkResult {
   url?: string;
@@ -22,16 +23,17 @@ export interface RemoteLinkResult {
  * code (stream, capture) devient inutilisable presque aussitôt.
  */
 export async function createRemoteLink(cockpitId: string, autoLogin: boolean): Promise<RemoteLinkResult> {
-  if (!isUuid(cockpitId)) return { error: "Cockpit invalide." };
+  const t = (await getT()).remote.errors;
+  if (!isUuid(cockpitId)) return { error: t.invalidCockpit };
 
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getClaims();
   const userId = auth?.claims?.sub;
-  if (!userId) return { error: "Session expirée : reconnecte-toi." };
+  if (!userId) return { error: t.sessionExpired };
 
   // Vérifie (via RLS) que le cockpit appartient bien à l'utilisateur.
   const { data: cockpit } = await supabase.from("cockpits").select("id").eq("id", cockpitId).maybeSingle();
-  if (!cockpit) return { error: "Cockpit introuvable." };
+  if (!cockpit) return { error: t.cockpitNotFound };
 
   const origin = await siteOrigin();
   if (!autoLogin) return { url: `${origin}/remote?cockpit=${cockpitId}&mode=flight`, autoLogin: false };
@@ -46,7 +48,7 @@ export async function createRemoteLink(cockpitId: string, autoLogin: boolean): P
     cockpit_id: cockpitId,
     expires_at: new Date(Date.now() + PAIRING_TTL_MS).toISOString(),
   });
-  if (error) return { error: "Impossible de créer le QR code. Réessaie." };
+  if (error) return { error: t.qrFailed };
 
   const url = new URL("/auth/pair", origin);
   url.searchParams.set("c", code);
@@ -55,7 +57,8 @@ export async function createRemoteLink(cockpitId: string, autoLogin: boolean): P
 
 /** URL signée (10 min) du fichier d'un document, pour l'éditeur d'annotations. */
 export async function getDocumentFileUrl(documentId: string): Promise<{ url?: string; error?: string }> {
-  if (!isUuid(documentId)) return { error: "Document invalide." };
+  const t = (await getT()).remote.errors;
+  if (!isUuid(documentId)) return { error: t.invalidDocument };
   const supabase = await createClient();
   // RLS : seul le propriétaire voit la ligne.
   const { data: doc } = await supabase
@@ -63,8 +66,8 @@ export async function getDocumentFileUrl(documentId: string): Promise<{ url?: st
     .select("storage_path")
     .eq("id", documentId)
     .maybeSingle();
-  if (!doc) return { error: "Document introuvable." };
+  if (!doc) return { error: t.documentNotFound };
   const { data, error } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(doc.storage_path, 600);
-  if (error || !data?.signedUrl) return { error: "Fichier indisponible." };
+  if (error || !data?.signedUrl) return { error: t.fileUnavailable };
   return { url: data.signedUrl };
 }

@@ -13,8 +13,12 @@ export interface ExtractedKneeboard extends MizKneeboardEntry {
 }
 
 /** Extrait les images de kneeboard et de briefing d'une mission (.miz) ou d'un track (.trk), dans le navigateur. */
-export async function extractMizKneeboards(miz: File): Promise<ExtractedKneeboard[]> {
-  if (miz.size > MAX_MIZ_BYTES) throw new Error("Fichier trop volumineux (500 Mo max).");
+export async function extractMizKneeboards(
+  miz: File,
+  /** Messages d'erreur affichés (dans la langue de l'interface) */
+  texts: { tooLarge: string; unreadable: string },
+): Promise<ExtractedKneeboard[]> {
+  if (miz.size > MAX_MIZ_BYTES) throw new Error(texts.tooLarge);
   const data = new Uint8Array(await miz.arrayBuffer());
   let kept = 0;
   let expanded = 0;
@@ -34,7 +38,7 @@ export async function extractMizKneeboards(miz: File): Promise<ExtractedKneeboar
           return true;
         },
       },
-      (err, out) => (err ? reject(new Error("Fichier illisible (mission ou track DCS attendu).")) : resolve(out)),
+      (err, out) => (err ? reject(new Error(texts.unreadable)) : resolve(out)),
     );
   });
 

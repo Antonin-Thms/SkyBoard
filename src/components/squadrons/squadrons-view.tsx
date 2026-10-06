@@ -13,6 +13,8 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Select } from "@/components/ui/select";
 import type { FolderSummary } from "@/lib/documents/folders";
+import { useT } from "@/lib/i18n/client";
+import { fmt } from "@/lib/i18n/define";
 import type { SquadronSummary } from "@/lib/squadrons/server";
 
 interface SquadronsViewProps {
@@ -22,6 +24,7 @@ interface SquadronsViewProps {
 }
 
 export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps) {
+  const t = useT();
   const router = useRouter();
   const [name, setName] = useState("");
   const [callsign, setCallsign] = useState("");
@@ -49,7 +52,7 @@ export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps
         }}
       >
         <label className="flex min-w-48 flex-1 flex-col gap-1 text-sm">
-          <span className="text-muted">Nouvel escadron</span>
+          <span className="text-muted">{t.squadrons.view.newSquadron}</span>
           <input
             className="input"
             maxLength={60}
@@ -58,7 +61,7 @@ export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps
           />
         </label>
         <label className="flex min-w-40 flex-col gap-1 text-sm">
-          <span className="text-muted">Ton nom</span>
+          <span className="text-muted">{t.squadrons.view.yourName}</span>
           <input
             className="input"
             maxLength={40}
@@ -68,14 +71,14 @@ export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps
         </label>
         <button type="submit" className="btn-primary" disabled={pending}>
           <Plus size={16} strokeWidth={1.75} />
-          Créer
+          {t.squadrons.view.create}
         </button>
       </form>
 
       {error && <p className="text-sm text-danger">{error}</p>}
 
       {squadrons.length === 0 ? (
-        <EmptyState title="Aucun escadron" text="Crée-en un, ou ouvre le lien d'invitation reçu d'un coéquipier." />
+        <EmptyState title={t.squadrons.view.emptyTitle} text={t.squadrons.view.emptyText} />
       ) : (
         <ul className="space-y-4">
           {squadrons.map((s) => (
@@ -107,6 +110,7 @@ function SquadronCard({
   disabled: boolean;
   run: (action: () => Promise<{ error?: string }>) => void;
 }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
   const link = `${origin}/escadrons/rejoindre?code=${s.inviteCode}`;
   const shared = folders.filter((f) => f.squadronId === s.id);
@@ -119,7 +123,7 @@ function SquadronCard({
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      window.prompt("Copie le lien d'invitation :", link);
+      window.prompt(t.squadrons.card.copyPrompt, link);
     }
   };
 
@@ -131,59 +135,61 @@ function SquadronCard({
           {s.name}
         </h2>
         <span className="text-xs text-subtle">
-          {s.members.length} membre{s.members.length > 1 ? "s" : ""}
-          {s.isOwner && " · tu es propriétaire"}
+          {fmt(s.members.length > 1 ? t.squadrons.card.membersOther : t.squadrons.card.membersOne, {
+            n: s.members.length,
+          })}
+          {s.isOwner && t.squadrons.card.youAreOwner}
         </span>
       </div>
 
       <div className="space-y-1">
-        <div className="label-caps">Invitation</div>
+        <div className="label-caps">{t.squadrons.card.invitation}</div>
         <div className="flex flex-wrap items-center gap-2">
           <input
             className="input min-w-0 basis-full font-mono sm:max-w-xl sm:basis-0 sm:flex-1 text-xs text-slate-300"
-            aria-label="Lien d'invitation"
+            aria-label={t.squadrons.card.inviteLinkAria}
             readOnly
             value={link}
             onFocus={(e) => e.target.select()}
           />
           <button type="button" className="btn-secondary" onClick={() => void copy()}>
             {copied ? <Check size={16} strokeWidth={2} className="text-success" /> : <Copy size={16} strokeWidth={1.75} />}
-            {copied ? "Copié" : "Copier"}
+            {copied ? t.squadrons.card.copied : t.squadrons.card.copy}
           </button>
           {s.isOwner && (
             <button
               type="button"
               className="btn-ghost"
               disabled={disabled}
-              title="L'ancien lien ne fonctionnera plus"
+              title={t.squadrons.card.newLinkTitle}
               onClick={() => run(() => regenerateInvite(s.id))}
             >
               <RefreshCw size={15} strokeWidth={1.75} />
-              Nouveau lien
+              {t.squadrons.card.newLink}
             </button>
           )}
         </div>
       </div>
 
       <div className="space-y-1">
-        <div className="label-caps">Membres</div>
+        <div className="label-caps">{t.squadrons.card.members}</div>
         <ul className="flex flex-wrap gap-2 text-sm">
           {s.members.map((m) => (
             <li key={m.userId} className="flex h-8 items-center gap-1.5 rounded-[2px] bg-surface pl-2.5 pr-1.5">
               <span className="flex items-center gap-1.5 pr-1">
                 {m.callsign}
-                {m.isOwner && <Crown size={13} strokeWidth={1.75} className="text-accent" aria-label="propriétaire" />}
-                {m.isMe && <span className="text-subtle">(toi)</span>}
+                {m.isOwner && <Crown size={13} strokeWidth={1.75} className="text-accent" aria-label={t.squadrons.card.ownerAria} />}
+                {m.isMe && <span className="text-subtle">{t.squadrons.card.you}</span>}
               </span>
               {s.isOwner && !m.isOwner && (
                 <button
                   type="button"
                   className="btn-icon size-6 hover:text-danger pointer-coarse:size-8"
-                  aria-label={`Retirer ${m.callsign}`}
-                  title="Retirer"
+                  aria-label={fmt(t.squadrons.card.removeAria, { name: m.callsign })}
+                  title={t.squadrons.card.remove}
                   disabled={disabled}
                   onClick={() => {
-                    if (window.confirm(`Retirer ${m.callsign} de l'escadron ?`)) run(() => leaveSquadron(s.id, m.userId));
+                    if (window.confirm(fmt(t.squadrons.card.removeConfirm, { name: m.callsign }))) run(() => leaveSquadron(s.id, m.userId));
                   }}
                 >
                   <X size={14} strokeWidth={1.75} />
@@ -195,9 +201,9 @@ function SquadronCard({
       </div>
 
       <div className="space-y-2">
-        <div className="label-caps">Dossiers partagés</div>
+        <div className="label-caps">{t.squadrons.card.sharedFolders}</div>
         {shared.length === 0 ? (
-          <p className="text-sm text-subtle">Aucun dossier partagé pour l&apos;instant.</p>
+          <p className="text-sm text-subtle">{t.squadrons.card.noSharedFolders}</p>
         ) : (
           <ul className="space-y-1 text-sm">
             {shared.map((f) => (
@@ -207,7 +213,7 @@ function SquadronCard({
                   {f.name}
                 </span>
                 {f.readOnly ? (
-                  <span className="text-xs text-subtle">partagé par un coéquipier</span>
+                  <span className="text-xs text-subtle">{t.squadrons.card.sharedByTeammate}</span>
                 ) : (
                   <button
                     type="button"
@@ -215,7 +221,7 @@ function SquadronCard({
                     disabled={disabled}
                     onClick={() => run(() => shareFolder(f.id, null))}
                   >
-                    Ne plus partager
+                    {t.squadrons.card.unshare}
                   </button>
                 )}
               </li>
@@ -224,16 +230,16 @@ function SquadronCard({
         )}
         {shareable.length > 0 && (
           <Select
-            label={`Partager un dossier avec ${s.name}`}
+            label={fmt(t.squadrons.card.shareLabel, { name: s.name })}
             value=""
-            placeholder="Partager un de mes dossiers…"
+            placeholder={t.squadrons.card.sharePlaceholder}
             disabled={disabled}
             icon={<Plus size={15} strokeWidth={1.75} />}
             className="w-full sm:w-80"
             onChange={(id) => run(() => shareFolder(id, s.id))}
             options={shareable.map((f) => ({
               value: f.id,
-              label: f.squadronName ? `${f.name} (partagé avec ${f.squadronName})` : f.name,
+              label: f.squadronName ? fmt(t.squadrons.card.sharedWith, { name: f.name, squadron: f.squadronName }) : f.name,
               icon: <Folder size={15} strokeWidth={1.75} />,
             }))}
           />
@@ -247,13 +253,13 @@ function SquadronCard({
             className="btn-danger -ml-3"
             disabled={disabled}
             onClick={() => {
-              if (window.confirm(`Supprimer l'escadron « ${s.name} » ? Les partages s'arrêtent pour tous.`)) {
+              if (window.confirm(fmt(t.squadrons.card.deleteConfirm, { name: s.name }))) {
                 run(() => deleteSquadron(s.id));
               }
             }}
           >
             <Trash2 size={15} strokeWidth={1.75} />
-            Supprimer l&apos;escadron
+            {t.squadrons.card.delete}
           </button>
         ) : (
           <button
@@ -261,11 +267,11 @@ function SquadronCard({
             className="btn-danger -ml-3"
             disabled={disabled}
             onClick={() => {
-              if (window.confirm(`Quitter l'escadron « ${s.name} » ?`)) run(() => leaveSquadron(s.id));
+              if (window.confirm(fmt(t.squadrons.card.leaveConfirm, { name: s.name }))) run(() => leaveSquadron(s.id));
             }}
           >
             <LogOut size={15} strokeWidth={1.75} />
-            Quitter l&apos;escadron
+            {t.squadrons.card.leave}
           </button>
         )}
       </div>

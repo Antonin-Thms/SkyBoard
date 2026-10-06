@@ -1,7 +1,11 @@
+import { getT } from "@/lib/i18n/server";
 import { signup } from "../actions";
 import { AuthForm } from "../auth-form";
 
-export const metadata = { title: "Créer un compte · SkyBoard" };
+export async function generateMetadata() {
+  const t = await getT();
+  return { title: `${t.auth.signupTitle} · SkyBoard` };
+}
 
 export default function SignupPage() {
   return <AuthForm mode="signup" action={signup} />;

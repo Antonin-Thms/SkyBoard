@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { STORAGE_BUCKET } from "@/lib/documents/storage";
+import { fmt } from "@/lib/i18n/define";
+import { getT } from "@/lib/i18n/server";
 import { createClient } from "@/lib/supabase/server";
 import { notifyDocumentsChanged } from "@/lib/sync/notify";
 import type { Rotation } from "@/lib/database.types";
@@ -15,12 +17,13 @@ export interface ActionResult {
 const MAX_DOCUMENTS_PER_REORDER = 1000;
 
 export async function renameDocument(id: string, name: string): Promise<ActionResult> {
+  const t = await getT();
   const cleaned = cleanName(name, 200);
-  if (!isUuid(id) || !cleaned) return { error: "Nom invalide." };
+  if (!isUuid(id) || !cleaned) return { error: t.documents.errors.invalidName };
 
   const supabase = await createClient();
   const { error } = await supabase.from("documents").update({ name: cleaned }).eq("id", id);
-  if (error) return { error: "Renommage impossible." };
+  if (error) return { error: t.documents.errors.renameFailed };
 
   revalidatePath("/documents");
   notifyDocumentsChanged(supabase);
@@ -28,18 +31,19 @@ export async function renameDocument(id: string, name: string): Promise<ActionRe
 }
 
 export async function reorderDocuments(ids: string[]): Promise<ActionResult> {
+  const t = await getT();
   if (
     !Array.isArray(ids) ||
     ids.length > MAX_DOCUMENTS_PER_REORDER ||
     !ids.every(isUuid) ||
     new Set(ids).size !== ids.length
   ) {
-    return { error: "Ordre invalide." };
+    return { error: t.documents.errors.invalidOrder };
   }
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("reorder_documents", { ids });
-  if (error) return { error: "Réordonnancement impossible." };
+  if (error) return { error: t.documents.errors.reorderFailed };
 
   revalidatePath("/documents");
   notifyDocumentsChanged(supabase);
@@ -51,31 +55,33 @@ export async function reorderDocuments(ids: string[]): Promise<ActionResult> {
 const MAX_FOLDERS = 50;
 
 export async function createFolder(name: string): Promise<ActionResult & { id?: string }> {
+  const t = await getT();
   const cleaned = cleanName(name, 100);
-  if (!cleaned) return { error: "Donne un nom au dossier." };
+  if (!cleaned) return { error: t.documents.errors.folderNameRequired };
 
   const supabase = await createClient();
   const { count } = await supabase.from("folders").select("id", { count: "exact", head: true });
-  if ((count ?? 0) >= MAX_FOLDERS) return { error: `Maximum ${MAX_FOLDERS} dossiers.` };
+  if ((count ?? 0) >= MAX_FOLDERS) return { error: fmt(t.documents.errors.maxFolders, { max: MAX_FOLDERS }) };
 
   const { data, error } = await supabase
     .from("folders")
     .insert({ name: cleaned, sort_order: (count ?? 0) + 1 })
     .select("id")
     .single();
-  if (error) return { error: "Création impossible." };
+  if (error) return { error: t.documents.errors.createFailed };
 
   revalidatePath("/documents");
   return { id: data.id };
 }
 
 export async function renameFolder(id: string, name: string): Promise<ActionResult> {
+  const t = await getT();
   const cleaned = cleanName(name, 100);
-  if (!isUuid(id) || !cleaned) return { error: "Nom invalide." };
+  if (!isUuid(id) || !cleaned) return { error: t.documents.errors.invalidName };
 
   const supabase = await createClient();
   const { error } = await supabase.from("folders").update({ name: cleaned }).eq("id", id);
-  if (error) return { error: "Renommage impossible." };
+  if (error) return { error: t.documents.errors.renameFailed };
 
   revalidatePath("/documents");
   notifyDocumentsChanged(supabase);
@@ -84,11 +90,12 @@ export async function renameFolder(id: string, name: string): Promise<ActionResu
 
 /** Supprime le dossier : ses documents redeviennent « Communs » (rien n'est effacé). */
 export async function deleteFolder(id: string): Promise<ActionResult> {
-  if (!isUuid(id)) return { error: "Dossier invalide." };
+  const t = await getT();
+  if (!isUuid(id)) return { error: t.documents.errors.invalidFolder };
 
   const supabase = await createClient();
   const { error } = await supabase.from("folders").delete().eq("id", id);
-  if (error) return { error: "Suppression impossible." };
+  if (error) return { error: t.documents.errors.deleteFailed };
 
   revalidatePath("/documents");
   notifyDocumentsChanged(supabase);
@@ -97,11 +104,12 @@ export async function deleteFolder(id: string): Promise<ActionResult> {
 
 /** Range un document dans un dossier (null = Communs). */
 export async function moveDocument(id: string, folderId: string | null): Promise<ActionResult> {
-  if (!isUuid(id) || (folderId !== null && !isUuid(folderId))) return { error: "Dossier invalide." };
+  const t = await getT();
+  if (!isUuid(id) || (folderId !== null && !isUuid(folderId))) return { error: t.documents.errors.invalidFolder };
 
   const supabase = await createClient();
   const { error } = await supabase.from("documents").update({ folder_id: folderId }).eq("id", id);
-  if (error) return { error: "Déplacement impossible." };
+  if (error) return { error: t.documents.errors.moveFailed };
 
   revalidatePath("/documents");
   notifyDocumentsChanged(supabase);
@@ -115,11 +123,12 @@ export async function documentsUploaded(): Promise<void> {
 
 /** Rotation mémorisée d'un document (0, 90, 180, 270). */
 export async function setDocumentRotation(id: string, rotation: number): Promise<ActionResult> {
-  if (!isUuid(id) || !isRotation(rotation)) return { error: "Rotation invalide." };
+  const t = await getT();
+  if (!isUuid(id) || !isRotation(rotation)) return { error: t.documents.errors.invalidRotation };
 
   const supabase = await createClient();
   const { error } = await supabase.from("documents").update({ rotation }).eq("id", id);
-  if (error) return { error: "Rotation impossible." };
+  if (error) return { error: t.documents.errors.rotateFailed };
 
   revalidatePath("/documents");
   revalidatePath("/remote");
@@ -137,11 +146,12 @@ function validIds(ids: unknown): ids is string[] {
 
 /** Tourne plusieurs documents de ±90° (chacun depuis sa rotation actuelle). */
 export async function rotateDocuments(ids: string[], delta: 1 | -1): Promise<ActionResult> {
-  if (!validIds(ids) || (delta !== 1 && delta !== -1)) return { error: "Sélection invalide." };
+  const t = await getT();
+  if (!validIds(ids) || (delta !== 1 && delta !== -1)) return { error: t.documents.errors.invalidSelection };
 
   const supabase = await createClient();
   const { data, error } = await supabase.from("documents").select("id, rotation").in("id", ids);
-  if (error) return { error: "Rotation impossible." };
+  if (error) return { error: t.documents.errors.rotateFailed };
 
   // Une requête par rotation de départ (4 au plus).
   const groups = new Map<number, string[]>();
@@ -154,7 +164,7 @@ export async function rotateDocuments(ids: string[], delta: 1 | -1): Promise<Act
         .in("id", groupIds),
     ),
   );
-  if (results.some((r) => r.error)) return { error: "Rotation impossible." };
+  if (results.some((r) => r.error)) return { error: t.documents.errors.rotateFailed };
 
   revalidatePath("/documents");
   revalidatePath("/remote");
@@ -164,11 +174,12 @@ export async function rotateDocuments(ids: string[], delta: 1 | -1): Promise<Act
 
 /** Range plusieurs documents dans un dossier (null = Communs). */
 export async function moveDocuments(ids: string[], folderId: string | null): Promise<ActionResult> {
-  if (!validIds(ids) || (folderId !== null && !isUuid(folderId))) return { error: "Sélection invalide." };
+  const t = await getT();
+  if (!validIds(ids) || (folderId !== null && !isUuid(folderId))) return { error: t.documents.errors.invalidSelection };
 
   const supabase = await createClient();
   const { error } = await supabase.from("documents").update({ folder_id: folderId }).in("id", ids);
-  if (error) return { error: "Déplacement impossible." };
+  if (error) return { error: t.documents.errors.moveFailed };
 
   revalidatePath("/documents");
   notifyDocumentsChanged(supabase);
@@ -177,11 +188,12 @@ export async function moveDocuments(ids: string[], folderId: string | null): Pro
 
 /** Efface toutes les annotations de plusieurs documents (les viewers rechargent). */
 export async function clearDocumentAnnotations(ids: string[]): Promise<ActionResult> {
-  if (!validIds(ids)) return { error: "Sélection invalide." };
+  const t = await getT();
+  if (!validIds(ids)) return { error: t.documents.errors.invalidSelection };
 
   const supabase = await createClient();
   const { error } = await supabase.rpc("annotation_clear", { document_ids: ids, page: null });
-  if (error) return { error: "Effacement impossible." };
+  if (error) return { error: t.documents.errors.clearFailed };
 
   notifyDocumentsChanged(supabase);
   return {};
@@ -189,7 +201,8 @@ export async function clearDocumentAnnotations(ids: string[]): Promise<ActionRes
 
 /** Supprime plusieurs documents (lignes + fichiers). */
 export async function deleteDocuments(ids: string[]): Promise<ActionResult> {
-  if (!validIds(ids)) return { error: "Sélection invalide." };
+  const t = await getT();
+  if (!validIds(ids)) return { error: t.documents.errors.invalidSelection };
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -197,7 +210,7 @@ export async function deleteDocuments(ids: string[]): Promise<ActionResult> {
     .delete()
     .in("id", ids)
     .select("storage_path, thumbnail_path");
-  if (error) return { error: "Suppression impossible." };
+  if (error) return { error: t.documents.errors.deleteFailed };
 
   const paths = data.flatMap((d) => [d.storage_path, d.thumbnail_path]).filter((p): p is string => !!p);
   if (paths.length) await supabase.storage.from(STORAGE_BUCKET).remove(paths);

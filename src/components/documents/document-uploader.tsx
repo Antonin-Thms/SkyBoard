@@ -11,6 +11,8 @@ import { extractMizKneeboards, type ExtractedKneeboard } from "@/lib/documents/m
 import { uploadDocument } from "@/lib/documents/upload";
 import { createClient } from "@/lib/supabase/client";
 import { uuid } from "@/lib/uuid";
+import { fmt } from "@/lib/i18n/define";
+import { useT } from "@/lib/i18n/client";
 import { CreatePages } from "./create-pages";
 import { MizImport } from "./miz-import";
 
@@ -41,6 +43,8 @@ export function DocumentUploader({
   eyebrow,
   children,
 }: DocumentUploaderProps) {
+  const { documents: t, common: tc } = useT();
+  const u = t.uploader;
   const dragDepth = useRef(0);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -72,14 +76,14 @@ export function DocumentUploader({
       const { key } = batch[i];
       update(key, { status: "uploading" });
       try {
-        await uploadDocument(supabase, userId, file, sortOrderRef.current++, name, folderId);
+        await uploadDocument(supabase, userId, file, sortOrderRef.current++, name, folderId, t.upload);
         update(key, { status: "done" });
         uploaded++;
         router.refresh();
       } catch (err) {
         update(key, {
           status: "error",
-          error: err instanceof Error ? err.message : "Erreur inconnue.",
+          error: err instanceof Error ? err.message : u.unknownError,
         });
       }
     }
@@ -96,13 +100,13 @@ export function DocumentUploader({
     // Fichier de mission DCS : on propose les images de kneeboard qu'il contient.
     const miz = missions[0];
     if (miz) {
-      setMizStatus(`Lecture de « ${miz.name} »…`);
+      setMizStatus(fmt(u.readingMission, { name: miz.name }));
       try {
-        setMission({ fileName: miz.name, entries: await extractMizKneeboards(miz) });
+        setMission({ fileName: miz.name, entries: await extractMizKneeboards(miz, { tooLarge: t.upload.missionTooLarge, unreadable: t.upload.missionUnreadable }) });
         setMizStatus(null);
       } catch (err) {
         setMission(null);
-        setMizStatus(err instanceof Error ? err.message : "Fichier illisible.");
+        setMizStatus(err instanceof Error ? err.message : u.unreadableFile);
       }
     }
     if (documents.length) await uploadAll(documents.map((file) => ({ file })));
@@ -133,13 +137,13 @@ export function DocumentUploader({
     >
       <PageHeader
         eyebrow={eyebrow}
-        title="Documents"
+        title={t.title}
         actions={
           <>
             <CreatePages busy={busy} onCreate={(items) => void uploadAll(items)} />
             <button type="button" className="btn-primary" onClick={() => inputRef.current?.click()} disabled={busy}>
               <Upload size={16} strokeWidth={1.75} />
-              {busy ? "Envoi en cours…" : "Ajouter des fichiers"}
+              {busy ? u.uploading : u.addFiles}
             </button>
             <input
               ref={inputRef}
@@ -156,8 +160,7 @@ export function DocumentUploader({
         }
       />
       <p className="hidden text-[13px] text-subtle md:block">
-        Glisse tes fichiers n&apos;importe où sur la page — PDF, PNG, JPG, mission .miz ou track .trk.
-        Destination : <span className="text-fg">{folderName ?? "Communs"}</span>
+        {u.dropHint} {u.destination} <span className="text-fg">{folderName ?? tc.folders.common}</span>
       </p>
 
       {mizStatus && <p className="text-sm text-muted">{mizStatus}</p>}
@@ -186,9 +189,9 @@ export function DocumentUploader({
                 }`}
               >
                 {e.status === "done" && <Check size={14} strokeWidth={2} />}
-                {e.status === "pending" && "En attente"}
-                {e.status === "uploading" && "Envoi…"}
-                {e.status === "done" && "Envoyé"}
+                {e.status === "pending" && u.statusPending}
+                {e.status === "uploading" && u.statusUploading}
+                {e.status === "done" && u.statusDone}
                 {e.status === "error" && e.error}
               </span>
             </li>
@@ -202,7 +205,7 @@ export function DocumentUploader({
         <div className="pointer-events-none fixed inset-3 z-50 flex items-center justify-center border-2 border-dashed border-accent bg-accent-subtle/80 md:inset-6">
           <p className="flex items-center gap-3 text-lg font-medium text-accent">
             <Upload size={22} strokeWidth={1.75} />
-            Dépose pour ajouter à « {folderName ?? "Communs"} »
+            {fmt(u.dropTo, { folder: folderName ?? tc.folders.common })}
           </p>
         </div>
       )}

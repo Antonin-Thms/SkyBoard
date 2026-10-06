@@ -3,8 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { joinSquadron } from "@/app/(app)/escadrons/actions";
+import { useT } from "@/lib/i18n/client";
 
 export function JoinSquadronForm({ code }: { code: string }) {
+  const t = useT();
   const router = useRouter();
   const [callsign, setCallsign] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -23,7 +25,7 @@ export function JoinSquadronForm({ code }: { code: string }) {
       }}
     >
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted">Ton nom (visible par l&apos;escadron)</span>
+        <span className="text-muted">{t.squadrons.join.callsignLabel}</span>
         <input
           className="input"
           autoFocus
@@ -33,9 +35,9 @@ export function JoinSquadronForm({ code }: { code: string }) {
         />
       </label>
       <button type="submit" className="btn-primary" disabled={pending || !code}>
-        {pending ? "Connexion…" : "Rejoindre"}
+        {pending ? t.squadrons.join.pending : t.squadrons.join.submit}
       </button>
-      {!code && <p className="text-sm text-danger">Lien d&apos;invitation incomplet.</p>}
+      {!code && <p className="text-sm text-danger">{t.squadrons.join.incompleteLink}</p>}
       {error && <p className="text-sm text-danger">{error}</p>}
     </form>
   );
