@@ -158,3 +158,23 @@ export function parseInkMessage(value: unknown): InkMessage | null {
       return null;
   }
 }
+
+/** Distance d'un point au segment [a, b]. */
+function distanceToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len2 = dx * dx + dy * dy;
+  const t = len2 > 0 ? Math.min(1, Math.max(0, ((px - ax) * dx + (py - ay) * dy) / len2)) : 0;
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
+/** Gomme : le trait passe-t-il à moins de `tolerance` du point (repère du document) ? */
+export function strokeHit(stroke: Stroke, point: NormalizedPoint, tolerance: number): boolean {
+  const p = stroke.points;
+  const reach = tolerance + stroke.width / 2;
+  if (p.length === 2) return Math.hypot(point.x - p[0], point.y - p[1]) <= reach;
+  for (let i = 0; i + 3 < p.length; i += 2) {
+    if (distanceToSegment(point.x, point.y, p[i], p[i + 1], p[i + 2], p[i + 3]) <= reach) return true;
+  }
+  return false;
+}

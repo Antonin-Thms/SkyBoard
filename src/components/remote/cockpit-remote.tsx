@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useMemo, useOptimistic, useRef, useTransition } from "react";
+import { useMemo, useOptimistic, useRef, useState, useTransition } from "react";
 import { setActiveFolder } from "@/app/(app)/cockpits/actions";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useInkSession } from "@/hooks/use-ink-session";
@@ -15,6 +15,7 @@ import type { RemoteCockpit, RemoteDocument } from "@/lib/remote/types";
 import type { ViewState } from "@/lib/sync/protocol";
 import { selectDocument, stepDocument, stepPage } from "@/lib/sync/state";
 import { FlightMode } from "./flight-mode";
+import { InkEditor } from "./ink-editor";
 import { PrepMode } from "./prep-mode";
 import { SyncStatus } from "./sync-status";
 
@@ -77,6 +78,7 @@ export function CockpitRemote({
       ownChangeAt.current = Date.now();
     });
 
+  const [editing, setEditing] = useState(false);
   // Annotations (crayon du mode vol).
   const ink = useInkSession(sendInk);
   const inkTarget = (s: ViewState) => {
@@ -233,8 +235,17 @@ export function CockpitRemote({
         onResetZoom={() => apply({ ...state, ...IDENTITY_VIEW })}
         night={state.night === true}
         onToggleNight={toggleNight}
-
+        onAnnotate={() => setEditing(true)}
       />
+      {editing && current && (
+        <InkEditor
+          key={`${current.id}:${state.page}`}
+          doc={current}
+          page={state.page}
+          sendInk={sendInk}
+          onClose={() => setEditing(false)}
+        />
+      )}
     </div>
   );
 }

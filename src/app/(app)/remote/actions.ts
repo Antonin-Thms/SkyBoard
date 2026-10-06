@@ -4,6 +4,7 @@ import { siteOrigin } from "@/lib/site-url";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isUuid } from "@/lib/validation";
+import { STORAGE_BUCKET } from "@/lib/documents/storage";
 import { hashPairingCode, newPairingCode, PAIRING_TTL_MS } from "@/lib/auth/pairing";
 
 export interface RemoteLinkResult {
@@ -50,4 +51,20 @@ export async function createRemoteLink(cockpitId: string, autoLogin: boolean): P
   const url = new URL("/auth/pair", origin);
   url.searchParams.set("c", code);
   return { url: url.toString(), autoLogin: true };
+}
+
+/** URL signée (10 min) du fichier d'un document, pour l'éditeur d'annotations. */
+export async function getDocumentFileUrl(documentId: string): Promise<{ url?: string; error?: string }> {
+  if (!isUuid(documentId)) return { error: "Document invalide." };
+  const supabase = await createClient();
+  // RLS : seul le propriétaire voit la ligne.
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("storage_path")
+    .eq("id", documentId)
+    .maybeSingle();
+  if (!doc) return { error: "Document introuvable." };
+  const { data, error } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrl(doc.storage_path, 600);
+  if (error || !data?.signedUrl) return { error: "Fichier indisponible." };
+  return { url: data.signedUrl };
 }

@@ -97,6 +97,8 @@ export function RemoteApp({ cockpits, documents, folders, initialCockpitId, init
           <li>
             <strong>Préparation</strong> : tape une miniature pour l&apos;afficher dans le casque,
             puis utilise les boutons de page. Chaque document reprend à la dernière page vue.
+            « ✎ Annoter » ouvre la page en grand pour dessiner en la regardant (visible en
+            direct dans le casque).
           </li>
           <li>
             <strong>Vol</strong> : plein écran entièrement tactile, utilisable sans regarder :
@@ -109,7 +111,12 @@ export function RemoteApp({ cockpits, documents, folders, initialCockpitId, init
                 bandes étroites sur les bords gauche et droit de l&apos;écran : swipe vers le bas =
                 page suivante, vers le haut = précédente (PDF de plusieurs pages) ;
               </li>
-              <li>« Curseur » (en haut) : affiche la position du doigt dans le casque.</li>
+              <li>« Curseur » (en haut, maintenir) : affiche la position du doigt dans le casque ;</li>
+              <li>
+                appui long de 2 à 3 s sans bouger, n&apos;importe où : crayon activé / désactivé.
+                Crayon actif : un doigt dessine, tap à deux doigts = annuler le dernier trait,
+                pincer = zoom.
+              </li>
             </ul>
           </li>
           <li>

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Rotation } from "@/lib/database.types";
-import { parseInkMessage, parseStroke, quantize, toDisplayPoint, toDocumentPoint } from "./model";
+import { parseInkMessage, parseStroke, quantize, strokeHit, toDisplayPoint, toDocumentPoint } from "./model";
 
-const stroke = { id: "abc_123", color: "#d62828", width: 0.004, points: [0.1, 0.2, 0.3, 0.4] };
+const stroke = { id: "abc_123", color: "#d62828" as const, width: 0.004, points: [0.1, 0.2, 0.3, 0.4] };
 
 describe("repères document / affiché", () => {
   it("sont inverses l'un de l'autre pour chaque rotation", () => {
@@ -50,5 +50,14 @@ describe("validation", () => {
     expect(parseInkMessage({ op: "clear", docId: "d", page: null })).not.toBeNull();
     expect(parseInkMessage({ op: "clear", docId: "d", page: 0 })).toBeNull();
     expect(parseInkMessage({ op: "boom", docId: "d" })).toBeNull();
+  });
+});
+
+describe("gomme", () => {
+  it("touche un trait proche, pas un trait lointain", () => {
+    const s = { ...stroke, points: [0.1, 0.1, 0.5, 0.1] };
+    expect(strokeHit(s, { x: 0.3, y: 0.11 }, 0.01)).toBe(true);
+    expect(strokeHit(s, { x: 0.3, y: 0.3 }, 0.01)).toBe(false);
+    expect(strokeHit({ ...stroke, points: [0.5, 0.5] }, { x: 0.505, y: 0.5 }, 0.01)).toBe(true);
   });
 });

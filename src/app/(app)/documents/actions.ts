@@ -175,6 +175,18 @@ export async function moveDocuments(ids: string[], folderId: string | null): Pro
   return {};
 }
 
+/** Efface toutes les annotations de plusieurs documents (les viewers rechargent). */
+export async function clearDocumentAnnotations(ids: string[]): Promise<ActionResult> {
+  if (!validIds(ids)) return { error: "Sélection invalide." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("annotation_clear", { document_ids: ids, page: null });
+  if (error) return { error: "Effacement impossible." };
+
+  notifyDocumentsChanged(supabase);
+  return {};
+}
+
 /** Supprime plusieurs documents (lignes + fichiers). */
 export async function deleteDocuments(ids: string[]): Promise<ActionResult> {
   if (!validIds(ids)) return { error: "Sélection invalide." };

@@ -9,6 +9,7 @@ import { extractMizKneeboards, type ExtractedKneeboard } from "@/lib/documents/m
 import { uploadDocument } from "@/lib/documents/upload";
 import { createClient } from "@/lib/supabase/client";
 import { uuid } from "@/lib/uuid";
+import { CreatePages } from "./create-pages";
 import { MizImport } from "./miz-import";
 
 interface UploadEntry {
@@ -136,6 +137,8 @@ export function DocumentUploader({ userId, nextSortOrder, folderId, folderName }
           }}
         />
       </div>
+
+      <CreatePages busy={busy} onCreate={(items) => void uploadAll(items)} />
 
       {mizStatus && <p className="text-sm text-slate-400">{mizStatus}</p>}
       {mission && (

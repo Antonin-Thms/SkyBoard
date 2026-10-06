@@ -44,6 +44,12 @@ export function rememberStroke(key: string, id: string) {
   sessionStrokes.set(key, list);
 }
 
+/** Traits supprimés autrement (gomme, effacement) : « annuler » ne les vise plus. */
+export function forgetSessionStrokes(key: string, ids: string[] | null) {
+  if (ids === null) sessionStrokes.delete(key);
+  else sessionStrokes.set(key, (sessionStrokes.get(key) ?? []).filter((id) => !ids.includes(id)));
+}
+
 export function popSessionStroke(key: string): string | undefined {
   return sessionStrokes.get(key)?.pop();
 }

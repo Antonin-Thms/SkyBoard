@@ -18,6 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
+  clearDocumentAnnotations,
   deleteDocuments,
   moveDocuments,
   reorderDocuments,
@@ -201,6 +202,12 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
 
   const deleteSelected = () => scheduleDelete(selectedIds);
 
+  const clearSelectedAnnotations = () => {
+    const ids = selectedIds;
+    if (!window.confirm(`Effacer les annotations de ${ids.length} document${ids.length > 1 ? "s" : ""} ?`)) return;
+    run((list) => list, () => clearDocumentAnnotations(ids));
+  };
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     // Tactile : appui long pour saisir, afin de ne pas bloquer le défilement.
@@ -304,6 +311,14 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              className="btn-text"
+              title="Efface les annotations au doigt des documents sélectionnés"
+              onClick={clearSelectedAnnotations}
+            >
+              Effacer les annotations
+            </button>
             <button type="button" className="btn-text text-red-300 hover:text-red-200" onClick={deleteSelected}>
               Supprimer
             </button>

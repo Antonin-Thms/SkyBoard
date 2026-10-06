@@ -250,6 +250,10 @@ Tout l'écran reçoit les gestes, sans bouton au centre. Les gestes sont relatif
 | Double tap | zoom et position remis à zéro |
 | Swipe vertical dans une bande latérale (bords gauche/droit) | ↓ page suivante · ↑ page précédente (PDF de plusieurs pages) |
 
+- **Crayon** : un appui long de 2 à 3 s sans bouger, n'importe où, l'active ou le désactive (✎ affiché dans le casque).
+  - Crayon actif : un doigt dessine (un tap fait un point), un tap à deux doigts annule le dernier trait, pincer zoome ; swipes et bandes sont désactivés.
+  - En mode préparation, « ✎ Annoter » ouvre la page en grand : couleurs, épaisseur, gomme, annuler, effacer la page.
+  - Page Documents : « Créer » une page de notes (vierge, quadrillée, lignée) ou une checklist à cocher au doigt ; « Effacer les annotations » sur une sélection.
 - **Barre du haut** : « Quitter », « ☾ Nuit » et « Curseur » se déclenchent en **maintenant** le bouton (un tap accidentel à l'aveugle est sans effet).
 - **Mode nuit** : la page est atténuée dans le casque (vol de nuit). Bouton « ☾ Nuit » en mode préparation ou dans la barre du mode vol.
 - **Bornes** : le zoom va de ×1 à ×6, et le déplacement est limité pour que la page ne sorte jamais du champ.

@@ -16,6 +16,8 @@ interface PrepModeProps {
   onResetZoom: () => void;
   night: boolean;
   onToggleNight: () => void;
+  /** Ouvre l'éditeur d'annotations sur la page affichée */
+  onAnnotate: () => void;
 }
 
 /** Mode préparation : on regarde l'écran, grille de miniatures et gros boutons. */
@@ -31,6 +33,7 @@ export function PrepMode({
   onResetZoom,
   night,
   onToggleNight,
+  onAnnotate,
 }: PrepModeProps) {
   return (
     <div className="space-y-4">
@@ -90,6 +93,16 @@ export function PrepMode({
               Page ▼
             </button>
           </div>
+        )}
+        {current && (
+          <button
+            type="button"
+            className="btn-secondary h-12 whitespace-nowrap px-3 text-sm"
+            onClick={onAnnotate}
+            title="Dessiner sur la page affichée (visible en direct dans le casque)"
+          >
+            ✎ Annoter
+          </button>
         )}
         <button
           type="button"
