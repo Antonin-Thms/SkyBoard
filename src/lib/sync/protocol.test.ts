@@ -26,6 +26,11 @@ describe("parseViewState", () => {
     expect(parseViewState({ ...valid, seq: undefined })).toBeNull();
   });
 
+  it("transmet le mode nuit seulement s'il est activé", () => {
+    expect(parseViewState({ ...valid, night: true })?.night).toBe(true);
+    expect(parseViewState({ ...valid, night: "oui" })).toEqual({ ...valid, cursor: null });
+  });
+
   it("rejette les valeurs démesurées d'un message forgé", () => {
     const now = 1_700_000_000_000;
     // Un seq très en avance ferait ignorer tous les états légitimes suivants.

@@ -16,7 +16,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import {
   deleteDocuments,
   moveDocuments,
@@ -28,6 +28,14 @@ import { rotateBy } from "@/lib/sync/protocol";
 import type { DocumentMimeType, Rotation } from "@/lib/database.types";
 import type { FolderSummary } from "@/lib/documents/folders";
 import { DocumentCard } from "./document-card";
+
+/** Délai pendant lequel une suppression peut être annulée. */
+const UNDO_DELAY_MS = 5_000;
+
+interface PendingDelete {
+  removed: { item: DocumentItem; index: number }[];
+  timer: ReturnType<typeof setTimeout> | undefined;
+}
 
 export interface DocumentItem {
   id: string;
@@ -123,20 +131,75 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
     setSelected(new Set());
   };
 
-  const deleteSelected = () => {
-    const ids = selectedIds;
-    if (
-      !window.confirm(
-        `Supprimer ${ids.length} document${ids.length > 1 ? "s" : ""} ? C'est définitif.`,
-      )
-    )
-      return;
-    run(
-      (list) => list.filter((i) => !selected.has(i.id)),
-      () => deleteDocuments(ids),
-    );
-    setSelected(new Set());
+  /**
+   * Suppression annulable : les documents disparaissent tout de suite, la
+   * suppression réelle part au bout de quelques secondes sauf « Annuler ».
+   */
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null);
+  const pendingRef = useRef<PendingDelete | null>(null);
+
+  const commitDelete = (pending: PendingDelete) => {
+    clearTimeout(pending.timer);
+    if (pendingRef.current === pending) pendingRef.current = null;
+    setPendingDelete((current) => (current === pending ? null : current));
+    void deleteDocuments(pending.removed.map((r) => r.item.id))
+      .catch(() => ({ error: "Connexion au serveur impossible." }))
+      .then((res) => {
+        if (res.error) {
+          restore(pending);
+          setError(res.error);
+        }
+      });
   };
+
+  /** Remet les documents retirés à leur place. */
+  const restore = (pending: PendingDelete) =>
+    setItems((list) => {
+      const next = [...list];
+      for (const { item, index } of pending.removed) next.splice(Math.min(index, next.length), 0, item);
+      return next;
+    });
+
+  const scheduleDelete = (ids: string[]) => {
+    // Une suppression précédente encore annulable part tout de suite.
+    if (pendingRef.current) commitDelete(pendingRef.current);
+    const removed = items.flatMap((item, index) => (ids.includes(item.id) ? [{ item, index }] : []));
+    if (!removed.length) return;
+    const pending: PendingDelete = { removed, timer: undefined };
+    pending.timer = setTimeout(() => commitDelete(pending), UNDO_DELAY_MS);
+    pendingRef.current = pending;
+    setPendingDelete(pending);
+    setItems((list) => list.filter((i) => !ids.includes(i.id)));
+    setSelected((prev) => new Set([...prev].filter((id) => !ids.includes(id))));
+    setError(null);
+  };
+
+  const undoDelete = () => {
+    const pending = pendingRef.current;
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    pendingRef.current = null;
+    setPendingDelete(null);
+    restore(pending);
+  };
+
+  // En quittant la page, une suppression en attente est envoyée.
+  useEffect(() => {
+    const flush = () => {
+      const pending = pendingRef.current;
+      if (!pending) return;
+      clearTimeout(pending.timer);
+      pendingRef.current = null;
+      void deleteDocuments(pending.removed.map((r) => r.item.id));
+    };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, []);
+
+  const deleteSelected = () => scheduleDelete(selectedIds);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -161,11 +224,30 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
     }
   }
 
+  const undoToast = pendingDelete && (
+    <div
+      role="status"
+      className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md items-center justify-between gap-4 border border-slate-700 bg-slate-900 px-4 py-3 text-sm shadow-2xl"
+    >
+      <span>
+        {pendingDelete.removed.length > 1
+          ? `${pendingDelete.removed.length} documents supprimés`
+          : `« ${pendingDelete.removed[0].item.name} » supprimé`}
+      </span>
+      <button type="button" className="font-semibold text-accent hover:text-sky-300" onClick={undoDelete}>
+        Annuler
+      </button>
+    </div>
+  );
+
   if (items.length === 0) {
     return (
-      <p className="border border-slate-800 p-8 text-center text-slate-500">
-        Aucun document ici pour l&apos;instant.
-      </p>
+      <>
+        <p className="border border-slate-800 p-8 text-center text-slate-500">
+          Aucun document ici pour l&apos;instant.
+        </p>
+        {undoToast}
+      </>
     );
   }
 
@@ -191,6 +273,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
               type="button"
               className="btn-text text-base"
               title="Tourner vers la gauche"
+              aria-label="Tourner la sélection vers la gauche"
               onClick={() => rotateSelected(-1)}
             >
               ⟲
@@ -199,12 +282,13 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
               type="button"
               className="btn-text text-base"
               title="Tourner vers la droite"
+              aria-label="Tourner la sélection vers la droite"
               onClick={() => rotateSelected(1)}
             >
               ⟳
             </button>
             <select
-              className="cursor-pointer border-0 bg-transparent py-1 text-sm text-slate-200 outline-none"
+              className="cursor-pointer border-0 bg-transparent py-1 text-sm text-slate-200"
               value=""
               aria-label="Déplacer la sélection vers un dossier"
               onChange={(e) => {
@@ -245,7 +329,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
                 selected={selected.has(item.id)}
                 onToggleSelect={(range) => toggle(item.id, range)}
                 onRotate={(delta) => rotateOne(item.id, delta)}
-                onDeleted={() => setItems((list) => list.filter((i) => i.id !== item.id))}
+                onDelete={() => scheduleDelete([item.id])}
                 onRenamed={(name) =>
                   setItems((list) => list.map((i) => (i.id === item.id ? { ...i, name } : i)))
                 }

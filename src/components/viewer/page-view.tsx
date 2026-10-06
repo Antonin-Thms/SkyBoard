@@ -31,9 +31,14 @@ interface PageViewProps {
   /** Point de la page sous le doigt de la remote (null : masqué) */
   cursor: NormalizedPoint | null;
   onError?: (message: string | null) => void;
+  /** Mode nuit : page atténuée */
+  dim?: boolean;
   /** Pages probablement affichées ensuite (documents voisins) : pré-rendues en arrière-plan */
   neighbors?: PageRef[];
 }
+
+/** Luminosité de la page en mode nuit. */
+const NIGHT_BRIGHTNESS = 0.4;
 
 /** Délai avant de pré-rendre les voisins, une fois la page courante affichée. */
 const PRERENDER_DELAY_MS = 300;
@@ -50,7 +55,7 @@ const isCancellation = (err: unknown) =>
  *    à coût borné. En attendant, le rendu de base agrandi reste affiché.
  * Les rendus se font hors écran puis remplacent l'ancien d'un coup.
  */
-export function PageView({ doc, page, rotation, view, cursor, onError, neighbors }: PageViewProps) {
+export function PageView({ doc, page, rotation, view, cursor, dim = false, onError, neighbors }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detailRef = useRef<HTMLCanvasElement>(null);
@@ -221,7 +226,12 @@ export function PageView({ doc, page, rotation, view, cursor, onError, neighbors
   useSmoothedView(view, cursor, pageKey, applyFrame);
 
   return (
-    <div ref={containerRef} className="absolute inset-0 flex items-center justify-center overflow-hidden">
+    <div
+      ref={containerRef}
+      className="absolute inset-0 flex items-center justify-center overflow-hidden transition-[filter] duration-500"
+      // Mode nuit : luminosité réduite (une page blanche éblouit en vol de nuit).
+      style={dim ? { filter: `brightness(${NIGHT_BRIGHTNESS})` } : undefined}
+    >
       <div
         ref={stageRef}
         className="relative origin-center will-change-transform"

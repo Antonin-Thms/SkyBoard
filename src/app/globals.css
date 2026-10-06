@@ -16,7 +16,8 @@
   --color-slate-200: #e0dbd2;
   --color-slate-300: #c9c4bb;
   --color-slate-400: #9a958c;
-  --color-slate-500: #7c776f;
+  /* Petits textes secondaires : contraste ≥ 4,5:1 sur le fond (AA). */
+  --color-slate-500: #8a857c;
   --color-slate-600: #5b5750;
   --color-slate-700: #34373b;
   --color-slate-800: #26282b;
@@ -52,6 +53,12 @@
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/* Focus clavier toujours visible (souris et doigt : pas de contour). */
+:focus-visible {
+  outline: 2px solid var(--color-sky-500);
+  outline-offset: 2px;
 }
 
 /* Cases et boutons radio natifs à l'accent du thème. */

@@ -166,15 +166,16 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
     if (!current) return;
     const onKey = (e: KeyboardEvent) => {
       const index = documents.findIndex((d) => d.id === current.doc.id);
-      if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
-        const delta = e.key === "ArrowRight" ? 1 : -1;
+      // Même logique que la remote : ← → documents, ↑ ↓ pages.
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        const delta = e.key === "ArrowDown" ? 1 : -1;
         dispatch({
           type: "local",
           docId: current.doc.id,
           page: clampPage(current.page + delta, current.doc.pageCount),
         });
-      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-        const delta = e.key === "ArrowDown" ? 1 : -1;
+      } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+        const delta = e.key === "ArrowRight" ? 1 : -1;
         const next = documents[(index + delta + documents.length) % documents.length];
         dispatch({ type: "local", docId: next.id, page: 1 });
       }
@@ -213,6 +214,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
           rotation={current.rotation}
           view={current.transform}
           cursor={current.cursor}
+          dim={view?.night === true}
           onError={handleRenderError}
           neighbors={neighbors}
         />

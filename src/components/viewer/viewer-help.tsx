@@ -38,10 +38,10 @@ export function ViewerHelp(props: ViewerHelpProps) {
         <div className="space-y-1">
           <h3 className="font-medium">Clavier (test)</h3>
           <p>
-            <Key>←</Key> <Key>→</Key> page précédente / suivante
+            <Key>←</Key> <Key>→</Key> document précédent / suivant
           </p>
           <p>
-            <Key>↑</Key> <Key>↓</Key> document précédent / suivant
+            <Key>↑</Key> <Key>↓</Key> page précédente / suivante
           </p>
           <p>
             <Key>H</Key> afficher / masquer cette aide

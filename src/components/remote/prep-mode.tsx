@@ -14,6 +14,8 @@ interface PrepModeProps {
   onStepPage: (delta: number) => void;
   onStepDocument: (delta: number) => void;
   onResetZoom: () => void;
+  night: boolean;
+  onToggleNight: () => void;
 }
 
 /** Mode préparation : on regarde l'écran, grille de miniatures et gros boutons. */
@@ -27,6 +29,8 @@ export function PrepMode({
   onStepPage,
   onStepDocument,
   onResetZoom,
+  night,
+  onToggleNight,
 }: PrepModeProps) {
   return (
     <div className="space-y-4">
@@ -87,6 +91,15 @@ export function PrepMode({
             </button>
           </div>
         )}
+        <button
+          type="button"
+          aria-pressed={night}
+          className={`h-12 whitespace-nowrap px-3 text-sm ${night ? "btn-primary" : "btn-secondary"}`}
+          onClick={onToggleNight}
+          title="Atténue la page dans le casque (vol de nuit)"
+        >
+          ☾ Nuit
+        </button>
         {zoomed && (
           <button type="button" className="btn-secondary h-12 whitespace-nowrap px-3 text-sm" onClick={onResetZoom}>
             Zoom 1:1

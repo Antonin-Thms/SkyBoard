@@ -6,6 +6,7 @@ import { DEVICE_GESTURE_OVERRIDES, GESTURE_CONFIG } from "@/lib/gestures/constan
 import { GestureRecognizer, type GestureAction } from "@/lib/gestures/recognizer";
 import type { ViewTransform } from "@/lib/gestures/transform";
 import type { LinkStatus } from "@/lib/sync/cockpit-link";
+import { HoldButton } from "@/components/hold-button";
 
 interface FlightModeProps {
   getView: () => ViewTransform;
@@ -15,8 +16,16 @@ interface FlightModeProps {
   status: LinkStatus;
   cursorEnabled: boolean;
   onToggleCursor: () => void;
+  night: boolean;
+  onToggleNight: () => void;
   info: { docName: string | null; page: number; pageCount: number; zoom: number };
 }
+
+const STATUS_LABEL: Record<LinkStatus, string> = {
+  connecting: "Connexion…",
+  connected: "Connecté",
+  disconnected: "Reconnexion…",
+};
 
 const STATUS_COLOR: Record<LinkStatus, string> = {
   connecting: "bg-amber-400",
@@ -36,6 +45,8 @@ export function FlightMode({
   status,
   cursorEnabled,
   onToggleCursor,
+  night,
+  onToggleNight,
   info,
 }: FlightModeProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -133,19 +144,34 @@ export function FlightMode({
   return (
     <div className="fixed inset-0 z-50 flex select-none flex-col bg-black pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] text-slate-500 [-webkit-touch-callout:none]">
       <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-slate-900 px-3 text-sm">
-        <button type="button" className="rounded-lg px-3 py-1.5 text-slate-300 active:bg-slate-800" onClick={onExit}>
-          ✕ {compact ? "Quitter" : "Quitter le mode vol"}
-        </button>
-        <span className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 rounded-full ${STATUS_COLOR[status]}`} />
-        </span>
-        <button
-          type="button"
-          className={`rounded-lg px-3 py-1.5 ${cursorEnabled ? "bg-sky-900 text-sky-200" : "text-slate-400"}`}
-          onClick={onToggleCursor}
+        {/* Appui long : un tap à l'aveugle près du bord ne fait pas sortir du mode vol. */}
+        <HoldButton
+          label="Quitter le mode vol (maintenir)"
+          onHold={onExit}
+          className="rounded-lg px-3 py-1.5 text-slate-300"
         >
-          Curseur {compact ? (cursorEnabled ? "●" : "○") : cursorEnabled ? "activé" : "désactivé"}
-        </button>
+          ✕ {compact ? "Quitter" : "Quitter (maintenir)"}
+        </HoldButton>
+        <span role="status" className="flex items-center gap-2" aria-label={STATUS_LABEL[status]}>
+          <span className={`h-2.5 w-2.5 rounded-full ${STATUS_COLOR[status]}`} />
+          {status !== "connected" && <span className="text-xs text-slate-400">{STATUS_LABEL[status]}</span>}
+        </span>
+        <span className="flex items-center gap-1">
+          <HoldButton
+            label={`Mode nuit ${night ? "activé" : "désactivé"} (maintenir pour basculer)`}
+            onHold={onToggleNight}
+            className={`rounded-lg px-3 py-1.5 ${night ? "bg-sky-900 text-sky-200" : "text-slate-400"}`}
+          >
+            ☾{compact ? "" : " Nuit"}
+          </HoldButton>
+          <HoldButton
+            label={`Curseur ${cursorEnabled ? "activé" : "désactivé"} (maintenir pour basculer)`}
+            onHold={onToggleCursor}
+            className={`rounded-lg px-3 py-1.5 ${cursorEnabled ? "bg-sky-900 text-sky-200" : "text-slate-400"}`}
+          >
+            Curseur {compact ? (cursorEnabled ? "●" : "○") : cursorEnabled ? "activé" : "désactivé"}
+          </HoldButton>
+        </span>
       </div>
 
       <div ref={surfaceRef} className="relative flex-1 touch-none overflow-hidden">
@@ -170,7 +196,7 @@ export function FlightMode({
         </div>
 
         <p
-          className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs leading-relaxed text-slate-600"
+          className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs leading-relaxed text-slate-400"
           style={{ paddingInline: config.edgeWidthPx + 12 }}
         >
           {compact

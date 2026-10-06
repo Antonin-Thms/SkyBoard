@@ -76,6 +76,12 @@ export function CockpitRemote({
       ownChangeAt.current = Date.now();
     });
 
+  /** Mode nuit : page atténuée dans le casque. */
+  const toggleNight = () => {
+    const s = stateRef.current;
+    apply({ ...s, night: !s.night });
+  };
+
   /** Première navigation sans document affiché : on démarre sur le premier. */
   const stepPageOrStart = (from: ViewState, delta: number) => {
     const doc = documents.find((d) => d.id === from.docId);
@@ -139,6 +145,8 @@ export function CockpitRemote({
         status={status}
         cursorEnabled={cursorEnabled}
         onToggleCursor={() => setCursorPref(cursorEnabled ? null : "1")}
+        night={state.night === true}
+        onToggleNight={toggleNight}
         info={{
           docName: current?.name ?? null,
           page: state.page,
@@ -181,6 +189,8 @@ export function CockpitRemote({
         onStepPage={(delta) => apply(stepPageOrStart(state, delta))}
         onStepDocument={(delta) => apply(stepDocument(state, documents, delta, pageMemory()))}
         onResetZoom={() => apply({ ...state, ...IDENTITY_VIEW })}
+        night={state.night === true}
+        onToggleNight={toggleNight}
 
       />
     </div>

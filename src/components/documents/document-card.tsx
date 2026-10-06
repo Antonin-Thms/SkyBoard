@@ -3,7 +3,7 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useState, useTransition } from "react";
-import { deleteDocument, moveDocument, renameDocument } from "@/app/(app)/documents/actions";
+import { moveDocument, renameDocument } from "@/app/(app)/documents/actions";
 import { CachedThumbnail } from "@/components/cached-thumbnail";
 import type { FolderSummary } from "@/lib/documents/folders";
 import type { DocumentItem } from "./document-grid";
@@ -21,7 +21,8 @@ interface DocumentCardProps {
   /** range : Maj+clic (sélection d'une plage) */
   onToggleSelect: (range: boolean) => void;
   onRotate: (delta: 1 | -1) => void;
-  onDeleted: () => void;
+  /** Suppression (annulable quelques secondes, gérée par la grille) */
+  onDelete: () => void;
   onRenamed: (name: string) => void;
 }
 
@@ -31,7 +32,7 @@ export function DocumentCard({
   selected,
   onToggleSelect,
   onRotate,
-  onDeleted,
+  onDelete,
   onRenamed,
 }: DocumentCardProps) {
   const {
@@ -64,15 +65,6 @@ export function DocumentCard({
         setEditing(false);
         onRenamed(name);
       }
-    });
-  }
-
-  function handleDelete() {
-    if (!window.confirm(`Supprimer « ${item.name} » ?`)) return;
-    startTransition(async () => {
-      const res = await deleteDocument(item.id);
-      if (res.error) setError(res.error);
-      else onDeleted();
     });
   }
 
@@ -166,7 +158,7 @@ export function DocumentCard({
           </p>
         )}
         <select
-          className="-ml-0.5 max-w-full cursor-pointer border-0 bg-transparent p-0 text-xs text-slate-500 outline-none hover:text-slate-300"
+          className="-ml-0.5 max-w-full cursor-pointer border-0 bg-transparent p-0 text-xs text-slate-500 hover:text-slate-300 pointer-coarse:min-h-11"
           aria-label="Dossier"
           value={item.folderId ?? ""}
           disabled={pending}
@@ -186,10 +178,11 @@ export function DocumentCard({
           ))}
         </select>
         {error && <p className="text-xs text-red-400">{error}</p>}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        {/* Au doigt : cibles d'au moins 44 px et actions plus espacées. */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pointer-coarse:gap-x-4">
           <button
             type="button"
-            className="rounded px-1 text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
+            className="rounded px-1 text-sm text-slate-400 hover:bg-slate-800 hover:text-white pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:text-lg"
             title="Tourner vers la gauche"
             aria-label="Tourner vers la gauche"
             onClick={() => onRotate(-1)}
@@ -198,7 +191,7 @@ export function DocumentCard({
           </button>
           <button
             type="button"
-            className="rounded px-1 text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
+            className="rounded px-1 text-sm text-slate-400 hover:bg-slate-800 hover:text-white pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:text-lg"
             title="Tourner vers la droite"
             aria-label="Tourner vers la droite"
             onClick={() => onRotate(1)}
@@ -207,7 +200,7 @@ export function DocumentCard({
           </button>
           <button
             type="button"
-            className="text-xs text-slate-400 hover:text-white"
+            className="text-xs text-slate-400 hover:text-white pointer-coarse:min-h-11 pointer-coarse:text-sm"
             onClick={() => setEditing(true)}
             disabled={pending}
           >
@@ -215,8 +208,8 @@ export function DocumentCard({
           </button>
           <button
             type="button"
-            className="text-xs text-red-400 hover:text-red-300"
-            onClick={handleDelete}
+            className="text-xs text-red-400 hover:text-red-300 pointer-coarse:min-h-11 pointer-coarse:text-sm"
+            onClick={onDelete}
             disabled={pending}
           >
             Supprimer

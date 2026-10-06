@@ -184,7 +184,7 @@ Si la connexion faiblit :
 ## 7. Tester hors VR
 
 - **Viewer** : ouvre l'URL du cockpit dans un onglet du navigateur sur PC (bouton **Ouvrir**).
-  - En test uniquement, les flèches **← →** changent de page et **↑ ↓** changent de document.
+  - En test uniquement, les flèches **← →** changent de document et **↑ ↓** changent de page, comme les gestes de la remote.
   - **H** affiche une aide (document et page courants, touches, indicateur, options d'URL).
   - Pour vérifier l'ajustement, sors la fenêtre du plein écran (bouton « Restaurer ») et tire sur ses bords.
 - **Remote** : ouvre `/remote` dans un autre onglet, ou sur la tablette / le téléphone (`http://<IP-du-PC>:3000/remote` sur le même Wi-Fi). Tu peux aussi utiliser les DevTools de Chrome/Edge en mode appareil (Ctrl+Shift+M) avec une tablette en émulation tactile.
@@ -250,6 +250,8 @@ Tout l'écran reçoit les gestes, sans bouton au centre. Les gestes sont relatif
 | Double tap | zoom et position remis à zéro |
 | Swipe vertical dans une bande latérale (bords gauche/droit) | ↓ page suivante · ↑ page précédente (PDF de plusieurs pages) |
 
+- **Barre du haut** : « Quitter », « ☾ Nuit » et « Curseur » se déclenchent en **maintenant** le bouton (un tap accidentel à l'aveugle est sans effet).
+- **Mode nuit** : la page est atténuée dans le casque (vol de nuit). Bouton « ☾ Nuit » en mode préparation ou dans la barre du mode vol.
 - **Bornes** : le zoom va de ×1 à ×6, et le déplacement est limité pour que la page ne sorte jamais du champ.
 - **Seuils** : tous dans `src/lib/gestures/constants.ts`.
   - Largeur des bandes, distances et durées de swipe et de tap, délai du double tap.

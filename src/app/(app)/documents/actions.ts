@@ -27,30 +27,6 @@ export async function renameDocument(id: string, name: string): Promise<ActionRe
   return {};
 }
 
-export async function deleteDocument(id: string): Promise<ActionResult> {
-  if (!isUuid(id)) return { error: "Document invalide." };
-
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("documents")
-    .delete()
-    .eq("id", id)
-    .select("storage_path, thumbnail_path")
-    .maybeSingle();
-  if (error) return { error: "Suppression impossible." };
-
-  if (data) {
-    const paths = [data.storage_path, data.thumbnail_path].filter((p): p is string => !!p);
-    // La ligne est supprimée : un fichier orphelin éventuel n'est plus accessible
-    // via l'app (seulement par son propriétaire), on ne bloque donc pas dessus.
-    await supabase.storage.from(STORAGE_BUCKET).remove(paths);
-  }
-
-  revalidatePath("/documents");
-  notifyDocumentsChanged(supabase);
-  return {};
-}
-
 export async function reorderDocuments(ids: string[]): Promise<ActionResult> {
   if (
     !Array.isArray(ids) ||
