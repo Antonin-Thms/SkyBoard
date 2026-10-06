@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { joinSquadron } from "@/app/(app)/escadrilles/actions";
+import { joinSquadron } from "@/app/(app)/escadrons/actions";
 
 export function JoinSquadronForm({ code }: { code: string }) {
   const router = useRouter();
@@ -18,17 +18,16 @@ export function JoinSquadronForm({ code }: { code: string }) {
         startTransition(async () => {
           const res = await joinSquadron(code, callsign);
           if (res.error) setError(res.error);
-          else router.push("/escadrilles");
+          else router.push("/escadrons");
         });
       }}
     >
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-slate-400">Ton indicatif (visible par l&apos;escadrille)</span>
+        <span className="text-slate-400">Ton indicatif (visible par l&apos;escadron)</span>
         <input
           className="input"
           autoFocus
           maxLength={40}
-          placeholder="ex. Maverick"
           value={callsign}
           onChange={(e) => setCallsign(e.target.value)}
         />

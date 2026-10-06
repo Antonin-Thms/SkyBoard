@@ -8,7 +8,7 @@ import {
   leaveSquadron,
   regenerateInvite,
   shareFolder,
-} from "@/app/(app)/escadrilles/actions";
+} from "@/app/(app)/escadrons/actions";
 import type { FolderSummary } from "@/lib/documents/folders";
 import type { SquadronSummary } from "@/lib/squadrons/server";
 
@@ -46,11 +46,10 @@ export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps
         }}
       >
         <label className="flex min-w-48 flex-1 flex-col gap-1 text-sm">
-          <span className="text-slate-400">Nouvelle escadrille</span>
+          <span className="text-slate-400">Nouvel escadron</span>
           <input
             className="input"
             maxLength={60}
-            placeholder="Nom (ex. VF-31 Tomcatters)"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
@@ -60,7 +59,6 @@ export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps
           <input
             className="input"
             maxLength={40}
-            placeholder="ex. Maverick"
             value={callsign}
             onChange={(e) => setCallsign(e.target.value)}
           />
@@ -74,7 +72,7 @@ export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps
 
       {squadrons.length === 0 ? (
         <p className="border border-slate-800 p-8 text-center text-slate-500">
-          Aucune escadrille. Crée-en une, ou ouvre le lien d&apos;invitation reçu d&apos;un coéquipier.
+          Aucun escadron. Crée-en un, ou ouvre le lien d&apos;invitation reçu d&apos;un coéquipier.
         </p>
       ) : (
         <ul className="space-y-4">
@@ -108,7 +106,7 @@ function SquadronCard({
   run: (action: () => Promise<{ error?: string }>) => void;
 }) {
   const [copied, setCopied] = useState(false);
-  const link = `${origin}/escadrilles/rejoindre?code=${s.inviteCode}`;
+  const link = `${origin}/escadrons/rejoindre?code=${s.inviteCode}`;
   const shared = folders.filter((f) => f.squadronId === s.id);
   const mine = folders.filter((f) => !f.readOnly);
   const shareable = mine.filter((f) => f.squadronId !== s.id);
@@ -170,7 +168,7 @@ function SquadronCard({
                   className="text-xs text-red-400 hover:text-red-300"
                   disabled={disabled}
                   onClick={() => {
-                    if (window.confirm(`Retirer ${m.callsign} de l'escadrille ?`)) run(() => leaveSquadron(s.id, m.userId));
+                    if (window.confirm(`Retirer ${m.callsign} de l'escadron ?`)) run(() => leaveSquadron(s.id, m.userId));
                   }}
                 >
                   Retirer
@@ -235,12 +233,12 @@ function SquadronCard({
             className="text-red-400 hover:text-red-300"
             disabled={disabled}
             onClick={() => {
-              if (window.confirm(`Supprimer l'escadrille « ${s.name} » ? Les partages s'arrêtent pour tous.`)) {
+              if (window.confirm(`Supprimer l'escadron « ${s.name} » ? Les partages s'arrêtent pour tous.`)) {
                 run(() => deleteSquadron(s.id));
               }
             }}
           >
-            Supprimer l&apos;escadrille
+            Supprimer l&apos;escadron
           </button>
         ) : (
           <button
@@ -248,10 +246,10 @@ function SquadronCard({
             className="text-red-400 hover:text-red-300"
             disabled={disabled}
             onClick={() => {
-              if (window.confirm(`Quitter l'escadrille « ${s.name} » ?`)) run(() => leaveSquadron(s.id));
+              if (window.confirm(`Quitter l'escadron « ${s.name} » ?`)) run(() => leaveSquadron(s.id));
             }}
           >
-            Quitter l&apos;escadrille
+            Quitter l&apos;escadron
           </button>
         )}
       </div>

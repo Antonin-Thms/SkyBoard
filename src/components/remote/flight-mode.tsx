@@ -216,10 +216,10 @@ export function FlightMode({
           style={{ paddingInline: config.edgeWidthPx + 12 }}
         >
           {pen
-            ? "1 doigt : dessiner · Tap 2 doigts : annuler le dernier trait · Pincer : zoom · Appui long 2-3 s : arrêter le crayon"
+            ? "1 doigt : dessiner · Tap 2 doigts : annuler le dernier trait · Pincer : zoom · Appui long 1,5 s : arrêter le crayon"
             : compact
               ? "Pincer : zoom · Swipe ← → : document · Double tap : reset · Bords ↕ : page · Appui long : crayon"
-              : "Pincer : zoom · 2 doigts : déplacer · 1 doigt (zoomé) : déplacer · Swipe ← → : document · Double tap : réinitialiser · Bords ↕ : page · Appui long 2-3 s : crayon"}
+              : "Pincer : zoom · 2 doigts : déplacer · 1 doigt (zoomé) : déplacer · Swipe ← → : document · Double tap : réinitialiser · Bords ↕ : page · Appui long 1,5 s : crayon"}
         </p>
       </div>
     </div>

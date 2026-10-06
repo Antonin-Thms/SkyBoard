@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Pages créées dans SkyBoard (sans fichier) : pages de notes à annoter et
+ * Pages créées dans SkyBoard (sans fichier) : page de notes vierge à annoter et
  * checklists. Rendues en PNG dans le navigateur, puis envoyées comme
  * n'importe quel document (miniature, viewer, annotations…).
  */
@@ -10,15 +10,6 @@
 const PAGE = { width: 1240, height: 1754 };
 const MARGIN = 90;
 const INK = "#111111";
-const RULE = "#c9ced6";
-
-export type NoteKind = "blank" | "grid" | "lines";
-
-export const NOTE_KIND_LABELS: Record<NoteKind, string> = {
-  blank: "Page vierge",
-  grid: "Page quadrillée",
-  lines: "Page lignée",
-};
 
 function newPage(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
   const canvas = document.createElement("canvas");
@@ -40,28 +31,9 @@ function toFile(canvas: HTMLCanvasElement, name: string): Promise<File> {
   );
 }
 
-/** Page de notes : vierge, quadrillée (carreaux de 5 mm) ou lignée. */
-export async function renderNotePage(kind: NoteKind, name: string): Promise<File> {
-  const { canvas, ctx } = newPage();
-  ctx.strokeStyle = RULE;
-  ctx.lineWidth = 1.5;
-  const step = kind === "grid" ? 30 : 70;
-  if (kind === "grid") {
-    for (let x = MARGIN; x <= PAGE.width - MARGIN; x += step) {
-      ctx.beginPath();
-      ctx.moveTo(x, MARGIN);
-      ctx.lineTo(x, PAGE.height - MARGIN);
-      ctx.stroke();
-    }
-  }
-  if (kind !== "blank") {
-    for (let y = MARGIN; y <= PAGE.height - MARGIN; y += step) {
-      ctx.beginPath();
-      ctx.moveTo(MARGIN, y);
-      ctx.lineTo(PAGE.width - MARGIN, y);
-      ctx.stroke();
-    }
-  }
+/** Page de notes vierge, à annoter au doigt. */
+export async function renderNotePage(name: string): Promise<File> {
+  const { canvas } = newPage();
   return toFile(canvas, name);
 }
 

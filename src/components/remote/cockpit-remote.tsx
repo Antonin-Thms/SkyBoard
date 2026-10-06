@@ -216,7 +216,7 @@ export function CockpitRemote({
               <option value="">Tous les documents</option>
               {folders.map((f) => (
                 <option key={f.id} value={f.id}>
-                  {f.readOnly ? `⇄ ${f.name} (${f.squadronName ?? "escadrille"})` : `📁 ${f.name}`}
+                  {f.readOnly ? `⇄ ${f.name} (${f.squadronName ?? "escadron"})` : `📁 ${f.name}`}
                 </option>
               ))}
             </select>

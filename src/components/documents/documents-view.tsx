@@ -15,7 +15,7 @@ interface DocumentsViewProps {
   userId: string;
   documents: DocumentSummary[];
   folders: FolderSummary[];
-  /** Escadrilles de l'utilisateur (partage d'un dossier) */
+  /** Escadrons de l'utilisateur (partage d'un dossier) */
   squadrons: { id: string; name: string }[];
   nextSortOrder: number;
 }
@@ -52,7 +52,7 @@ export function DocumentsView({ userId, documents, folders, squadrons, nextSortO
       : filter.kind === "common"
         ? "Communs"
         : currentFolder?.readOnly
-          ? `${currentFolder.name} · escadrille ${currentFolder.squadronName ?? ""}`
+          ? `${currentFolder.name} · escadron ${currentFolder.squadronName ?? ""}`
           : (currentFolder?.name ?? "");
   const own = documents.filter((d) => !d.readOnly);
   const folderCounts = folders.map((f) => ({

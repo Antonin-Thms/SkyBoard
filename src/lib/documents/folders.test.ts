@@ -16,7 +16,7 @@ describe("dossier actif", () => {
     expect(isVisibleInActiveFolder(own("b"), "a")).toBe(false);
   });
 
-  it("documents partagés par l'escadrille : seulement si leur dossier est actif", () => {
+  it("documents partagés par l'escadron : seulement si leur dossier est actif", () => {
     expect(isVisibleInActiveFolder(shared("s"), null)).toBe(false);
     expect(isVisibleInActiveFolder(shared("s"), "a")).toBe(false);
     expect(isVisibleInActiveFolder(shared("s"), "s")).toBe(true);

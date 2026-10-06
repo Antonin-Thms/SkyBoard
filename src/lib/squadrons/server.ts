@@ -18,7 +18,7 @@ export interface SquadronSummary {
   members: SquadronMember[];
 }
 
-/** Escadrilles dont l'utilisateur est membre (RLS), avec leurs membres. */
+/** Escadrons dont l'utilisateur est membre (RLS), avec leurs membres. */
 export const getSquadrons = cache(async (): Promise<SquadronSummary[]> => {
   const supabase = await createClient();
   const me = (await getSessionClaims())?.sub ?? null;

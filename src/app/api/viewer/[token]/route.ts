@@ -46,7 +46,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/viewer/[toke
 
   // Dossier actif : ses documents + les documents communs (sans dossier) du
   // pilote. Le dossier peut être partagé par un coéquipier : on vérifie que
-  // le pilote est toujours membre de l'escadrille, sinon on l'ignore.
+  // le pilote est toujours membre de l'escadron, sinon on l'ignore.
   let folderId = cockpit.active_folder_id;
   let folderRes: { data: { name: string } | null } = { data: null };
   if (folderId) {

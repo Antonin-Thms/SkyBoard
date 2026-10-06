@@ -75,7 +75,7 @@ export interface Database {
           user_id: string;
           name: string;
           sort_order: number;
-          /** Escadrille avec laquelle le dossier est partagé */
+          /** Escadron avec lequel le dossier est partagé */
           squadron_id: string | null;
           created_at: string;
         };

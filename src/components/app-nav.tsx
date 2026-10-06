@@ -11,7 +11,7 @@ const LINKS = [
   { href: "/documents", label: "Documents" },
   { href: "/cockpits", label: "Cockpits" },
   { href: "/remote", label: "Remote" },
-  { href: "/escadrilles", label: "Escadrilles" },
+  { href: "/escadrons", label: "Escadrons" },
 ] as const;
 
 interface AppNavProps {
@@ -79,7 +79,7 @@ function FolderNav({ folders, counts }: AppNavProps) {
       key: f.id,
       href: `/documents?folder=${f.id}`,
       label: f.name,
-      title: f.squadronName ? `Escadrille ${f.squadronName} (lecture seule)` : undefined,
+      title: f.squadronName ? `Escadron ${f.squadronName} (lecture seule)` : undefined,
       count: counts.byFolder[f.id] ?? 0,
     }));
 
@@ -116,7 +116,7 @@ function FolderNav({ folders, counts }: AppNavProps) {
       })}
       {shared.length > 0 && (
         <>
-          <div className="label-caps px-3 pb-1.5 pt-4">Escadrilles</div>
+          <div className="label-caps px-3 pb-1.5 pt-4">Escadrons</div>
           {shared.map((item) => {
             const active = current === item.key;
             return (

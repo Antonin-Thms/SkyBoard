@@ -113,7 +113,7 @@ export function RemoteApp({ cockpits, documents, folders, initialCockpitId, init
               </li>
               <li>« Curseur » (en haut, maintenir) : affiche la position du doigt dans le casque ;</li>
               <li>
-                appui long de 2 à 3 s sans bouger, n&apos;importe où : crayon activé / désactivé.
+                appui long de 1,5 s sans bouger, n&apos;importe où : crayon activé / désactivé.
                 Crayon actif : un doigt dessine, tap à deux doigts = annuler le dernier trait,
                 pincer = zoom.
               </li>

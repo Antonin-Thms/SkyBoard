@@ -32,7 +32,7 @@ export const GESTURE_CONFIG = {
   swipeDirectionRatio: 1.5,
 
   /** Appui long sans bouger (n'importe où) : active / désactive le crayon */
-  penHoldMs: 2500,
+  penHoldMs: 1500,
   /** Tolérance de mouvement de l'appui long (le doigt tremble un peu) */
   penHoldSlopPx: 10,
   /** Crayon : le trait commence quand le doigt a bougé de cette distance (sinon : un point) */

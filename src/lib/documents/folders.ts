@@ -6,10 +6,10 @@
 export interface FolderSummary {
   id: string;
   name: string;
-  /** Escadrille avec laquelle le dossier est partagé (le sien ou celui d'un autre) */
+  /** Escadron avec lequel le dossier est partagé (le sien ou celui d'un autre) */
   squadronId?: string | null;
   squadronName?: string | null;
-  /** Dossier d'un autre pilote, partagé avec une de mes escadrilles : lecture seule */
+  /** Dossier d'un autre pilote, partagé avec un de mes escadrons : lecture seule */
   readOnly?: boolean;
 }
 
@@ -35,7 +35,7 @@ export function isVisibleInActiveFolder(doc: FolderedDoc, activeFolderId: string
 export function matchesFilter(doc: FolderedDoc, filter: FolderFilter): boolean {
   switch (filter.kind) {
     case "all":
-      // « Tous » : mes documents (ceux de l'escadrille sont dans leur dossier).
+      // « Tous » : mes documents (ceux de l'escadron sont dans leur dossier).
       return !doc.readOnly;
     case "common":
       return !doc.readOnly && doc.folderId === null;

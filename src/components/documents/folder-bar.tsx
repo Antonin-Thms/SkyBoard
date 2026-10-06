@@ -4,7 +4,7 @@ import { FolderLink } from "@/components/folder-link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { createFolder, deleteFolder, renameFolder } from "@/app/(app)/documents/actions";
-import { shareFolder } from "@/app/(app)/escadrilles/actions";
+import { shareFolder } from "@/app/(app)/escadrons/actions";
 import type { FolderFilter, FolderSummary } from "@/lib/documents/folders";
 
 interface FolderBarProps {
@@ -138,7 +138,7 @@ export function FolderBar({ folders, filter, totalCount, commonCount, squadrons 
 
       {current?.readOnly && (
         <p className="text-sm text-slate-400">
-          Dossier partagé par l&apos;escadrille {current.squadronName} : lecture seule. Choisis-le
+          Dossier partagé par l&apos;escadron {current.squadronName} : lecture seule. Choisis-le
           comme dossier actif d&apos;un cockpit (page Remote ou Cockpits) pour l&apos;afficher dans
           le casque.
         </p>

@@ -53,7 +53,7 @@ export async function listDocumentsWithThumbnails(
   supabase: SupabaseClient<Database>,
   userId: string | null,
 ): Promise<{ documents: DocumentSummary[]; error: boolean }> {
-  // RLS : mes documents + ceux des dossiers partagés avec mes escadrilles.
+  // RLS : mes documents + ceux des dossiers partagés avec mes escadrons.
   const { data: rows, error } = await supabase
     .from("documents")
     .select("id, user_id, name, type, page_count, sort_order, folder_id, rotation, thumbnail_path")
@@ -83,8 +83,8 @@ export async function listDocumentsWithThumbnails(
 }
 
 /**
- * Dossiers de l'utilisateur connecté (triés), puis ceux que ses escadrilles
- * partagent (lecture seule), avec le nom de l'escadrille.
+ * Dossiers de l'utilisateur connecté (triés), puis ceux que ses escadrons
+ * partagent (lecture seule), avec le nom de l'escadron.
  */
 export async function listFolders(
   supabase: SupabaseClient<Database>,

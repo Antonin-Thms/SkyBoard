@@ -1,13 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  NOTE_KIND_LABELS,
-  parseChecklistItems,
-  renderChecklist,
-  renderNotePage,
-  type NoteKind,
-} from "@/lib/documents/generate";
+import { parseChecklistItems, renderChecklist, renderNotePage } from "@/lib/documents/generate";
 
 interface CreatePagesProps {
   busy: boolean;
@@ -15,7 +9,7 @@ interface CreatePagesProps {
   onCreate: (items: { file: File; name: string }[]) => void;
 }
 
-/** Créer des pages sans fichier : notes à annoter, checklists à cocher au doigt. */
+/** Créer des pages sans fichier : page de notes à annoter, checklists à cocher au doigt. */
 export function CreatePages({ busy, onCreate }: CreatePagesProps) {
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -24,12 +18,12 @@ export function CreatePages({ busy, onCreate }: CreatePagesProps) {
   const [working, setWorking] = useState(false);
   const disabled = busy || working;
 
-  async function createNote(kind: NoteKind) {
+  async function createNote() {
     setWorking(true);
     setError(null);
     try {
-      const name = `Notes — ${NOTE_KIND_LABELS[kind].replace("Page ", "")}`;
-      onCreate([{ file: await renderNotePage(kind, name), name }]);
+      const name = "Notes";
+      onCreate([{ file: await renderNotePage(name), name }]);
     } catch {
       setError("Création impossible.");
     } finally {
@@ -63,17 +57,14 @@ export function CreatePages({ busy, onCreate }: CreatePagesProps) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         <span className="label-caps">Créer</span>
-        {(Object.keys(NOTE_KIND_LABELS) as NoteKind[]).map((kind) => (
-          <button
-            key={kind}
-            type="button"
-            className="btn-text pointer-coarse:min-h-11"
-            disabled={disabled}
-            onClick={() => void createNote(kind)}
-          >
-            + {NOTE_KIND_LABELS[kind]}
-          </button>
-        ))}
+        <button
+          type="button"
+          className="btn-text pointer-coarse:min-h-11"
+          disabled={disabled}
+          onClick={() => void createNote()}
+        >
+          + Page de notes
+        </button>
         <button
           type="button"
           className="btn-text pointer-coarse:min-h-11"
