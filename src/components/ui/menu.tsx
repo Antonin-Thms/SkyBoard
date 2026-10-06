@@ -1,6 +1,6 @@
 "use client";
 
-import { Ellipsis } from "lucide-react";
+import { Check, Ellipsis } from "lucide-react";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 export interface MenuItem {
@@ -11,6 +11,8 @@ export interface MenuItem {
   /** Trait de séparation avant cet élément */
   separator?: boolean;
   disabled?: boolean;
+  /** Choix courant (menu de sélection) : coche à droite */
+  checked?: boolean;
 }
 
 interface MenuProps {
@@ -63,7 +65,8 @@ export function Menu({ label, items, align = "end", side = "bottom", trigger, tr
         aria-controls={open ? id : undefined}
         className={`${triggerClassName} ${open ? "bg-overlay text-fg" : ""}`}
         onClick={() => {
-          setActive(enabled[0] ?? 0);
+          const checked = items.findIndex((it) => it.checked && !it.disabled);
+          setActive(checked >= 0 ? checked : (enabled[0] ?? 0));
           setOpen((o) => !o);
         }}
       >
@@ -96,7 +99,8 @@ export function Menu({ label, items, align = "end", side = "bottom", trigger, tr
                   buttons.current[i] = el;
                 }}
                 type="button"
-                role="menuitem"
+                role={it.checked === undefined ? "menuitem" : "menuitemradio"}
+                aria-checked={it.checked}
                 disabled={it.disabled}
                 tabIndex={i === active ? 0 : -1}
                 onClick={() => {
@@ -108,7 +112,8 @@ export function Menu({ label, items, align = "end", side = "bottom", trigger, tr
                 }`}
               >
                 {it.icon}
-                {it.label}
+                <span className="flex-1">{it.label}</span>
+                {it.checked && <Check size={16} strokeWidth={2} className="text-accent" />}
               </button>
             </div>
           ))}
