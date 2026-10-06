@@ -1,5 +1,6 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ExtractedKneeboard } from "@/lib/documents/miz-extract";
 import { kneeboardDocumentName } from "@/lib/documents/miz";
@@ -72,17 +73,22 @@ export function MizImport({ missionFileName, entries, busy, onImport, onCancel }
               <button
                 type="button"
                 onClick={() => toggle(e.path)}
-                className={`flex w-full flex-col overflow-hidden rounded-xl border text-left ${
-                  on ? "border-sky-500 ring-2 ring-sky-500" : "border-slate-800 opacity-50"
-                }`}
+                className={`flex w-full flex-col overflow-hidden text-left transition ${on ? "" : "opacity-50"}`}
               >
-                <div className="relative aspect-[3/4] w-full bg-slate-950">
+                <div className={`relative aspect-[3/4] w-full bg-sunken ${on ? "ring-2 ring-accent" : ""}`}>
                   {/* eslint-disable-next-line @next/next/no-img-element -- aperçu local (blob) */}
                   <img src={previews[i]} alt="" className="h-full w-full object-contain" />
-                  <span className="absolute left-1 top-1 rounded bg-slate-900/80 px-1 text-xs">{on ? "✓" : ""}</span>
+                  <span
+                    aria-hidden="true"
+                    className={`absolute right-2 top-2 flex size-[18px] items-center justify-center rounded-[2px] border-[1.5px] ${
+                      on ? "border-accent bg-accent text-on-accent" : "border-muted bg-sunken/70 text-transparent"
+                    }`}
+                  >
+                    <Check size={13} strokeWidth={3} />
+                  </span>
                 </div>
-                <span className="truncate px-2 pt-1 text-xs">{e.baseName}</span>
-                <span className="truncate px-2 pb-1.5 text-[10px] text-slate-500">
+                <span className="truncate pt-2 text-[13px]">{e.baseName}</span>
+                <span className="truncate text-[11px] text-subtle">
                   {e.kind === "briefing" ? "Briefing" : (e.aircraft ?? "Kneeboard · tous appareils")}
                 </span>
               </button>

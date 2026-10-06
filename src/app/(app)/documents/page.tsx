@@ -52,7 +52,7 @@ export default async function DocumentsPage() {
             documents <strong>Communs</strong> (sans dossier), toujours présents.
           </li>
           <li>
-            Pour réordonner, fais glisser la poignée <span className="font-mono">⠿</span> en haut à
+            Pour réordonner, fais glisser la poignée en haut à
             gauche d&apos;une miniature (au doigt : appui long, puis glisse).
           </li>
         </ul>

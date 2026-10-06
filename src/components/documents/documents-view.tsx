@@ -10,6 +10,7 @@ import { DocumentGrid, type DocumentItem } from "./document-grid";
 import { DocumentUploader } from "./document-uploader";
 import { FolderBar } from "./folder-bar";
 import { SharedDocumentGrid } from "./shared-document-grid";
+import { PageHeader } from "@/components/ui/page-header";
 
 interface DocumentsViewProps {
   userId: string;
@@ -53,7 +54,9 @@ export function DocumentsView({ userId, documents, folders, squadrons, nextSortO
         ? "Communs"
         : currentFolder?.readOnly
           ? `${currentFolder.name} · escadron ${currentFolder.squadronName ?? ""}`
-          : (currentFolder?.name ?? "");
+          : currentFolder?.squadronName
+            ? `${currentFolder.name} · partagé avec ${currentFolder.squadronName}`
+            : (currentFolder?.name ?? "");
   const own = documents.filter((d) => !d.readOnly);
   const folderCounts = folders.map((f) => ({
     ...f,
@@ -62,37 +65,38 @@ export function DocumentsView({ userId, documents, folders, squadrons, nextSortO
   // Remonte la grille quand le filtre ou la liste change (sélection remise à zéro).
   const gridKey = `${JSON.stringify(filter)}|${items.map((i) => `${i.id}:${i.name}:${i.folderId}`).join("|")}`;
 
-  return (
-    <>
-      <div>
-        <div className="label-caps">{contextLabel}</div>
-        <h1 className="mt-1 text-3xl font-medium">Documents</h1>
-      </div>
+  const folderBar = (
+    <FolderBar
+      folders={folderCounts}
+      filter={filter}
+      totalCount={own.length}
+      commonCount={own.filter((d) => d.folderId === null).length}
+      squadrons={squadrons}
+    />
+  );
 
-      <FolderBar
-        folders={folderCounts}
-        filter={filter}
-        totalCount={own.length}
-        commonCount={own.filter((d) => d.folderId === null).length}
-        squadrons={squadrons}
-      />
-
-      {currentFolder?.readOnly ? (
-        // Dossier d'un coéquipier : consultation seulement.
+  if (currentFolder?.readOnly) {
+    // Dossier d'un coéquipier : consultation seulement.
+    return (
+      <div className="space-y-6">
+        <PageHeader eyebrow={contextLabel} title="Documents" />
+        {folderBar}
         <SharedDocumentGrid documents={documents.filter((d) => d.folderId === currentFolder.id)} />
-      ) : (
-        <>
-          {/* Les envois vont dans le dossier affiché (Communs pour « Tous » et « Communs »). */}
-          <DocumentUploader
-            userId={userId}
-            nextSortOrder={nextSortOrder}
-            folderId={currentFolder?.id ?? null}
-            folderName={currentFolder?.name ?? null}
-          />
+      </div>
+    );
+  }
 
-          <DocumentGrid key={gridKey} initialItems={items} folders={folders.filter((f) => !f.readOnly)} />
-        </>
-      )}
-    </>
+  return (
+    // Les envois vont dans le dossier affiché (Communs pour « Tous » et « Communs »).
+    <DocumentUploader
+      userId={userId}
+      nextSortOrder={nextSortOrder}
+      folderId={currentFolder?.id ?? null}
+      folderName={currentFolder?.name ?? null}
+      eyebrow={contextLabel}
+    >
+      {folderBar}
+      <DocumentGrid key={gridKey} initialItems={items} folders={folders.filter((f) => !f.readOnly)} />
+    </DocumentUploader>
   );
 }

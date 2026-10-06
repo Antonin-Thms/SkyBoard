@@ -2,9 +2,14 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { GripVertical, Pencil, RotateCcw, RotateCw, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { moveDocument, renameDocument } from "@/app/(app)/documents/actions";
 import { CachedThumbnail } from "@/components/cached-thumbnail";
+import { Checkbox } from "@/components/ui/checkbox";
+import { folderOptions } from "@/components/ui/folder-options";
+import { Menu } from "@/components/ui/menu";
+import { Select } from "@/components/ui/select";
 import type { FolderSummary } from "@/lib/documents/folders";
 import type { DocumentItem } from "./document-grid";
 
@@ -18,6 +23,8 @@ interface DocumentCardProps {
   item: DocumentItem;
   folders: FolderSummary[];
   selected: boolean;
+  /** Une sélection est en cours : les cases restent visibles */
+  selecting: boolean;
   /** range : Maj+clic (sélection d'une plage) */
   onToggleSelect: (range: boolean) => void;
   onRotate: (delta: 1 | -1) => void;
@@ -26,28 +33,27 @@ interface DocumentCardProps {
   onRenamed: (name: string) => void;
 }
 
+/** Bouton icône posé sur la miniature (fond sombre translucide). */
+const overlayButton =
+  "flex size-8 items-center justify-center bg-surface/85 text-fg transition hover:bg-surface pointer-coarse:size-10";
+
 export function DocumentCard({
   item,
   folders,
   selected,
+  selecting,
   onToggleSelect,
   onRotate,
   onDelete,
   onRenamed,
 }: DocumentCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    setActivatorNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id });
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.id });
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.name);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const isPdf = item.type === "application/pdf";
 
   function submitRename() {
     const name = draft.trim();
@@ -68,68 +74,67 @@ export function DocumentCard({
     });
   }
 
+  // Les commandes de la miniature apparaissent au survol (toujours au doigt).
+  const reveal = "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 pointer-coarse:opacity-100";
+
   return (
     <li
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`flex flex-col gap-2.5 ${isDragging ? "z-10 opacity-80" : ""} ${
-        pending ? "opacity-60" : ""
-      }`}
+      className={`flex flex-col gap-2.5 ${isDragging ? "z-10" : ""} ${pending ? "opacity-60" : ""}`}
     >
-      {/* Miniature sur fond « papier » ; sélection = contour ambre. */}
       <div
-        className={`relative aspect-[3/4] overflow-hidden bg-[#e9e6df] transition ${
-          selected || isDragging ? "ring-2 ring-sky-500" : ""
-        } ${isDragging ? "shadow-2xl" : ""}`}
+        className={`group relative aspect-[3/4] overflow-hidden ${isPdf ? "bg-paper" : "bg-sunken"} ${
+          selected || isDragging ? "ring-2 ring-accent" : ""
+        } ${isDragging ? "shadow-[0_12px_32px_rgb(0_0_0/0.6)]" : ""}`}
       >
         {item.thumbnailUrl ? (
           <CachedThumbnail docId={item.id} url={item.thumbnailUrl} rotation={item.rotation} />
         ) : (
-          <div className="flex h-full items-center justify-center text-slate-500">
-            {TYPE_LABEL[item.type]}
-          </div>
+          <div className="flex h-full items-center justify-center text-subtle">{TYPE_LABEL[item.type]}</div>
         )}
+
+        {/* Poignée de déplacement */}
         <button
           ref={setActivatorNodeRef}
           {...attributes}
           {...listeners}
           type="button"
           aria-label="Déplacer"
-          className="absolute left-2 top-2 cursor-grab touch-none rounded-md bg-slate-900/80 px-2 py-1 text-lg leading-none text-slate-300 active:cursor-grabbing"
+          className={`absolute left-2 top-2 cursor-grab touch-none active:cursor-grabbing ${overlayButton} ${reveal}`}
         >
-          ⠿
+          <GripVertical size={16} strokeWidth={1.75} />
         </button>
-        {/*
-          Case de sélection : un bouton (et non un <input type="checkbox">) dont
-          l'affichage dépend uniquement de l'état React. Une vraie case dont on
-          annule le clic (pour gérer Maj+clic) se redessine avec un clic de retard.
-          Grande zone cliquable pour cocher au doigt.
-        */}
-        <button
-          type="button"
-          role="checkbox"
-          aria-checked={selected}
-          aria-label={`Sélectionner ${item.name}`}
-          onClick={(e) => onToggleSelect(e.shiftKey)}
-          className="absolute right-0 top-0 flex h-11 w-11 items-start justify-end p-2"
-        >
-          <span
-            className={`flex h-5 w-5 items-center justify-center rounded border-2 text-xs font-bold leading-none ${
-              selected
-                ? "border-sky-500 bg-sky-500 text-slate-950"
-                : "border-slate-300 bg-slate-900/70 text-transparent"
-            }`}
-          >
-            ✓
-          </span>
-        </button>
-        <span className="absolute bottom-2 right-2 rounded bg-slate-900/80 px-1.5 py-0.5 text-xs text-slate-300">
+
+        {/* Case de sélection : visible au survol, quand cochée ou pendant une sélection */}
+        <Checkbox
+          checked={selected}
+          onToggle={(e) => onToggleSelect(e.shiftKey)}
+          label={`Sélectionner ${item.name}`}
+          className={`absolute right-0 top-0 h-11 w-11 items-start justify-end p-2.5 ${
+            selected || selecting ? "" : reveal
+          }`}
+        />
+
+        {/* Rotation */}
+        {/* Au doigt, la rotation passe par le menu ⋯ (miniature dégagée). */}
+        <div className={`absolute bottom-2 left-2 flex gap-1 ${reveal} pointer-coarse:hidden`}>
+          <button type="button" aria-label="Tourner vers la gauche" title="Tourner vers la gauche" className={overlayButton} onClick={() => onRotate(-1)}>
+            <RotateCcw size={16} strokeWidth={1.75} />
+          </button>
+          <button type="button" aria-label="Tourner vers la droite" title="Tourner vers la droite" className={overlayButton} onClick={() => onRotate(1)}>
+            <RotateCw size={16} strokeWidth={1.75} />
+          </button>
+        </div>
+
+        <span className="numeric absolute bottom-2 right-2 bg-surface/85 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-slate-300">
           {TYPE_LABEL[item.type]}
-          {item.type === "application/pdf" && ` · ${item.pageCount} p.`}
+          {isPdf && item.pageCount > 1 && ` · ${item.pageCount} p`}
+          {item.rotation !== 0 && ` · ${item.rotation}°`}
         </span>
       </div>
 
-      <div className="space-y-1.5">
+      <div className="flex flex-col gap-0.5">
         {editing ? (
           <form
             onSubmit={(e) => {
@@ -139,6 +144,7 @@ export function DocumentCard({
           >
             <input
               className="input"
+              aria-label="Nouveau nom"
               value={draft}
               maxLength={200}
               autoFocus
@@ -157,64 +163,41 @@ export function DocumentCard({
             {item.name}
           </p>
         )}
-        <select
-          className="-ml-0.5 max-w-full cursor-pointer border-0 bg-transparent p-0 text-xs text-slate-500 hover:text-slate-300 pointer-coarse:min-h-11"
-          aria-label="Dossier"
-          value={item.folderId ?? ""}
-          disabled={pending}
-          onChange={(e) => {
-            const folderId = e.target.value || null;
-            startTransition(async () => {
-              const res = await moveDocument(item.id, folderId);
-              setError(res.error ?? null);
-            });
-          }}
-        >
-          <option value="">Communs</option>
-          {folders.map((f) => (
-            <option key={f.id} value={f.id}>
-              📁 {f.name}
-            </option>
-          ))}
-        </select>
-        {error && <p className="text-xs text-red-400">{error}</p>}
-        {/* Au doigt : cibles d'au moins 44 px et actions plus espacées. */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pointer-coarse:gap-x-4">
-          <button
-            type="button"
-            className="rounded px-1 text-sm text-slate-400 hover:bg-slate-800 hover:text-white pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:text-lg"
-            title="Tourner vers la gauche"
-            aria-label="Tourner vers la gauche"
-            onClick={() => onRotate(-1)}
-          >
-            ⟲
-          </button>
-          <button
-            type="button"
-            className="rounded px-1 text-sm text-slate-400 hover:bg-slate-800 hover:text-white pointer-coarse:min-h-11 pointer-coarse:min-w-11 pointer-coarse:text-lg"
-            title="Tourner vers la droite"
-            aria-label="Tourner vers la droite"
-            onClick={() => onRotate(1)}
-          >
-            ⟳
-          </button>
-          <button
-            type="button"
-            className="text-xs text-slate-400 hover:text-white pointer-coarse:min-h-11 pointer-coarse:text-sm"
-            onClick={() => setEditing(true)}
+        <div className="flex items-center justify-between gap-2">
+          <Select
+            variant="chip"
+            label="Dossier"
+            value={item.folderId ?? ""}
             disabled={pending}
-          >
-            Renommer
-          </button>
-          <button
-            type="button"
-            className="text-xs text-red-400 hover:text-red-300 pointer-coarse:min-h-11 pointer-coarse:text-sm"
-            onClick={onDelete}
-            disabled={pending}
-          >
-            Supprimer
-          </button>
+            options={folderOptions(folders, [{ value: "", label: "Communs" }])}
+            onChange={(value) => {
+              const folderId = value || null;
+              startTransition(async () => {
+                const res = await moveDocument(item.id, folderId);
+                setError(res.error ?? null);
+              });
+            }}
+            className="flex min-w-0 flex-1"
+          />
+          <Menu
+            label={`Actions pour ${item.name}`}
+            triggerClassName="btn-icon -mr-2 size-8"
+            items={[
+              { label: "Tourner à gauche", icon: <RotateCcw size={16} strokeWidth={1.75} />, onSelect: () => onRotate(-1) },
+              { label: "Tourner à droite", icon: <RotateCw size={16} strokeWidth={1.75} />, onSelect: () => onRotate(1) },
+              {
+                label: "Renommer",
+                icon: <Pencil size={16} strokeWidth={1.75} />,
+                onSelect: () => {
+                  setDraft(item.name);
+                  setEditing(true);
+                },
+              },
+              { label: "Supprimer", icon: <Trash2 size={16} strokeWidth={1.75} />, onSelect: onDelete, danger: true, separator: true },
+            ]}
+          />
         </div>
+        {error && <p className="text-xs text-danger">{error}</p>}
       </div>
     </li>
   );

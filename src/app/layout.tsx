@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Saira, Saira_Condensed } from "next/font/google";
+import { JetBrains_Mono, Saira, Saira_Condensed } from "next/font/google";
 import "./globals.css";
 
 const saira = Saira({
@@ -11,6 +11,13 @@ const sairaCondensed = Saira_Condensed({
   variable: "--font-saira-condensed",
   subsets: ["latin"],
   weight: ["500", "600"],
+});
+
+/** Adresses, tokens, versions : une seule police à chasse fixe, cohérente partout. */
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  weight: ["400"],
 });
 
 export const metadata: Metadata = {
@@ -34,7 +41,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="fr"
-      className={`${saira.variable} ${sairaCondensed.variable} h-full antialiased`}
+      className={`${saira.variable} ${sairaCondensed.variable} ${jetbrainsMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">{children}</body>
     </html>

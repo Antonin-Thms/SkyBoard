@@ -1,28 +1,31 @@
 "use client";
 
 import { CachedThumbnail } from "@/components/cached-thumbnail";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { DocumentSummary } from "@/lib/documents/server-types";
 
 /** Documents d'un dossier partagé par un coéquipier : consultation seulement. */
 export function SharedDocumentGrid({ documents }: { documents: DocumentSummary[] }) {
   if (documents.length === 0) {
-    return <p className="border border-slate-800 p-8 text-center text-slate-500">Ce dossier partagé est vide.</p>;
+    return <EmptyState title="Rien ici pour l'instant" text="Ce dossier partagé est encore vide." />;
   }
   return (
-    <ul className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
+    <ul className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-9 lg:grid-cols-4">
       {documents.map((d) => (
         <li key={d.id} className="flex flex-col gap-2.5">
-          <div className="relative aspect-[3/4] overflow-hidden bg-[#e9e6df]">
+          <div
+            className={`relative aspect-[3/4] overflow-hidden ${d.type === "application/pdf" ? "bg-paper" : "bg-sunken"}`}
+          >
             {d.thumbnailUrl ? (
               <CachedThumbnail docId={d.id} url={d.thumbnailUrl} rotation={d.rotation} />
             ) : (
-              <div className="flex h-full items-center justify-center text-slate-500">
+              <div className="flex h-full items-center justify-center text-subtle">
                 {d.type === "application/pdf" ? "PDF" : "Image"}
               </div>
             )}
             {d.pageCount > 1 && (
-              <span className="absolute bottom-2 right-2 rounded bg-slate-900/80 px-1.5 py-0.5 text-xs text-slate-300">
-                {d.pageCount} p.
+              <span className="numeric absolute bottom-2 right-2 bg-surface/85 px-1.5 py-0.5 text-[11px] uppercase tracking-wider text-slate-300">
+                {d.pageCount} p
               </span>
             )}
           </div>

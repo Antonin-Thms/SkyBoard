@@ -1,56 +1,186 @@
 "use client";
 
+import { Files, House, LogOut, Plane, Plus, Smartphone, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useState, useTransition } from "react";
+import { Suspense, useState, useTransition, type ReactNode } from "react";
 import { createFolder } from "@/app/(app)/documents/actions";
 import { FolderLink } from "@/components/folder-link";
+import { Menu } from "@/components/ui/menu";
 import type { FolderSummary } from "@/lib/documents/folders";
 
 const LINKS = [
-  { href: "/documents", label: "Documents" },
-  { href: "/cockpits", label: "Cockpits" },
-  { href: "/remote", label: "Remote" },
-  { href: "/escadrons", label: "Escadrons" },
+  { href: "/documents", label: "Documents", Icon: Files },
+  { href: "/cockpits", label: "Cockpits", Icon: Plane },
+  { href: "/remote", label: "Remote", Icon: Smartphone },
+  { href: "/escadrons", label: "Escadrons", Icon: Users },
 ] as const;
 
-interface AppNavProps {
+interface AppShellProps {
   folders: FolderSummary[];
   counts: { all: number; common: number; byFolder: Record<string, number> };
+  email: string;
+  version: string | undefined;
+  logout: () => void;
+  children: ReactNode;
 }
 
-/** Navigation principale (barre latérale) ; dossiers listés sous Documents. */
-export function AppNav({ folders, counts }: AppNavProps) {
+const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
+
+/**
+ * Cadre de l'application :
+ * - ordinateur : barre latérale (repliée en colonne d'icônes sur la Remote
+ *   sous 1280 px, pour laisser la place aux commandes) ;
+ * - téléphone : en-tête compact et barre d'onglets en bas d'écran.
+ */
+export function AppShell({ folders, counts, email, version, logout, children }: AppShellProps) {
   const pathname = usePathname();
-  const onDocuments = pathname === "/documents" || pathname.startsWith("/documents/");
+  const onDocuments = isActive(pathname, "/documents");
+  // Remote : barre latérale réduite à une colonne d'icônes sous 1280 px.
+  const rail = isActive(pathname, "/remote");
 
   return (
-    <div className="flex flex-col gap-8">
-      <nav className="flex gap-1 md:flex-col" aria-label="Navigation">
-        {LINKS.map(({ href, label }) => {
-          const active = pathname === href || pathname.startsWith(`${href}/`);
+    <div className="flex flex-1 flex-col md:flex-row">
+      {/* Téléphone : en-tête compact */}
+      <header className="flex items-center justify-between px-4 pb-1 pt-[max(0.875rem,env(safe-area-inset-top))] pl-[max(1rem,env(safe-area-inset-left))] md:hidden">
+        <Link href="/" className="font-condensed text-lg font-semibold tracking-[0.2em]" title="Accueil">
+          SKYBOARD
+        </Link>
+        <AccountMenu email={email} logout={logout} />
+      </header>
+
+      {/* Ordinateur : barre latérale (ou colonne d'icônes) */}
+      <aside
+        className={`sticky top-0 hidden h-dvh shrink-0 flex-col border-r border-line md:flex ${
+          rail ? "w-16 items-center py-5 xl:w-60 xl:items-stretch xl:py-7" : "w-60 py-7"
+        }`}
+      >
+        <Link
+          href="/"
+          title="Accueil"
+          className={`font-condensed font-semibold tracking-[0.2em] ${rail ? "text-[15px] xl:px-6 xl:text-xl" : "px-6 text-xl"}`}
+        >
+          <span className={rail ? "xl:hidden" : "hidden"}>SB</span>
+          <span className={rail ? "hidden xl:inline" : ""}>SKYBOARD</span>
+        </Link>
+
+        <nav className={`mt-7 flex flex-col gap-0.5 ${rail ? "items-center xl:items-stretch" : ""}`} aria-label="Navigation">
+          <SideLink href="/" label="Accueil" Icon={House} active={pathname === "/"} rail={rail} />
+          {LINKS.map(({ href, label, Icon }) => (
+            <SideLink key={href} href={href} label={label} Icon={Icon} active={isActive(pathname, href)} rail={rail} />
+          ))}
+        </nav>
+
+        {onDocuments && (
+          <Suspense>
+            <FolderNav folders={folders} counts={counts} />
+          </Suspense>
+        )}
+
+        <div className={`mt-auto flex flex-col gap-1.5 text-[13px] text-subtle ${rail ? "items-center xl:items-stretch xl:px-6" : "px-6"}`}>
+          <span className={`truncate ${rail ? "hidden xl:block" : ""}`} title={email}>
+            {email}
+          </span>
+          <form action={logout}>
+            <button
+              type="submit"
+              title="Déconnexion"
+              className="flex items-center gap-2 py-1 text-muted transition hover:text-fg"
+            >
+              <LogOut size={14} strokeWidth={1.75} />
+              <span className={rail ? "sr-only xl:not-sr-only" : ""}>Déconnexion</span>
+            </button>
+          </form>
+          {version && (
+            <span className={`font-condensed text-[10px] tracking-widest text-disabled ${rail ? "hidden xl:block" : ""}`}>
+              V · {version.toUpperCase()}
+            </span>
+          )}
+        </div>
+      </aside>
+
+      <main className="w-full min-w-0 flex-1 px-4 pb-[calc(5.5rem+env(safe-area-inset-bottom))] pt-4 md:px-10 md:py-8">
+        <div className="mx-auto max-w-6xl">{children}</div>
+      </main>
+
+      {/* Téléphone : barre d'onglets */}
+      <nav
+        aria-label="Navigation"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-line bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
+      >
+        {LINKS.map(({ href, label, Icon }) => {
+          const active = isActive(pathname, href);
           return (
             <Link
               key={href}
               href={href}
               aria-current={active ? "page" : undefined}
-              className={`flex items-center gap-2.5 px-3 py-2 text-[15px] transition ${
-                active ? "bg-slate-900 text-slate-100" : "text-slate-400 hover:text-slate-100"
+              className={`flex h-14 flex-col items-center justify-center gap-1 text-[11px] transition ${
+                active ? "text-accent shadow-[inset_0_2px_0_var(--color-accent)]" : "text-muted"
               }`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${active ? "bg-accent" : "bg-transparent"}`} />
+              <Icon size={22} strokeWidth={1.75} />
               {label}
             </Link>
           );
         })}
       </nav>
-
-      {onDocuments && <FolderNav folders={folders} counts={counts} />}
     </div>
   );
 }
 
-function FolderNav({ folders, counts }: AppNavProps) {
+function SideLink({
+  href,
+  label,
+  Icon,
+  active,
+  rail,
+}: {
+  href: string;
+  label: string;
+  Icon: typeof Files;
+  active: boolean;
+  rail: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      title={label}
+      aria-current={active ? "page" : undefined}
+      className={`flex items-center gap-3 text-[15px] transition ${
+        rail ? "size-11 justify-center xl:h-auto xl:w-auto xl:justify-start xl:px-6 xl:py-2.5" : "px-6 py-2.5"
+      } ${active ? "bg-raised text-fg shadow-[inset_2px_0_0_var(--color-accent)]" : "text-muted hover:text-fg"}`}
+    >
+      <Icon size={rail ? 20 : 17} strokeWidth={1.75} className={active ? "text-accent" : ""} />
+      <span className={rail ? "sr-only xl:not-sr-only" : ""}>{label}</span>
+    </Link>
+  );
+}
+
+function AccountMenu({ email, logout }: { email: string; logout: () => void }) {
+  const formId = "logout-form";
+  return (
+    <>
+      <form id={formId} action={logout} className="hidden" />
+      <Menu
+        label="Compte"
+        trigger={<UserRound size={20} strokeWidth={1.75} />}
+        triggerClassName="btn-icon"
+        items={[
+          { label: email || "Compte", onSelect: () => {}, disabled: true },
+          {
+            label: "Déconnexion",
+            icon: <LogOut size={16} strokeWidth={1.75} />,
+            separator: true,
+            onSelect: () => (document.getElementById(formId) as HTMLFormElement | null)?.requestSubmit(),
+          },
+        ]}
+      />
+    </>
+  );
+}
+
+function FolderNav({ folders, counts }: Pick<AppShellProps, "folders" | "counts">) {
   const params = useSearchParams();
   const router = useRouter();
   const current = params.get("folder") ?? "all";
@@ -59,17 +189,18 @@ function FolderNav({ folders, counts }: AppNavProps) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const items = [
-    { key: "all", href: "/documents", label: "Tous", count: counts.all },
-    { key: "common", href: "/documents?folder=common", label: "Communs", count: counts.common },
+  const own = [
+    { key: "all", href: "/documents", label: "Tous", count: counts.all, shared: false },
+    { key: "common", href: "/documents?folder=common", label: "Communs", count: counts.common, shared: false },
     ...folders
       .filter((f) => !f.readOnly)
       .map((f) => ({
         key: f.id,
         href: `/documents?folder=${f.id}`,
-        label: f.squadronId ? `${f.name} ⇄` : f.name,
-        title: f.squadronName ? `Partagé avec ${f.squadronName}` : undefined,
+        label: f.name,
         count: counts.byFolder[f.id] ?? 0,
+        shared: !!f.squadronId,
+        title: f.squadronName ? `Partagé avec ${f.squadronName}` : undefined,
       })),
   ];
   // Dossiers partagés par les coéquipiers (lecture seule).
@@ -79,8 +210,9 @@ function FolderNav({ folders, counts }: AppNavProps) {
       key: f.id,
       href: `/documents?folder=${f.id}`,
       label: f.name,
-      title: f.squadronName ? `Escadron ${f.squadronName} (lecture seule)` : undefined,
       count: counts.byFolder[f.id] ?? 0,
+      shared: false,
+      title: f.squadronName ? `Escadron ${f.squadronName} (lecture seule)` : undefined,
     }));
 
   const create = () =>
@@ -93,53 +225,32 @@ function FolderNav({ folders, counts }: AppNavProps) {
       if (res.id) router.push(`/documents?folder=${res.id}`);
     });
 
-  // Sur téléphone, les dossiers sont proposés dans la page Documents.
+  const item = (it: (typeof own)[number] & { title?: string }) => {
+    const active = current === it.key;
+    return (
+      <FolderLink
+        key={it.key}
+        href={it.href}
+        title={it.title}
+        aria-current={active ? "page" : undefined}
+        className={`flex items-center gap-2 px-6 py-1.5 transition ${
+          active ? "bg-raised text-fg shadow-[inset_2px_0_0_var(--color-accent)]" : "text-muted hover:text-fg"
+        }`}
+      >
+        <span className="min-w-0 flex-1 truncate">{it.label}</span>
+        {it.shared && <Users size={13} strokeWidth={1.75} className="shrink-0 text-subtle" aria-label="Partagé" />}
+        <span className={`numeric text-[13px] ${active ? "text-accent" : ""}`}>{it.count}</span>
+      </FolderLink>
+    );
+  };
+
   return (
-    <div className="hidden flex-col gap-1 text-sm md:flex">
-      <div className="label-caps px-3 pb-1.5">Dossiers</div>
-      {items.map((item) => {
-        const active = current === item.key;
-        return (
-          <FolderLink
-            key={item.key}
-            href={item.href}
-            title={"title" in item ? item.title : undefined}
-            aria-current={active ? "page" : undefined}
-            className={`flex justify-between gap-3 px-3 py-1.5 transition ${
-              active ? "bg-slate-900 text-slate-100" : "text-slate-400 hover:text-slate-100"
-            }`}
-          >
-            <span className="truncate">{item.label}</span>
-            <span className={active ? "text-accent" : ""}>{item.count}</span>
-          </FolderLink>
-        );
-      })}
-      {shared.length > 0 && (
-        <>
-          <div className="label-caps px-3 pb-1.5 pt-4">Escadrons</div>
-          {shared.map((item) => {
-            const active = current === item.key;
-            return (
-              <FolderLink
-                key={item.key}
-                href={item.href}
-                title={item.title}
-                aria-current={active ? "page" : undefined}
-                className={`flex justify-between gap-3 px-3 py-1.5 transition ${
-                  active ? "bg-slate-900 text-slate-100" : "text-slate-400 hover:text-slate-100"
-                }`}
-              >
-                <span className="truncate">{item.label}</span>
-                <span className={active ? "text-accent" : ""}>{item.count}</span>
-              </FolderLink>
-            );
-          })}
-          <div className="pt-2" />
-        </>
-      )}
+    <div className="mt-7 hidden flex-col gap-0.5 text-sm md:flex">
+      <div className="label-caps px-6 pb-2">Dossiers</div>
+      {own.map(item)}
       {creating ? (
         <form
-          className="mt-1 flex flex-col gap-2 px-1"
+          className="mt-1 flex flex-col gap-2 px-5"
           onSubmit={(e) => {
             e.preventDefault();
             create();
@@ -149,30 +260,36 @@ function FolderNav({ folders, counts }: AppNavProps) {
             className="input"
             autoFocus
             maxLength={100}
-            placeholder="Nom (ex. Serveur A)"
             aria-label="Nom du nouveau dossier"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             disabled={pending}
           />
           <div className="flex gap-2">
-            <button type="submit" className="btn-primary px-3 py-1" disabled={pending}>
+            <button type="submit" className="btn-primary min-h-8 px-3" disabled={pending}>
               Créer
             </button>
-            <button type="button" className="btn-secondary px-3 py-1" onClick={() => setCreating(false)}>
+            <button type="button" className="btn-ghost min-h-8" onClick={() => setCreating(false)}>
               Annuler
             </button>
           </div>
-          {error && <p className="text-xs text-red-400">{error}</p>}
+          {error && <p className="text-xs text-danger">{error}</p>}
         </form>
       ) : (
         <button
           type="button"
-          className="px-3 py-1.5 text-left text-slate-500 hover:text-slate-100"
+          className="flex items-center gap-2 px-6 py-1.5 text-left text-subtle transition hover:text-fg"
           onClick={() => setCreating(true)}
         >
-          + Nouveau dossier
+          <Plus size={13} strokeWidth={1.75} />
+          Nouveau dossier
         </button>
+      )}
+      {shared.length > 0 && (
+        <>
+          <div className="label-caps px-6 pb-2 pt-5">Escadrons</div>
+          {shared.map(item)}
+        </>
       )}
     </div>
   );

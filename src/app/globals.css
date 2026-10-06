@@ -48,6 +48,35 @@
   --color-accent: var(--color-sky-500);
   --font-sans: var(--font-saira);
   --font-condensed: var(--font-saira-condensed);
+  --font-mono: var(--font-jetbrains-mono), ui-monospace, monospace;
+}
+
+/*
+ * Tokens sémantiques (à préférer aux échelles slate / sky dans le code neuf).
+ * Surfaces du plus enfoncé au plus élevé, traits, textes, accents d'état.
+ */
+@theme {
+  --color-surface: #121314;
+  --color-sunken: #0e0f10;
+  --color-raised: #1c1e20;
+  --color-overlay: #26282b;
+  --color-line: #26282b;
+  --color-line-strong: #34373b;
+  --color-fg: #ece8e1;
+  --color-muted: #9a958c;
+  --color-subtle: #8a857c;
+  --color-disabled: #5b5750;
+  --color-accent-hover: #ffc04d;
+  --color-accent-pressed: #e09400;
+  --color-accent-subtle: #2a1f06;
+  --color-on-accent: #0e0f10;
+  --color-danger: #e5534b;
+  --color-danger-hover: #f0706a;
+  --color-danger-subtle: #2a1110;
+  --color-success: #5fbf7a;
+  --color-paper: #e9e6df;
+  --shadow-popover: 0 8px 24px rgb(0 0 0 / 0.5);
+  --ease-snappy: cubic-bezier(0.2, 0, 0, 1);
 }
 
 body {
@@ -67,25 +96,53 @@ input[type="radio"] {
   accent-color: var(--color-sky-500);
 }
 
+/* Boutons : 40 px (48 au doigt), rayon 2 px, appui = léger enfoncement. */
+@utility btn {
+  @apply inline-flex min-h-10 items-center justify-center gap-2 rounded-[2px] px-4 text-sm transition duration-[120ms] ease-snappy active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:min-h-12;
+}
+
 @layer components {
   .btn-primary {
-    @apply inline-flex items-center justify-center rounded-md bg-sky-500 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-sky-400 disabled:opacity-50;
+    @apply btn bg-accent font-semibold text-on-accent hover:bg-accent-hover active:bg-accent-pressed;
   }
   .btn-secondary {
-    @apply inline-flex items-center justify-center rounded-md border border-slate-700 px-4 py-2 text-sm font-medium text-slate-100 transition hover:bg-slate-800 disabled:opacity-50;
+    @apply btn border border-line-strong font-medium text-fg hover:bg-raised;
+  }
+  .btn-ghost {
+    @apply btn px-3 text-muted hover:bg-raised hover:text-fg;
   }
   .btn-danger {
-    @apply inline-flex items-center justify-center rounded-md border border-red-900 px-4 py-2 text-sm font-medium text-red-300 transition hover:bg-red-950 disabled:opacity-50;
+    @apply btn px-3 text-danger hover:bg-danger-subtle hover:text-danger-hover;
+  }
+  /* Bouton icône carré (barres d'outils). */
+  .btn-icon {
+    @apply inline-flex size-9 shrink-0 items-center justify-center rounded-[2px] text-muted transition duration-[120ms] ease-snappy hover:bg-raised hover:text-fg active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-40 pointer-coarse:size-11;
   }
   .input {
-    @apply w-full rounded-md border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-500;
+    @apply w-full rounded-[2px] border border-line-strong bg-raised px-3 py-2 text-sm text-fg outline-none placeholder:text-subtle focus:border-accent;
   }
   /* Bouton texte discret (barres d'actions). */
   .btn-text {
-    @apply inline-flex items-center px-1 py-1 text-sm text-slate-200 transition hover:text-white disabled:opacity-50;
+    @apply inline-flex items-center gap-1.5 px-1 py-1 text-sm text-slate-200 transition hover:text-white disabled:opacity-50;
   }
   /* Petit libellé en capitales condensées (sections, contexte). */
   .label-caps {
-    @apply font-condensed text-xs tracking-[0.15em] text-slate-500 uppercase;
+    @apply font-condensed text-[11px] font-semibold tracking-[0.15em] text-subtle uppercase;
+  }
+  /* Chiffres d'instrument : compteurs, pages, zoom. */
+  .numeric {
+    @apply font-condensed font-semibold tabular-nums;
+  }
+}
+
+/* Apparition des notifications (toasts). */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

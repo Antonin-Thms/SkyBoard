@@ -16,6 +16,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
+import { Folder, FolderInput, PenLine, RotateCcw, RotateCw, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   clearDocumentAnnotations,
@@ -28,6 +29,9 @@ import {
 import { rotateBy } from "@/lib/sync/protocol";
 import type { DocumentMimeType, Rotation } from "@/lib/database.types";
 import type { FolderSummary } from "@/lib/documents/folders";
+import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Menu } from "@/components/ui/menu";
 import { DocumentCard } from "./document-card";
 
 /** Délai pendant lequel une suppression peut être annulée. */
@@ -234,14 +238,15 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
   const undoToast = pendingDelete && (
     <div
       role="status"
-      className="fixed inset-x-4 bottom-4 z-50 mx-auto flex max-w-md items-center justify-between gap-4 border border-slate-700 bg-slate-900 px-4 py-3 text-sm shadow-2xl"
+      className="fixed inset-x-4 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-50 mx-auto flex max-w-md animate-[toast-in_160ms_var(--ease-snappy)] items-center gap-3 rounded-[4px] bg-overlay py-2 pl-4 pr-2 text-sm shadow-[inset_2px_0_0_var(--color-accent),var(--shadow-popover)] md:inset-x-auto md:bottom-7 md:right-8"
     >
-      <span>
+      <Trash2 size={16} strokeWidth={1.75} className="shrink-0 text-muted" />
+      <span className="min-w-0 flex-1 truncate">
         {pendingDelete.removed.length > 1
           ? `${pendingDelete.removed.length} documents supprimés`
           : `« ${pendingDelete.removed[0].item.name} » supprimé`}
       </span>
-      <button type="button" className="font-semibold text-accent hover:text-sky-300" onClick={undoDelete}>
+      <button type="button" className="btn min-h-9 px-3 font-semibold text-accent hover:bg-raised" onClick={undoDelete}>
         Annuler
       </button>
     </div>
@@ -250,98 +255,78 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
   if (items.length === 0) {
     return (
       <>
-        <p className="border border-slate-800 p-8 text-center text-slate-500">
-          Aucun document ici pour l&apos;instant.
-        </p>
+        <EmptyState title="Rien ici pour l'instant" text="Ajoute un kneeboard, crée une page de notes ou importe une mission .miz." />
         {undoToast}
       </>
     );
   }
 
+  const count = selectedIds.length;
   return (
-    <div className={`space-y-2 ${pending ? "cursor-progress" : ""}`}>
-      <div className="sticky top-0 z-20 flex min-h-12 flex-wrap items-center gap-2 bg-slate-900/95 px-3 py-2 backdrop-blur">
-        <label className="flex items-center gap-2 text-sm text-slate-300">
-          <input
-            type="checkbox"
-            className="h-4 w-4"
-            checked={allSelected}
-            onChange={() => setSelected(allSelected ? new Set() : new Set(items.map((i) => i.id)))}
-          />
-          <span className={selectedIds.length > 0 ? "font-semibold text-accent" : ""}>
-            {selectedIds.length > 0
-              ? `${selectedIds.length} sélectionné${selectedIds.length > 1 ? "s" : ""}`
-              : "Tout sélectionner"}
+    <div className={`space-y-3 ${pending ? "cursor-progress" : ""}`}>
+      <div className="sticky top-0 z-20 flex min-h-12 flex-wrap items-center gap-1 bg-raised/95 py-1.5 pl-3.5 pr-2 backdrop-blur">
+        <Checkbox
+          checked={allSelected}
+          indeterminate={count > 0 && !allSelected}
+          onToggle={() => setSelected(count > 0 ? new Set() : new Set(items.map((i) => i.id)))}
+          label="Tout sélectionner"
+          className="mr-2"
+        >
+          <span className={count > 0 ? "font-semibold text-accent" : "text-muted"}>
+            {count > 0 ? `${count} sélectionné${count > 1 ? "s" : ""}` : "Tout sélectionner"}
           </span>
-        </label>
-        {selectedIds.length > 0 && (
+        </Checkbox>
+        {count > 0 && (
           <>
-            <button
-              type="button"
-              className="btn-text text-base"
-              title="Tourner vers la gauche"
-              aria-label="Tourner la sélection vers la gauche"
-              onClick={() => rotateSelected(-1)}
-            >
-              ⟲
+            <button type="button" className="btn-icon text-fg" title="Tourner vers la gauche" aria-label="Tourner la sélection vers la gauche" onClick={() => rotateSelected(-1)}>
+              <RotateCcw size={17} strokeWidth={1.75} />
             </button>
-            <button
-              type="button"
-              className="btn-text text-base"
-              title="Tourner vers la droite"
-              aria-label="Tourner la sélection vers la droite"
-              onClick={() => rotateSelected(1)}
-            >
-              ⟳
+            <button type="button" className="btn-icon text-fg" title="Tourner vers la droite" aria-label="Tourner la sélection vers la droite" onClick={() => rotateSelected(1)}>
+              <RotateCw size={17} strokeWidth={1.75} />
             </button>
-            <select
-              className="cursor-pointer border-0 bg-transparent py-1 text-sm text-slate-200"
-              value=""
-              aria-label="Déplacer la sélection vers un dossier"
-              onChange={(e) => {
-                if (e.target.value)
-                  moveSelected(e.target.value === "common" ? null : e.target.value);
-              }}
-            >
-              <option value="">Déplacer vers…</option>
-              <option value="common">Communs</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  📁 {f.name}
-                </option>
-              ))}
-            </select>
-            <button
-              type="button"
-              className="btn-text"
-              title="Efface les annotations au doigt des documents sélectionnés"
-              onClick={clearSelectedAnnotations}
-            >
-              Effacer les annotations
+            <Menu
+              label="Déplacer la sélection vers un dossier"
+              align="start"
+              triggerClassName="btn-ghost text-fg"
+              trigger={
+                <>
+                  <FolderInput size={17} strokeWidth={1.75} />
+                  <span className="hidden sm:inline">Déplacer vers…</span>
+                </>
+              }
+              items={[
+                { label: "Communs", icon: <Folder size={16} strokeWidth={1.75} />, onSelect: () => moveSelected(null) },
+                ...folders.map((f) => ({
+                  label: f.name,
+                  icon: <Folder size={16} strokeWidth={1.75} />,
+                  onSelect: () => moveSelected(f.id),
+                })),
+              ]}
+            />
+            <button type="button" className="btn-ghost text-fg" title="Efface les annotations au doigt des documents sélectionnés" onClick={clearSelectedAnnotations}>
+              <PenLine size={17} strokeWidth={1.75} />
+              <span className="hidden sm:inline">Effacer les annotations</span>
             </button>
-            <button type="button" className="btn-text text-red-300 hover:text-red-200" onClick={deleteSelected}>
-              Supprimer
+            <button type="button" className="btn-icon text-danger hover:text-danger-hover" title="Supprimer" aria-label="Supprimer la sélection" onClick={deleteSelected}>
+              <Trash2 size={17} strokeWidth={1.75} />
             </button>
-            <button
-              type="button"
-              className="text-sm text-slate-400 hover:text-white"
-              onClick={() => setSelected(new Set())}
-            >
+            <button type="button" className="btn-ghost ml-auto" onClick={() => setSelected(new Set())}>
               Annuler
             </button>
           </>
         )}
       </div>
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map((i) => i.id)} strategy={rectSortingStrategy}>
-          <ul className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-4">
+          <ul className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 sm:gap-x-6 sm:gap-y-9 lg:grid-cols-4">
             {items.map((item) => (
               <DocumentCard
                 key={item.id}
                 item={item}
                 folders={folders}
                 selected={selected.has(item.id)}
+                selecting={count > 0}
                 onToggleSelect={(range) => toggle(item.id, range)}
                 onRotate={(delta) => rotateOne(item.id, delta)}
                 onDelete={() => scheduleDelete([item.id])}
@@ -353,9 +338,10 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
           </ul>
         </SortableContext>
       </DndContext>
-      <p className="text-xs text-slate-500">
+      <p className="hidden pt-4 text-xs text-subtle md:block">
         Astuce : coche plusieurs documents (Maj+clic pour une plage) pour les tourner, les déplacer
-        ou les supprimer d&apos;un coup. Poignée ⠿ : glisser pour réordonner.
+        ou les supprimer d&apos;un coup ; la poignée en haut à gauche d&apos;une miniature sert à les
+        réordonner.
       </p>
     </div>
   );

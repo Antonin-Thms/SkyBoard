@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { Check, Upload } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
+import { PageHeader } from "@/components/ui/page-header";
 import { documentsUploaded } from "@/app/(app)/documents/actions";
 import { ACCEPT_ATTRIBUTE } from "@/lib/documents/file-type";
 import { isMizFileName } from "@/lib/documents/miz";
@@ -25,9 +27,21 @@ interface DocumentUploaderProps {
   /** Dossier de destination des envois (null : Communs) */
   folderId: string | null;
   folderName: string | null;
+  /** Contexte affiché au-dessus du titre */
+  eyebrow: ReactNode;
+  /** Contenu de la page : dépôt de fichiers possible partout dessus */
+  children: ReactNode;
 }
 
-export function DocumentUploader({ userId, nextSortOrder, folderId, folderName }: DocumentUploaderProps) {
+export function DocumentUploader({
+  userId,
+  nextSortOrder,
+  folderId,
+  folderName,
+  eyebrow,
+  children,
+}: DocumentUploaderProps) {
+  const dragDepth = useRef(0);
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const sortOrderRef = useRef(nextSortOrder);
@@ -95,52 +109,58 @@ export function DocumentUploader({ userId, nextSortOrder, folderId, folderName }
   }
 
   return (
-    <div className="space-y-3">
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          void handleFiles(e.dataTransfer.files);
-        }}
-        className={`flex flex-wrap items-center justify-between gap-3 border border-dashed px-4 py-3 transition ${
-          dragOver ? "border-sky-500 bg-sky-500/10" : "border-slate-700"
-        }`}
-      >
-        <p className="text-sm text-slate-400">
-          Glisse tes fichiers ici — PDF, PNG, JPG, mission .miz ou track .trk.{" "}
-          <span className="text-slate-500">
-            Destination : <span className="text-slate-200">{folderName ?? "Communs"}</span>
-          </span>
-        </p>
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-        >
-          {busy ? "Envoi en cours…" : "Ajouter des fichiers"}
-        </button>
-        <input
-          ref={inputRef}
-          type="file"
-          multiple
-          accept={ACCEPT_ATTRIBUTE}
-          className="hidden"
-          onChange={(e) => {
-            void handleFiles(e.target.files);
-            e.target.value = "";
-          }}
-        />
-      </div>
+    <div
+      className="relative space-y-6"
+      onDragEnter={(e) => {
+        if (!e.dataTransfer.types.includes("Files")) return;
+        dragDepth.current++;
+        setDragOver(true);
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes("Files")) e.preventDefault();
+      }}
+      onDragLeave={() => {
+        dragDepth.current = Math.max(0, dragDepth.current - 1);
+        if (dragDepth.current === 0) setDragOver(false);
+      }}
+      onDrop={(e) => {
+        if (!e.dataTransfer.files.length) return;
+        e.preventDefault();
+        dragDepth.current = 0;
+        setDragOver(false);
+        void handleFiles(e.dataTransfer.files);
+      }}
+    >
+      <PageHeader
+        eyebrow={eyebrow}
+        title="Documents"
+        actions={
+          <>
+            <CreatePages busy={busy} onCreate={(items) => void uploadAll(items)} />
+            <button type="button" className="btn-primary" onClick={() => inputRef.current?.click()} disabled={busy}>
+              <Upload size={16} strokeWidth={1.75} />
+              {busy ? "Envoi en cours…" : "Ajouter des fichiers"}
+            </button>
+            <input
+              ref={inputRef}
+              type="file"
+              multiple
+              accept={ACCEPT_ATTRIBUTE}
+              className="hidden"
+              onChange={(e) => {
+                void handleFiles(e.target.files);
+                e.target.value = "";
+              }}
+            />
+          </>
+        }
+      />
+      <p className="hidden text-[13px] text-subtle md:block">
+        Glisse tes fichiers n&apos;importe où sur la page — PDF, PNG, JPG, mission .miz ou track .trk.
+        Destination : <span className="text-fg">{folderName ?? "Communs"}</span>
+      </p>
 
-      <CreatePages busy={busy} onCreate={(items) => void uploadAll(items)} />
-
-      {mizStatus && <p className="text-sm text-slate-400">{mizStatus}</p>}
+      {mizStatus && <p className="text-sm text-muted">{mizStatus}</p>}
       {mission && (
         <MizImport
           key={mission.fileName}
@@ -156,27 +176,35 @@ export function DocumentUploader({ userId, nextSortOrder, folderId, folderName }
       )}
 
       {entries.length > 0 && (
-        <ul className="space-y-1 text-sm">
+        <ul className="space-y-1 bg-raised px-4 py-3 text-sm">
           {entries.map((e) => (
             <li key={e.key} className="flex items-center justify-between gap-3">
               <span className="truncate text-slate-300">{e.name}</span>
               <span
-                className={
-                  e.status === "error"
-                    ? "text-red-400"
-                    : e.status === "done"
-                      ? "text-emerald-400"
-                      : "text-slate-500"
-                }
+                className={`flex shrink-0 items-center gap-1.5 ${
+                  e.status === "error" ? "text-danger" : e.status === "done" ? "text-success" : "text-subtle"
+                }`}
               >
+                {e.status === "done" && <Check size={14} strokeWidth={2} />}
                 {e.status === "pending" && "En attente"}
                 {e.status === "uploading" && "Envoi…"}
-                {e.status === "done" && "OK"}
+                {e.status === "done" && "Envoyé"}
                 {e.status === "error" && e.error}
               </span>
             </li>
           ))}
         </ul>
+      )}
+
+      {children}
+
+      {dragOver && (
+        <div className="pointer-events-none fixed inset-3 z-50 flex items-center justify-center border-2 border-dashed border-accent bg-accent-subtle/80 md:inset-6">
+          <p className="flex items-center gap-3 text-lg font-medium text-accent">
+            <Upload size={22} strokeWidth={1.75} />
+            Dépose pour ajouter à « {folderName ?? "Communs"} »
+          </p>
+        </div>
       )}
     </div>
   );
