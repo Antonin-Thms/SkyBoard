@@ -8,7 +8,16 @@ const STYLE: Record<ViewerStatus, { color: string; label: string }> = {
 };
 
 /** Petit indicateur discret dans un coin (masquable via ?status=0). */
-export function StatusBadge({ status, detail }: { status: ViewerStatus; detail?: string | null }) {
+export function StatusBadge({
+  status,
+  detail,
+  direct = false,
+}: {
+  status: ViewerStatus;
+  detail?: string | null;
+  /** Liaison directe avec la remote (réseau local) */
+  direct?: boolean;
+}) {
   const { color, label } = STYLE[status];
   return (
     <div
@@ -17,6 +26,7 @@ export function StatusBadge({ status, detail }: { status: ViewerStatus; detail?:
     >
       <span className={`h-2 w-2 rounded-full ${color}`} />
       {status !== "ok" && <span>{detail ?? label}</span>}
+      {status === "ok" && direct && <span title="Liaison directe avec la remote (réseau local)">LAN</span>}
     </div>
   );
 }

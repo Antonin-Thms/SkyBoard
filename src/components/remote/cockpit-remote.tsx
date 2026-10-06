@@ -44,7 +44,7 @@ export function CockpitRemote({
   // Documents modifiés ailleurs (upload, autre remote, page Cockpits) : on recharge.
   // Sauf juste après notre propre changement de dossier, déjà rechargé par l'action.
   const ownChangeAt = useRef(0);
-  const { state, status, update, flush, stateRef, sendInk } = useRemoteSync(cockpit, () => {
+  const { state, status, direct, update, flush, stateRef, sendInk } = useRemoteSync(cockpit, () => {
     if (Date.now() - ownChangeAt.current > OWN_CHANGE_WINDOW_MS) router.refresh();
   });
   const [activeFolderId, setOptimisticFolder] = useOptimistic(cockpit.activeFolderId);
@@ -204,7 +204,7 @@ export function CockpitRemote({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <SyncStatus status={status} />
+        <SyncStatus status={status} direct={direct} />
         {folders.length > 0 && (
           <label className={`flex items-center gap-2 text-sm ${folderPending ? "opacity-60" : ""}`}>
             <span className="text-slate-400">Dossier actif</span>

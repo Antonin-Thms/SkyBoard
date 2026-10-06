@@ -237,6 +237,14 @@ supabase/migrations/   schéma SQL, RLS, Storage
   - Le retour du réseau ou le retour au premier plan relancent la connexion immédiatement.
 - **Mémoire de page** : chaque document reprend à sa dernière page vue (mémorisée sur l'appareil de la remote). Changer de page ou de document remet zoom et position à zéro.
 
+### Liaison directe (réseau local)
+
+- Quand la remote et le PC sont sur le même réseau, ils ouvrent une liaison directe WebRTC (DataChannel non ordonné, sans retransmission) : les états vont d'un appareil à l'autre en quelques millisecondes, sans passer par le cloud.
+- La signalisation passe par le canal Realtime du cockpit (événement `rtc` : `ping` / `hello` / `offer` / `answer` / `ice`, validés strictement). Aucun réglage : c'est automatique.
+- Le canal Realtime reste le secours : tant que la liaison directe tient, il relaie le dernier état toutes les 200 ms (autres remotes, viewers non reliés). Si la liaison directe est impossible (wifi invité qui isole les appareils, 4G…), tout passe par le Realtime comme avant.
+- Indicateurs : « liaison directe » sur la remote (mode préparation), « LAN » dans le badge du viewer.
+- Les annotations et le reste passent toujours par le Realtime (fiabilité).
+
 ## Mode vol : gestes
 
 Tout l'écran reçoit les gestes, sans bouton au centre. Les gestes sont relatifs et utilisables n'importe où.

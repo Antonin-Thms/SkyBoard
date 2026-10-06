@@ -6,6 +6,7 @@ import type { Json } from "@/lib/database.types";
 import type { RemoteCockpit } from "@/lib/remote/types";
 import { createClient } from "@/lib/supabase/client";
 import { connectCockpit, type CockpitLink, type LinkStatus } from "@/lib/sync/cockpit-link";
+import { DirectLink } from "@/lib/sync/direct-link";
 import { INITIAL_VIEW_STATE, type ViewState } from "@/lib/sync/protocol";
 import { isNewer, nextSeq } from "@/lib/sync/state";
 import { createThrottledSender, type ThrottledSender } from "@/lib/sync/throttle";
@@ -15,6 +16,8 @@ import { SEND_INTERVAL_MS } from "@/lib/gestures/constants";
 const PERSIST_DELAY_MS = 1_000;
 /** Nouvel essai d'écriture après un échec. */
 const PERSIST_RETRY_MS = 10_000;
+/** Liaison directe active : intervalle du relais par le Realtime. */
+const RELAY_INTERVAL_MS = 200;
 /** Intervalle minimal entre deux réponses à une demande d'état. */
 const REPLY_INTERVAL_MS = 500;
 
@@ -27,6 +30,8 @@ export type ViewUpdate = Omit<ViewState, "seq" | "ts">;
 export function useRemoteSync(cockpit: RemoteCockpit, onDocumentsChanged?: () => void) {
   const [state, setState] = useState<ViewState>(cockpit.lastState ?? INITIAL_VIEW_STATE);
   const [status, setStatus] = useState<LinkStatus>("connecting");
+  /** Liaison directe (réseau local) ouverte avec au moins un viewer */
+  const [direct, setDirect] = useState(false);
   const stateRef = useRef(state);
   const linkRef = useRef<CockpitLink | null>(null);
   const senderRef = useRef<ThrottledSender<ViewState> | null>(null);
@@ -88,9 +93,40 @@ export function useRemoteSync(cockpit: RemoteCockpit, onDocumentsChanged?: () =>
       },
       onStatus: setStatus,
       onDocumentsChanged: () => onDocsChangedRef.current?.(),
+      onRtc: (signal) => void directLink.handle(signal),
+      onConnected: () => directLink.announce(),
     });
     linkRef.current = link;
-    const sender = createThrottledSender<ViewState>((s) => link.sendState(s), SEND_INTERVAL_MS);
+
+    // Liaison directe : les états partent d'abord en direct (quelques ms) ;
+    // le canal Realtime reste le secours, à débit réduit tant qu'elle tient.
+    const directLink = new DirectLink({
+      role: "remote",
+      signal: (message) => link.sendRtc(message),
+      onActiveChange: setDirect,
+    });
+    let lastBroadcast = 0;
+    let broadcastTimer: ReturnType<typeof setTimeout> | undefined;
+    const broadcastLatest = () => {
+      clearTimeout(broadcastTimer);
+      broadcastTimer = undefined;
+      lastBroadcast = Date.now();
+      link.sendState(stateRef.current);
+    };
+    const send = (s: ViewState) => {
+      if (!directLink.send({ t: "state", s })) {
+        clearTimeout(broadcastTimer);
+        broadcastTimer = undefined;
+        lastBroadcast = Date.now();
+        link.sendState(s);
+        return;
+      }
+      const wait = lastBroadcast + RELAY_INTERVAL_MS - Date.now();
+      if (wait <= 0) broadcastLatest();
+      // Le dernier état part toujours aussi par le Realtime (autres remotes, viewers non reliés).
+      else broadcastTimer ??= setTimeout(broadcastLatest, wait);
+    };
+    const sender = createThrottledSender<ViewState>(send, SEND_INTERVAL_MS);
     senderRef.current = sender;
 
     const onHide = () => persist();
@@ -99,6 +135,8 @@ export function useRemoteSync(cockpit: RemoteCockpit, onDocumentsChanged?: () =>
       window.removeEventListener("pagehide", onHide);
       clearTimeout(replyTimer);
       sender.flush();
+      if (broadcastTimer) broadcastLatest();
+      directLink.close();
       persist();
       link.close();
       linkRef.current = null;
@@ -131,5 +169,5 @@ export function useRemoteSync(cockpit: RemoteCockpit, onDocumentsChanged?: () =>
   /** Annotation diffusée aux viewers (et aux autres remotes). */
   const sendInk = useCallback((message: InkMessage) => linkRef.current?.sendInk(message), []);
 
-  return { state, status, update, flush, stateRef, sendInk };
+  return { state, status, direct, update, flush, stateRef, sendInk };
 }

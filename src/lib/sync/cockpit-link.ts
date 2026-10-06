@@ -3,6 +3,7 @@
 import type { RealtimeChannel, SupabaseClient } from "@supabase/supabase-js";
 import { SYNC_EVENTS } from "./events";
 import { parseInkMessage, type InkMessage } from "@/lib/annotations/model";
+import { parseRtcSignal, type RtcSignal } from "./direct-link";
 import { parseViewState, type ViewState } from "./protocol";
 
 export { SYNC_EVENTS };
@@ -15,6 +16,7 @@ export type LinkStatus = "connecting" | "connected" | "disconnected";
 export interface CockpitLinkHandlers {
   onState?: (state: ViewState) => void;
   onInk?: (message: InkMessage) => void;
+  onRtc?: (signal: RtcSignal) => void;
   onRequestState?: () => void;
   /** La liste des documents a changé (envoyé par le serveur) */
   onDocumentsChanged?: () => void;
@@ -27,6 +29,8 @@ export interface CockpitLink {
   sendState: (state: ViewState) => void;
   /** Annotation : envoyée seulement si connecté (le trait terminé est aussi enregistré en base) */
   sendInk: (message: InkMessage) => void;
+  /** Signalisation de la liaison directe (si connecté) */
+  sendRtc: (signal: RtcSignal) => void;
   requestState: () => void;
   close: () => void;
 }
@@ -86,6 +90,10 @@ export function connectCockpit(
       const message = parseInkMessage(payload);
       if (message) handlers.onInk?.(message);
     });
+    ch.on("broadcast", { event: SYNC_EVENTS.rtc }, ({ payload }) => {
+      const signal = parseRtcSignal(payload);
+      if (signal) handlers.onRtc?.(signal);
+    });
     ch.on("broadcast", { event: SYNC_EVENTS.requestState }, () => handlers.onRequestState?.());
     ch.on("broadcast", { event: SYNC_EVENTS.documentsChanged }, () => handlers.onDocumentsChanged?.());
 
@@ -126,6 +134,9 @@ export function connectCockpit(
     sendState(state) {
       if (status === "connected") broadcast(SYNC_EVENTS.state, state);
       else pending = state;
+    },
+    sendRtc(signal) {
+      if (status === "connected") broadcast(SYNC_EVENTS.rtc, signal);
     },
     sendInk(message) {
       if (status === "connected") broadcast(SYNC_EVENTS.ink, message);

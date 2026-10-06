@@ -8,4 +8,6 @@ export const SYNC_EVENTS = {
   documentsChanged: "documents_changed",
   /** remote → viewers (et autres remotes) : annotations (trait en cours, terminé, effacé) */
   ink: "ink",
+  /** remote ↔ viewer : signalisation de la liaison directe (WebRTC, réseau local) */
+  rtc: "rtc",
 } as const;

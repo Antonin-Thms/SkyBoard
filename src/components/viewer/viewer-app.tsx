@@ -11,7 +11,8 @@ import { prefetchDocuments } from "@/lib/viewer/doc-cache";
 import { pruneDocumentSources } from "@/lib/viewer/sources";
 import { pageKey } from "@/lib/annotations/model";
 import { applyInk, EMPTY_INK, pruneLive, strokesForPage, type InkState } from "@/lib/annotations/store";
-import type { ViewState } from "@/lib/sync/protocol";
+import { parseViewState, type ViewState } from "@/lib/sync/protocol";
+import { DirectLink } from "@/lib/sync/direct-link";
 import { viewReducer } from "@/lib/viewer/view-reducer";
 import { PageView } from "./page-view";
 import { StatusBadge, type ViewerStatus } from "./status-badge";
@@ -36,6 +37,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
   const { data, status: dataStatus, reload } = useViewerData(token);
   const [view, dispatch] = useReducer(viewReducer, null);
   const [linkStatus, setLinkStatus] = useState<LinkStatus>("connecting");
+  const [direct, setDirect] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
   const [hintVisible, setHintVisible] = useState(true);
@@ -112,18 +114,32 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
       if (latest) dispatch({ type: "remote", state: latest });
       latest = null;
     };
-    const link = connectCockpit(createAnonClient(), channel, {
-      onState: (state) => {
-        if (!latest || state.seq > latest.seq) latest = state;
-        if (frame === undefined) {
-          frame = requestAnimationFrame(flush);
-          // Secours si requestAnimationFrame est suspendu (onglet masqué).
-          timer = setTimeout(flush, 50);
-        }
+    const onState = (state: ViewState) => {
+      if (!latest || state.seq > latest.seq) latest = state;
+      if (frame === undefined) {
+        frame = requestAnimationFrame(flush);
+        // Secours si requestAnimationFrame est suspendu (onglet masqué).
+        timer = setTimeout(flush, 50);
+      }
+    };
+    // Liaison directe avec la remote (réseau local) : mêmes états, en quelques ms.
+    const directLink = new DirectLink({
+      role: "viewer",
+      signal: (message) => link.sendRtc(message),
+      onMessage: (data) => {
+        const message = data as { t?: unknown; s?: unknown };
+        const state = message?.t === "state" ? parseViewState(message.s) : null;
+        if (state) onState(state);
       },
+      onActiveChange: setDirect,
+    });
+    const link = connectCockpit(createAnonClient(), channel, {
+      onState,
+      onRtc: (signal) => void directLink.handle(signal),
       onInk: (message) => setInk((prev) => applyInk(prev, message, Date.now())),
       onConnected: () => {
         link.requestState();
+        directLink.announce();
         // Reconnexion : des annotations ont pu être faites entre-temps.
         if (connectedOnce) reload();
         connectedOnce = true;
@@ -134,6 +150,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
     return () => {
       if (frame !== undefined) cancelAnimationFrame(frame);
       clearTimeout(timer);
+      directLink.close();
       link.close();
     };
   }, [channel, reload]);
@@ -264,7 +281,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
           ✎
         </div>
       )}
-      {options.showStatus && <StatusBadge status={status} detail={detail} />}
+      {options.showStatus && <StatusBadge status={status} detail={detail} direct={direct} />}
       {options.showStatus && hintVisible && !helpOpen && (
         <div className="pointer-events-none fixed bottom-2 left-2 rounded-full bg-black/40 px-2 py-1 text-[10px] text-white/70">
           H : aide
