@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import Link from "next/link";
 import { RemoteApp } from "@/components/remote/remote-app";
 import { listDocumentsWithThumbnails } from "@/lib/documents/server";
@@ -7,6 +8,15 @@ import { channelNameForToken } from "@/lib/sync/channel";
 import { parseViewState } from "@/lib/sync/protocol";
 
 export const metadata = { title: "Remote · SkyBoard" };
+
+// Remote tactile : pas de zoom natif du navigateur (le zoom pilote le viewer).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
+};
 
 export default async function RemotePage() {
   const supabase = await createClient();

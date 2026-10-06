@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useElementSize } from "@/hooks/use-element-size";
+import { useSmoothedView, type SmoothedFrame } from "@/hooks/use-smoothed-view";
+import type { ViewTransform } from "@/lib/gestures/transform";
+import type { NormalizedPoint } from "@/lib/sync/protocol";
 import { capRenderScale, fitScale, type Size } from "@/lib/viewer/fit";
 import { loadDocumentSource } from "@/lib/viewer/sources";
 import type { ViewerDocument } from "@/lib/viewer/types";
@@ -12,17 +15,24 @@ const MAX_CANVAS_PIXELS = 16_777_216;
 interface PageViewProps {
   doc: ViewerDocument;
   page: number;
+  /** Zoom / déplacement cibles (bornés), atteints en douceur */
+  view: ViewTransform;
+  /** Point de la page sous le doigt de la remote (null : masqué) */
+  cursor: NormalizedPoint | null;
   onError?: (message: string | null) => void;
 }
 
 /**
  * Affiche une page (PDF ou image) ajustée à la fenêtre, rendue à la
- * résolution de l'écran. Le rendu se fait hors écran puis remplace l'ancien
- * d'un coup : pas d'écran vide entre deux pages.
+ * résolution de l'écran, puis applique zoom et déplacement (lissés).
+ * Le rendu se fait hors écran puis remplace l'ancien d'un coup : pas
+ * d'écran vide entre deux pages.
  */
-export function PageView({ doc, page, onError }: PageViewProps) {
+export function PageView({ doc, page, view, cursor, onError }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const cursorRef = useRef<HTMLDivElement>(null);
   const container = useElementSize(containerRef);
   const [displaySize, setDisplaySize] = useState<Size | null>(null);
 
@@ -86,16 +96,51 @@ export function PageView({ doc, page, onError }: PageViewProps) {
     };
   }, [doc, page, container, onError]);
 
+  // Écrit la transformation directement dans le DOM (appelé à chaque frame).
+  const width = displaySize?.width ?? 0;
+  const height = displaySize?.height ?? 0;
+  const applyFrame = useCallback(
+    ({ view: v, cursor: c }: SmoothedFrame) => {
+      const stage = stageRef.current;
+      if (stage) {
+        const tx = v.panX * width * v.zoom;
+        const ty = v.panY * height * v.zoom;
+        stage.style.transform = `translate3d(${tx}px, ${ty}px, 0) scale(${v.zoom})`;
+      }
+      const dot = cursorRef.current;
+      if (dot) {
+        if (c) {
+          const x = width * v.zoom * (c.x - 0.5 + v.panX);
+          const y = height * v.zoom * (c.y - 0.5 + v.panY);
+          dot.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+          dot.style.opacity = "1";
+        } else {
+          dot.style.opacity = "0";
+        }
+      }
+    },
+    [width, height],
+  );
+  useSmoothedView(view, cursor, `${doc.id}:${page}`, applyFrame);
+
   return (
     <div ref={containerRef} className="absolute inset-0 flex items-center justify-center overflow-hidden">
-      <canvas
-        ref={canvasRef}
-        style={
-          displaySize
-            ? { width: displaySize.width, height: displaySize.height }
-            : { width: 0, height: 0 }
-        }
-      />
+      <div
+        ref={stageRef}
+        className="origin-center will-change-transform"
+        style={displaySize ?? { width: 0, height: 0 }}
+      >
+        <canvas ref={canvasRef} className="block h-full w-full" />
+      </div>
+      {/* Curseur : position du doigt sur la remote (centré sur la fenêtre puis décalé) */}
+      <div className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0">
+        <div
+          ref={cursorRef}
+          className="h-0 w-0 opacity-0 transition-opacity duration-300"
+        >
+          <div className="-ml-2.5 -mt-2.5 h-5 w-5 rounded-full border-2 border-white/90 bg-sky-400/50 shadow-[0_0_0_2px_rgba(0,0,0,0.35)]" />
+        </div>
+      </div>
     </div>
   );
 }

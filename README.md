@@ -8,7 +8,7 @@ Pilote l'affichage de tes kneeboards dans le casque VR (DCS World + OpenKneeboar
 
 Stack : Next.js 16 (App Router) · TypeScript strict · Tailwind 4 · Supabase (Auth, Storage, Postgres, Realtime) · pdf.js · Vitest.
 
-> État : **phase 4** (setup, auth, migrations, documents, cockpits, viewer, synchro temps réel en mode préparation). Les sections marquées *(à venir)* seront complétées au fil des phases.
+> État : **phase 5** (documents, cockpits, viewer, synchro temps réel, gestes du mode vol, zoom/déplacement lissés, curseur). Les sections marquées *(à venir)* seront complétées au fil des phases.
 
 ---
 
@@ -123,6 +123,7 @@ Le viewer ne demande aucune interaction : il charge la liste des documents et af
   - Pour vérifier l'ajustement, sors la fenêtre du plein écran (bouton « Restaurer ») et tire sur ses bords.
 - **Remote** : ouvre `/remote` dans un autre onglet, ou sur l'iPad (`http://<IP-du-PC>:3000/remote` sur le même Wi-Fi). Tu peux aussi utiliser les DevTools de Chrome/Edge en mode appareil (Ctrl+Shift+M) avec un iPad en émulation tactile.
   - Mode **Préparation** : tape une miniature, le viewer change immédiatement.
+  - Mode **Vol** : dans les DevTools, active l'émulation tactile. Pour pincer sans écran tactile, Chrome simule un deuxième doigt avec **Maj + glisser** ; le plus fiable reste l'iPad.
   - Ferme puis rouvre le viewer : il reprend l'état courant, en le demandant à la remote si elle est ouverte, sinon depuis la base.
 
 ---
@@ -141,12 +142,13 @@ src/
     documents/     upload, grille triable, carte document
     cockpits/      création, URL viewer, régénération du token
     viewer/        rendu de page (canvas), indicateur de statut, aide
-    remote/        sélection du cockpit, mode préparation
+    remote/        sélection du cockpit, mode préparation, mode vol (gestes)
   lib/
     documents/     vérification des fichiers, analyse (pages, miniature), upload
-    sync/          protocole (ViewState), séquences, canal Realtime (cockpit-link)
+    gestures/      constantes, reconnaissance des gestes, calculs zoom/pan/bornes
+    sync/          protocole (ViewState), séquences, canal Realtime, limitation de débit
     remote/        types et mémoire de page de la remote
-    viewer/        calcul d'ajustement, cache des documents chargés
+    viewer/        ajustement, lissage, cache des documents chargés
     pdf/           chargement de pdf.js (build legacy, worker dans public/pdfjs/)
     supabase/      clients navigateur / serveur / admin (service_role) / proxy
     database.types.ts
@@ -167,6 +169,48 @@ supabase/migrations/   schéma SQL, RLS, Storage
   - Un canal fermé de façon inattendue est recréé.
   - Le retour du réseau ou le retour au premier plan relancent la connexion immédiatement.
 - **Mémoire de page** : chaque document reprend à sa dernière page vue (mémorisée sur l'appareil de la remote). Changer de page ou de document remet zoom et position à zéro.
+
+## Mode vol : gestes
+
+Tout l'écran reçoit les gestes, sans bouton au centre. Les gestes sont relatifs et utilisables n'importe où.
+
+| Geste | Effet |
+| --- | --- |
+| Pincer à deux doigts | zoom centré sur le point entre les doigts (×1 à ×6) |
+| Glisser à deux doigts | déplacer la page |
+| Glisser à un doigt (page zoomée) | déplacer la page |
+| Swipe horizontal à un doigt (zoom ×1) | ← page suivante · → page précédente |
+| Double tap | zoom et position remis à zéro |
+| Swipe vertical dans une bande latérale (bords gauche/droit) | ↓ document suivant · ↑ document précédent |
+
+- **Bornes** : le zoom va de ×1 à ×6, et le déplacement est limité pour que la page ne sorte jamais du champ.
+- **Seuils** : tous dans `src/lib/gestures/constants.ts`.
+  - Largeur des bandes, distances et durées de swipe et de tap, délai du double tap.
+  - Zoom max, débit d'envoi (`SEND_INTERVAL_MS`, 33 ms ≈ 30 msg/s).
+  - Douceur du lissage (`SMOOTHING_TAU_MS`).
+- **Architecture** : la reconnaissance des gestes (`recognizer.ts`) et les calculs de zoom, déplacement et bornes (`transform.ts`) sont purs et testés unitairement.
+- **Safari** : le zoom et le défilement natifs sont neutralisés.
+  - `touch-action: none` sur la zone de gestes ;
+  - viewport `user-scalable=no` ;
+  - `preventDefault` sur `touchstart`, `touchmove` et `gesturestart`/`gesturechange` ;
+  - `overscroll-behavior: none`.
+- **Envoi** : pendant un geste, au plus 1 message toutes les 33 ms (en gardant toujours le dernier état), plus un envoi final garanti quand le dernier doigt se lève. Les commandes ponctuelles (page, document, double tap) partent immédiatement.
+- **Curseur** : le bouton « Curseur » du mode vol envoie la position du doigt. Le viewer ne l'affiche que si son URL contient `?cursor=1`.
+
+### Modèle de vue
+
+La page, ajustée à la fenêtre, est agrandie de `zoom` autour du centre de la fenêtre, puis décalée de `(panX, panY)`, en fraction de la taille de la page. Le point de la page au centre de la fenêtre est `(0.5 − panX, 0.5 − panY)`.
+
+Remote et viewer peuvent donc avoir des écrans de tailles et de formats différents.
+
+### Lissage dans le viewer
+
+- **Interpolation** : à chaque image (`requestAnimationFrame`, avec un minuteur de secours), la vue affichée se rapproche exponentiellement de la vue cible.
+  - Le zoom est interpolé en logarithme.
+  - Le mouvement ne dépend pas du nombre d'images par seconde.
+  - Il reste fluide même si les messages arrivent par à-coups.
+- **Transformation** : elle est écrite directement dans le DOM, sans re-rendu React.
+- **Changement de page ou de document** : la vue saute directement à la cible.
 
 ## Documents
 

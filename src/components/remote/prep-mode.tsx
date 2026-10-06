@@ -6,13 +6,24 @@ interface PrepModeProps {
   documents: RemoteDocument[];
   current: RemoteDocument | null;
   page: number;
+  zoomed: boolean;
   onSelect: (doc: RemoteDocument) => void;
   onStepPage: (delta: number) => void;
   onStepDocument: (delta: number) => void;
+  onResetZoom: () => void;
 }
 
 /** Mode préparation : on regarde l'iPad, grille de miniatures et gros boutons. */
-export function PrepMode({ documents, current, page, onSelect, onStepPage, onStepDocument }: PrepModeProps) {
+export function PrepMode({
+  documents,
+  current,
+  page,
+  zoomed,
+  onSelect,
+  onStepPage,
+  onStepDocument,
+  onResetZoom,
+}: PrepModeProps) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-800 bg-slate-900/60 p-3">
@@ -63,6 +74,11 @@ export function PrepMode({ documents, current, page, onSelect, onStepPage, onSte
             Doc ▼
           </button>
         </div>
+        {zoomed && (
+          <button type="button" className="btn-secondary h-12 text-sm" onClick={onResetZoom}>
+            Zoom 1:1
+          </button>
+        )}
       </div>
 
       <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">

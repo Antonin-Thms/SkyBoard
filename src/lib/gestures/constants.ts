@@ -1,0 +1,44 @@
+/**
+ * Réglages des gestes du mode vol. Tous les seuils sont ici pour être
+ * ajustés facilement (distances en px CSS de l'écran de la remote).
+ */
+export const GESTURE_CONFIG = {
+  /** Zoom minimal (1 = page entière ajustée à la fenêtre) */
+  zoomMin: 1,
+  /** Zoom maximal */
+  zoomMax: 6,
+  /** En dessous de zoomMin + zoomEpsilon, on considère que la page n'est pas zoomée */
+  zoomEpsilon: 0.02,
+
+  /** Largeur des bandes latérales (document précédent / suivant) */
+  edgeWidthPx: 56,
+  /** Distance verticale minimale d'un swipe dans une bande latérale */
+  edgeSwipeMinPx: 60,
+
+  /** Tolérance de mouvement pour qu'un appui reste un « tap » */
+  tapSlopPx: 12,
+  /** Durée max d'un tap */
+  tapMaxMs: 250,
+  /** Délai max entre les deux taps d'un double tap */
+  doubleTapMs: 320,
+  /** Distance max entre les deux taps d'un double tap */
+  doubleTapSlopPx: 48,
+
+  /** Distance horizontale minimale d'un swipe de page (zoom = 1) */
+  swipeMinPx: 60,
+  /** Durée max d'un swipe de page */
+  swipeMaxMs: 700,
+  /** Le déplacement principal doit dominer l'autre axe de ce facteur */
+  swipeDirectionRatio: 1.5,
+} as const;
+
+export type GestureConfig = { -readonly [K in keyof typeof GESTURE_CONFIG]: number };
+
+/** Envoi de l'état : intervalle min entre deux messages pendant un geste (≈ 30 msg/s). */
+export const SEND_INTERVAL_MS = 33;
+
+/**
+ * Lissage du viewer : constante de temps de l'interpolation exponentielle
+ * vers l'état cible (plus petit = plus réactif, plus grand = plus doux).
+ */
+export const SMOOTHING_TAU_MS = 70;

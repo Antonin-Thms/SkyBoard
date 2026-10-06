@@ -66,7 +66,18 @@ export function RemoteApp({ cockpits, documents }: RemoteAppProps) {
             puis utilise les boutons de page. Chaque document reprend à la dernière page vue.
           </li>
           <li>
-            <strong>Vol</strong> : écran entièrement tactile, pilotable sans regarder (phase 5).
+            <strong>Vol</strong> : plein écran entièrement tactile, utilisable sans regarder :
+            <ul className="mt-1 list-[circle] space-y-0.5 pl-5">
+              <li>pincer à deux doigts : zoom centré sur les doigts ;</li>
+              <li>glisser à deux doigts (ou à un doigt quand c&apos;est zoomé) : déplacer ;</li>
+              <li>swipe horizontal à un doigt (non zoomé) : page suivante ← / précédente → ;</li>
+              <li>double tap : zoom et position remis à zéro ;</li>
+              <li>
+                bandes étroites sur les bords gauche et droit de l&apos;écran : swipe vers le bas =
+                document suivant, vers le haut = précédent ;
+              </li>
+              <li>« Curseur » (en haut) : affiche la position du doigt dans le casque (URL avec l&apos;option curseur).</li>
+            </ul>
           </li>
           <li>
             Le point en haut indique la connexion temps réel : vert = connecté, orange =
@@ -84,7 +95,13 @@ export function RemoteApp({ cockpits, documents }: RemoteAppProps) {
           .
         </p>
       ) : (
-        <CockpitRemote key={cockpit.id} cockpit={cockpit} documents={documents} mode={mode} />
+        <CockpitRemote
+          key={cockpit.id}
+          cockpit={cockpit}
+          documents={documents}
+          mode={mode}
+          onExitFlight={() => setMode("prep")}
+        />
       )}
     </div>
   );

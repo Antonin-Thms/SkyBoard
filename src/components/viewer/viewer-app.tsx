@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useViewerData } from "@/hooks/use-viewer-data";
 import { createAnonClient } from "@/lib/supabase/anon";
 import { connectCockpit, type LinkStatus } from "@/lib/sync/cockpit-link";
+import { clampView, IDENTITY_VIEW } from "@/lib/gestures/transform";
 import { clampPage } from "@/lib/viewer/fit";
 import { pruneDocumentSources } from "@/lib/viewer/sources";
 import { viewReducer } from "@/lib/viewer/view-reducer";
@@ -77,8 +78,18 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
     const doc = documents.find((d) => d.id === wanted?.docId) ?? documents[0];
     if (!doc) return null;
     const page = wanted && wanted.docId === doc.id ? wanted.page : 1;
-    return { doc, page: clampPage(page, doc.pageCount) };
-  }, [view, documents]);
+    // Zoom / déplacement / curseur viennent du réseau : toujours bornés.
+    const sameDoc = !!wanted && wanted.docId === doc.id;
+    const transform = sameDoc ? clampView(wanted) : IDENTITY_VIEW;
+    const cursor =
+      sameDoc && options.showCursor && wanted.cursor
+        ? {
+            x: Math.min(1, Math.max(0, wanted.cursor.x)),
+            y: Math.min(1, Math.max(0, wanted.cursor.y)),
+          }
+        : null;
+    return { doc, page: clampPage(page, doc.pageCount), transform, cursor };
+  }, [view, documents, options.showCursor]);
 
   // Navigation clavier : uniquement pour tester sur PC (aucune interaction requise dans le casque).
   useEffect(() => {
@@ -126,7 +137,13 @@ export function ViewerApp({ token, options }: { token: string; options: ViewerOp
   return (
     <div className="fixed inset-0 overflow-hidden select-none">
       {current ? (
-        <PageView doc={current.doc} page={current.page} onError={handleRenderError} />
+        <PageView
+          doc={current.doc}
+          page={current.page}
+          view={current.transform}
+          cursor={current.cursor}
+          onError={handleRenderError}
+        />
       ) : (
         data && (
           <div className="flex h-full items-center justify-center text-sm text-white/50">
