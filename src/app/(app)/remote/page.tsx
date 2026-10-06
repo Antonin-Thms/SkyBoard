@@ -1,6 +1,8 @@
 import type { Viewport } from "next";
 import Link from "next/link";
 import { RemoteApp } from "@/components/remote/remote-app";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { getDocuments, getFolders } from "@/lib/documents/server";
 import type { RemoteCockpit, RemoteDocument } from "@/lib/remote/types";
 import { createClient } from "@/lib/supabase/server";
@@ -53,24 +55,31 @@ export default async function RemotePage({ searchParams }: PageProps<"/remote">)
 
   if (cockpits.length === 0) {
     return (
-      <p className="rounded-2xl border border-slate-800 p-8 text-center text-slate-400">
-        Crée d&apos;abord un cockpit sur la page{" "}
-        <Link href="/cockpits" className="text-sky-400 hover:underline">
-          Cockpits
-        </Link>
-        .
-      </p>
+      <EmptyState
+        title="Aucun cockpit"
+        text="Crée d'abord un cockpit, puis colle son URL dans OpenKneeboard."
+        action={
+          <Link href="/cockpits" className="btn-primary">
+            Créer un cockpit
+          </Link>
+        }
+      />
     );
   }
 
   const requested = typeof query.cockpit === "string" ? query.cockpit : null;
   return (
-    <RemoteApp
-      cockpits={cockpits}
-      documents={documents}
-      folders={folders}
-      initialCockpitId={cockpits.some((c) => c.id === requested) ? requested : null}
-      initialMode={query.mode === "flight" ? "flight" : "prep"}
-    />
+    <div className="space-y-5">
+      <div className="hidden md:block">
+        <PageHeader eyebrow="Pilotage" title="Remote" />
+      </div>
+      <RemoteApp
+        cockpits={cockpits}
+        documents={documents}
+        folders={folders}
+        initialCockpitId={cockpits.some((c) => c.id === requested) ? requested : null}
+        initialMode={query.mode === "flight" ? "flight" : "prep"}
+      />
+    </div>
   );
 }

@@ -15,7 +15,7 @@ const Key = ({ children }: { children: string }) => (
 export function ViewerHelp(props: ViewerHelpProps) {
   return (
     <div className="fixed inset-0 z-20 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg space-y-4 rounded-2xl border border-white/10 bg-slate-900/95 p-5 text-sm text-slate-200 shadow-2xl">
+      <div className="w-full max-w-lg space-y-4 rounded-[4px] border border-white/10 bg-raised/95 p-5 text-sm text-slate-200 shadow-2xl">
         <div>
           <h2 className="text-lg font-semibold">SkyBoard Viewer</h2>
           <p className="text-slate-400">
@@ -51,8 +51,8 @@ export function ViewerHelp(props: ViewerHelpProps) {
         <div className="space-y-1">
           <h3 className="font-medium">Indicateur (coin bas droit)</h3>
           <p className="flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" /> connecté
-            <span className="ml-3 h-2 w-2 rounded-full bg-amber-400" /> connexion / hors ligne
+            <span className="h-2 w-2 rounded-full bg-success" /> connecté
+            <span className="ml-3 h-2 w-2 rounded-full bg-accent" /> connexion / hors ligne
             <span className="ml-3 h-2 w-2 rounded-full bg-red-500" /> erreur
           </p>
         </div>

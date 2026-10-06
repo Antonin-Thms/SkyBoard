@@ -41,7 +41,7 @@ export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
     });
 
   return (
-    <div className="flex flex-wrap items-start gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
+    <div className="flex flex-wrap items-start gap-4 border border-line bg-raised p-4">
       <div className="min-w-0 flex-1 space-y-2 text-sm">
         <h2 className="font-medium text-slate-200">Piloter depuis une tablette ou un téléphone</h2>
         <p className="text-slate-400">
@@ -68,12 +68,12 @@ export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
         <button type="button" className="btn-primary" onClick={generate} disabled={pending}>
           {pending ? "Génération…" : qr ? "Nouveau QR code" : "Afficher le QR code"}
         </button>
-        {error && <p className="text-red-400">{error}</p>}
+        {error && <p className="text-danger">{error}</p>}
       </div>
       {qr && (
         <div className="space-y-1 text-center">
           <div
-            className="h-48 w-48 rounded-xl bg-white p-2 [&>svg]:h-full [&>svg]:w-full"
+            className="h-48 w-48 rounded-[4px] bg-white p-2 [&>svg]:h-full [&>svg]:w-full"
             // SVG généré localement par la bibliothèque qrcode à partir de notre URL.
             dangerouslySetInnerHTML={{ __html: qr.svg }}
           />

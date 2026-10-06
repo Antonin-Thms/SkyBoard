@@ -34,7 +34,7 @@ export function MizImport({ missionFileName, entries, busy, onImport, onCancel }
 
   if (entries.length === 0) {
     return (
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-slate-800 p-4 text-sm">
+      <div className="flex items-center justify-between gap-3 border border-line bg-raised p-4 text-sm">
         <p className="text-slate-400">
           Aucune image de kneeboard ni de briefing dans « {missionFileName} ».
         </p>
@@ -46,7 +46,7 @@ export function MizImport({ missionFileName, entries, busy, onImport, onCancel }
   }
 
   return (
-    <div className="space-y-3 rounded-2xl border border-sky-900/60 bg-sky-950/20 p-4">
+    <div className="space-y-4 border border-line bg-raised p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-medium">Images de « {missionFileName} »</h2>

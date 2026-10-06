@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { Plane } from "lucide-react";
 import { HelpPanel } from "@/components/help-panel";
+import { Select } from "@/components/ui/select";
 import { useDeviceKind } from "@/hooks/use-device-kind";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import type { FolderSummary } from "@/lib/documents/folders";
@@ -37,23 +39,17 @@ export function RemoteApp({ cockpits, documents, folders, initialCockpitId, init
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex min-w-0 items-center gap-2 text-sm">
-          <span className="text-slate-400">Cockpit</span>
-          <select
-            className="input w-auto min-w-0 max-w-[60vw]"
-            value={cockpit.id}
-            onChange={(e) => setStoredId(e.target.value)}
-          >
-            {cockpits.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="flex items-center justify-between gap-3">
+        <Select
+          label="Cockpit"
+          value={cockpit.id}
+          onChange={setStoredId}
+          icon={<Plane size={15} strokeWidth={1.75} />}
+          className="min-w-0 flex-1 sm:max-w-64"
+          options={cockpits.map((c) => ({ value: c.id, label: c.name, icon: <Plane size={15} strokeWidth={1.75} /> }))}
+        />
 
-        <div className="flex rounded-lg border border-slate-700 p-0.5 text-sm" role="tablist">
+        <div className="flex shrink-0 rounded-[2px] border border-line-strong p-[3px] text-sm" role="tablist">
           {(
             [
               ["prep", "Préparation"],
@@ -66,8 +62,8 @@ export function RemoteApp({ cockpits, documents, folders, initialCockpitId, init
               role="tab"
               aria-selected={mode === value}
               onClick={() => setMode(value)}
-              className={`rounded-md px-4 py-1.5 ${
-                mode === value ? "bg-sky-500 text-slate-950" : "text-slate-300"
+              className={`h-[34px] rounded-[2px] px-3.5 transition sm:px-4 pointer-coarse:h-10 ${
+                mode === value ? "bg-accent font-semibold text-on-accent" : "text-slate-300 hover:text-fg"
               }`}
             >
               {label}
@@ -80,8 +76,8 @@ export function RemoteApp({ cockpits, documents, folders, initialCockpitId, init
         <RemoteQr key={cockpit.id} cockpitId={cockpit.id} cockpitName={cockpit.name} />
       ) : (
         device && (
-          <details className="rounded-2xl border border-slate-800 p-3 text-sm">
-            <summary className="cursor-pointer text-slate-400">
+          <details className="border border-line p-3 text-sm">
+            <summary className="cursor-pointer text-muted">
               Ouvrir sur un autre appareil (QR code)
             </summary>
             <div className="mt-3">
@@ -127,7 +123,7 @@ export function RemoteApp({ cockpits, documents, folders, initialCockpitId, init
       </HelpPanel>
 
       {documents.length === 0 ? (
-        <p className="rounded-2xl border border-slate-800 p-8 text-center text-slate-400">
+        <p className="border border-dashed border-line-strong p-8 text-center text-muted">
           Aucun document. Ajoute-en sur la page{" "}
           <Link href="/documents" className="text-sky-400 hover:underline">
             Documents

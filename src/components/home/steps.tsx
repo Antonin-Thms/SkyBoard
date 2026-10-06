@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
 const STEPS = [
@@ -57,8 +58,9 @@ export function Steps() {
           {step.icon}
           <h3 className="text-lg font-medium text-slate-100">{step.title}</h3>
           <p className="flex-1 text-sm text-slate-400">{step.text}</p>
-          <Link href={step.href} className="self-start text-sm font-medium text-sky-500 hover:text-sky-400">
-            {step.cta} →
+          <Link href={step.href} className="flex items-center gap-1.5 self-start text-sm font-medium text-accent hover:text-accent-hover">
+            {step.cta}
+            <ArrowRight size={15} strokeWidth={1.75} />
           </Link>
         </li>
       ))}

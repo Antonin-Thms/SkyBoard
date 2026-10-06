@@ -1,4 +1,5 @@
 import { JoinSquadronForm } from "@/components/squadrons/join-form";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const metadata = { title: "Rejoindre un escadron · SkyBoard" };
 
@@ -6,13 +7,11 @@ export default async function JoinSquadronPage({ searchParams }: PageProps<"/esc
   const { code } = await searchParams;
   return (
     <div className="mx-auto max-w-md space-y-4">
-      <div>
-        <div className="label-caps">Invitation</div>
-        <h1 className="mt-1 text-3xl font-medium">Rejoindre un escadron</h1>
-        <p className="mt-2 text-sm text-slate-400">
-          Tu verras les dossiers que l&apos;escadron partage, en lecture seule.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Invitation"
+        title="Rejoindre un escadron"
+        description="Tu verras les dossiers que l'escadron partage, en lecture seule."
+      />
       <JoinSquadronForm code={typeof code === "string" ? code : ""} />
     </div>
   );

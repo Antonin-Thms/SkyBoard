@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, Copy } from "lucide-react";
 import { useState } from "react";
 
 /** Copie dans le presse-papiers, avec repli pour les contextes non sécurisés (http sur le LAN). */
@@ -41,7 +42,8 @@ export function CopyButton({ text, className = "btn-secondary" }: { text: string
         setTimeout(() => setState("idle"), 2000);
       }}
     >
-      {state === "copied" ? "Copié ✓" : state === "failed" ? "Échec, copie à la main" : "Copier"}
+      {state === "copied" ? <Check size={16} strokeWidth={2} className="text-success" /> : <Copy size={16} strokeWidth={1.75} />}
+      {state === "copied" ? "Copié" : state === "failed" ? "Échec, copie à la main" : "Copier"}
     </button>
   );
 }

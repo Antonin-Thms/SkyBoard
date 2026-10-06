@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, Copy, Crown, Folder, LogOut, Plus, RefreshCw, Trash2, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import {
@@ -9,6 +10,8 @@ import {
   regenerateInvite,
   shareFolder,
 } from "@/app/(app)/escadrons/actions";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Select } from "@/components/ui/select";
 import type { FolderSummary } from "@/lib/documents/folders";
 import type { SquadronSummary } from "@/lib/squadrons/server";
 
@@ -35,7 +38,7 @@ export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps
   return (
     <div className={`space-y-6 ${pending ? "opacity-70" : ""}`}>
       <form
-        className="flex flex-wrap items-end gap-3 border border-slate-800 p-4"
+        className="flex flex-wrap items-end gap-3 border border-line bg-raised p-4"
         onSubmit={(e) => {
           e.preventDefault();
           run(async () => {
@@ -46,7 +49,7 @@ export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps
         }}
       >
         <label className="flex min-w-48 flex-1 flex-col gap-1 text-sm">
-          <span className="text-slate-400">Nouvel escadron</span>
+          <span className="text-muted">Nouvel escadron</span>
           <input
             className="input"
             maxLength={60}
@@ -55,7 +58,7 @@ export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps
           />
         </label>
         <label className="flex min-w-40 flex-col gap-1 text-sm">
-          <span className="text-slate-400">Ton indicatif</span>
+          <span className="text-muted">Ton indicatif</span>
           <input
             className="input"
             maxLength={40}
@@ -64,16 +67,15 @@ export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps
           />
         </label>
         <button type="submit" className="btn-primary" disabled={pending}>
+          <Plus size={16} strokeWidth={1.75} />
           Créer
         </button>
       </form>
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
 
       {squadrons.length === 0 ? (
-        <p className="border border-slate-800 p-8 text-center text-slate-500">
-          Aucun escadron. Crée-en un, ou ouvre le lien d&apos;invitation reçu d&apos;un coéquipier.
-        </p>
+        <EmptyState title="Aucun escadron" text="Crée-en un, ou ouvre le lien d'invitation reçu d'un coéquipier." />
       ) : (
         <ul className="space-y-4">
           {squadrons.map((s) => (
@@ -122,10 +124,13 @@ function SquadronCard({
   };
 
   return (
-    <li className="space-y-4 border border-slate-800 p-4">
+    <li className="space-y-5 border border-line bg-raised p-5">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xl font-medium">{s.name}</h2>
-        <span className="text-xs text-slate-500">
+        <h2 className="flex items-center gap-2.5 text-xl font-medium">
+          <Users size={19} strokeWidth={1.75} className="text-muted" />
+          {s.name}
+        </h2>
+        <span className="text-xs text-subtle">
           {s.members.length} membre{s.members.length > 1 ? "s" : ""}
           {s.isOwner && " · tu es propriétaire"}
         </span>
@@ -134,18 +139,26 @@ function SquadronCard({
       <div className="space-y-1">
         <div className="label-caps">Invitation</div>
         <div className="flex flex-wrap items-center gap-2">
-          <input className="input max-w-xl font-mono text-xs" readOnly value={link} onFocus={(e) => e.target.select()} />
+          <input
+            className="input min-w-0 basis-full font-mono sm:max-w-xl sm:basis-0 sm:flex-1 text-xs text-slate-300"
+            aria-label="Lien d'invitation"
+            readOnly
+            value={link}
+            onFocus={(e) => e.target.select()}
+          />
           <button type="button" className="btn-secondary" onClick={() => void copy()}>
-            {copied ? "Copié ✓" : "Copier"}
+            {copied ? <Check size={16} strokeWidth={2} className="text-success" /> : <Copy size={16} strokeWidth={1.75} />}
+            {copied ? "Copié" : "Copier"}
           </button>
           {s.isOwner && (
             <button
               type="button"
-              className="btn-text text-slate-400"
+              className="btn-ghost"
               disabled={disabled}
               title="L'ancien lien ne fonctionnera plus"
               onClick={() => run(() => regenerateInvite(s.id))}
             >
+              <RefreshCw size={15} strokeWidth={1.75} />
               Nouveau lien
             </button>
           )}
@@ -156,22 +169,24 @@ function SquadronCard({
         <div className="label-caps">Membres</div>
         <ul className="flex flex-wrap gap-2 text-sm">
           {s.members.map((m) => (
-            <li key={m.userId} className="flex items-center gap-2 border border-slate-800 px-2.5 py-1">
-              <span>
+            <li key={m.userId} className="flex h-8 items-center gap-1.5 rounded-[2px] bg-surface pl-2.5 pr-1.5">
+              <span className="flex items-center gap-1.5 pr-1">
                 {m.callsign}
-                {m.isOwner && <span className="text-accent"> ★</span>}
-                {m.isMe && <span className="text-slate-500"> (toi)</span>}
+                {m.isOwner && <Crown size={13} strokeWidth={1.75} className="text-accent" aria-label="propriétaire" />}
+                {m.isMe && <span className="text-subtle">(toi)</span>}
               </span>
               {s.isOwner && !m.isOwner && (
                 <button
                   type="button"
-                  className="text-xs text-red-400 hover:text-red-300"
+                  className="btn-icon size-6 hover:text-danger pointer-coarse:size-8"
+                  aria-label={`Retirer ${m.callsign}`}
+                  title="Retirer"
                   disabled={disabled}
                   onClick={() => {
                     if (window.confirm(`Retirer ${m.callsign} de l'escadron ?`)) run(() => leaveSquadron(s.id, m.userId));
                   }}
                 >
-                  Retirer
+                  <X size={14} strokeWidth={1.75} />
                 </button>
               )}
             </li>
@@ -182,18 +197,21 @@ function SquadronCard({
       <div className="space-y-2">
         <div className="label-caps">Dossiers partagés</div>
         {shared.length === 0 ? (
-          <p className="text-sm text-slate-500">Aucun dossier partagé pour l&apos;instant.</p>
+          <p className="text-sm text-subtle">Aucun dossier partagé pour l&apos;instant.</p>
         ) : (
           <ul className="space-y-1 text-sm">
             {shared.map((f) => (
               <li key={f.id} className="flex items-center gap-3">
-                <span>📁 {f.name}</span>
+                <span className="flex items-center gap-2">
+                  <Folder size={15} strokeWidth={1.75} className="text-muted" />
+                  {f.name}
+                </span>
                 {f.readOnly ? (
-                  <span className="text-xs text-slate-500">partagé par un coéquipier</span>
+                  <span className="text-xs text-subtle">partagé par un coéquipier</span>
                 ) : (
                   <button
                     type="button"
-                    className="text-xs text-slate-400 hover:text-white"
+                    className="btn-ghost min-h-8 px-2 text-xs"
                     disabled={disabled}
                     onClick={() => run(() => shareFolder(f.id, null))}
                   >
@@ -205,32 +223,28 @@ function SquadronCard({
           </ul>
         )}
         {shareable.length > 0 && (
-          <select
-            className="input w-auto"
+          <Select
+            label={`Partager un dossier avec ${s.name}`}
             value=""
+            placeholder="Partager un de mes dossiers…"
             disabled={disabled}
-            aria-label={`Partager un dossier avec ${s.name}`}
-            onChange={(e) => {
-              const id = e.target.value;
-              if (id) run(() => shareFolder(id, s.id));
-            }}
-          >
-            <option value="">Partager un de mes dossiers…</option>
-            {shareable.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.name}
-                {f.squadronName ? ` (partagé avec ${f.squadronName})` : ""}
-              </option>
-            ))}
-          </select>
+            icon={<Plus size={15} strokeWidth={1.75} />}
+            className="w-full sm:w-80"
+            onChange={(id) => run(() => shareFolder(id, s.id))}
+            options={shareable.map((f) => ({
+              value: f.id,
+              label: f.squadronName ? `${f.name} (partagé avec ${f.squadronName})` : f.name,
+              icon: <Folder size={15} strokeWidth={1.75} />,
+            }))}
+          />
         )}
       </div>
 
-      <div className="border-t border-slate-800 pt-3 text-sm">
+      <div className="border-t border-line pt-3 text-sm">
         {s.isOwner ? (
           <button
             type="button"
-            className="text-red-400 hover:text-red-300"
+            className="btn-danger -ml-3"
             disabled={disabled}
             onClick={() => {
               if (window.confirm(`Supprimer l'escadron « ${s.name} » ? Les partages s'arrêtent pour tous.`)) {
@@ -238,17 +252,19 @@ function SquadronCard({
               }
             }}
           >
+            <Trash2 size={15} strokeWidth={1.75} />
             Supprimer l&apos;escadron
           </button>
         ) : (
           <button
             type="button"
-            className="text-red-400 hover:text-red-300"
+            className="btn-danger -ml-3"
             disabled={disabled}
             onClick={() => {
               if (window.confirm(`Quitter l'escadron « ${s.name} » ?`)) run(() => leaveSquadron(s.id));
             }}
           >
+            <LogOut size={15} strokeWidth={1.75} />
             Quitter l&apos;escadron
           </button>
         )}

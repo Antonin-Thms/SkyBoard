@@ -12,7 +12,7 @@ export function JoinSquadronForm({ code }: { code: string }) {
 
   return (
     <form
-      className="space-y-3 border border-slate-800 p-4"
+      className="space-y-4 border border-line bg-raised p-5"
       onSubmit={(e) => {
         e.preventDefault();
         startTransition(async () => {
@@ -23,7 +23,7 @@ export function JoinSquadronForm({ code }: { code: string }) {
       }}
     >
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-slate-400">Ton indicatif (visible par l&apos;escadron)</span>
+        <span className="text-muted">Ton indicatif (visible par l&apos;escadron)</span>
         <input
           className="input"
           autoFocus
@@ -35,8 +35,8 @@ export function JoinSquadronForm({ code }: { code: string }) {
       <button type="submit" className="btn-primary" disabled={pending || !code}>
         {pending ? "Connexion…" : "Rejoindre"}
       </button>
-      {!code && <p className="text-sm text-red-400">Lien d&apos;invitation incomplet.</p>}
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {!code && <p className="text-sm text-danger">Lien d&apos;invitation incomplet.</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </form>
   );
 }

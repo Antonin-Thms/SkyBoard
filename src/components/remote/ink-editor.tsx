@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Eraser, Trash2, Undo2, X } from "lucide-react";
 import { getDocumentFileUrl } from "@/app/(app)/remote/actions";
 import { InkLayer } from "@/components/viewer/ink-layer";
 import { useElementSize } from "@/hooks/use-element-size";
@@ -186,15 +187,18 @@ export function InkEditor({ doc, page, sendInk, onClose }: InkEditorProps) {
 
   const shown = live ? [...strokes, live] : strokes;
   const toolBtn = (active: boolean) =>
-    `h-11 min-w-11 px-3 text-sm ${active ? "bg-sky-500 text-slate-950" : "border border-slate-700 text-slate-200"}`;
+    `flex h-11 min-w-11 items-center justify-center gap-2 rounded-[2px] px-3 text-sm transition ${
+      active ? "bg-accent font-semibold text-on-accent" : "border border-line-strong text-fg hover:bg-raised"
+    }`;
 
   return (
-    <div className="fixed inset-0 z-50 flex select-none flex-col bg-slate-950 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 px-3 py-2">
-        <button type="button" className="btn-secondary h-11" onClick={onClose}>
-          ✕ Fermer
+    <div className="fixed inset-0 z-50 flex select-none flex-col bg-sunken pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
+      <div className="flex flex-wrap items-center gap-2 border-b border-line bg-surface px-3 py-2">
+        <button type="button" className="btn-secondary" onClick={onClose}>
+          <X size={18} strokeWidth={1.75} />
+          Fermer
         </button>
-        <span className="mr-auto min-w-0 truncate px-2 text-sm text-slate-400">
+        <span className="mr-auto min-w-0 truncate px-2 text-sm text-muted">
           {doc.name}
           {doc.pageCount > 1 && ` · page ${page}`}
         </span>
@@ -207,7 +211,7 @@ export function InkEditor({ doc, page, sendInk, onClose }: InkEditorProps) {
               aria-pressed={tool === "pen" && ink.color === c}
               onClick={() => choose({ color: c })}
               className={`flex h-11 w-11 items-center justify-center ${
-                tool === "pen" && ink.color === c ? "ring-2 ring-sky-500" : ""
+                tool === "pen" && ink.color === c ? "rounded-[2px] ring-2 ring-accent" : ""
               }`}
             >
               <span className="h-6 w-6 rounded-full border border-white/30" style={{ background: c }} />
@@ -229,18 +233,21 @@ export function InkEditor({ doc, page, sendInk, onClose }: InkEditorProps) {
           Épais
         </button>
         <button type="button" className={toolBtn(tool === "eraser")} onClick={() => setTool("eraser")}>
+          <Eraser size={18} strokeWidth={1.75} />
           Gomme
         </button>
         <button type="button" className={toolBtn(false)} onClick={undo}>
-          ↶ Annuler
+          <Undo2 size={18} strokeWidth={1.75} />
+          Annuler
         </button>
-        <button type="button" className={`${toolBtn(false)} text-red-300`} onClick={clearPage}>
+        <button type="button" className={`${toolBtn(false)} text-danger`} onClick={clearPage}>
+          <Trash2 size={18} strokeWidth={1.75} />
           Effacer la page
         </button>
       </div>
 
       <div ref={areaRef} className="relative flex flex-1 items-center justify-center overflow-hidden p-2">
-        {loadError && <p className="text-sm text-red-400">{loadError}</p>}
+        {loadError && <p className="text-sm text-danger">{loadError}</p>}
         <div className="relative bg-white" style={display ?? { width: 0, height: 0 }}>
           <canvas ref={canvasRef} className="block h-full w-full" />
           {display && <InkLayer strokes={shown} rotation={doc.rotation} size={display} />}

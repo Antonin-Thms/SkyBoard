@@ -23,7 +23,7 @@ export default async function DocumentsPage() {
   return (
     <div className="space-y-6">
       {error ? (
-        <p className="text-sm text-red-400">Impossible de charger les documents.</p>
+        <p className="text-sm text-danger">Impossible de charger les documents.</p>
       ) : (
         // Filtrage par dossier côté navigateur : changement de dossier instantané.
         <Suspense>

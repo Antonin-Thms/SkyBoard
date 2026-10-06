@@ -17,6 +17,8 @@ import { selectDocument, stepDocument, stepPage } from "@/lib/sync/state";
 import { FlightMode } from "./flight-mode";
 import { InkEditor } from "./ink-editor";
 import { PrepMode } from "./prep-mode";
+import { folderOptions } from "@/components/ui/folder-options";
+import { Select } from "@/components/ui/select";
 import { SyncStatus } from "./sync-status";
 
 /** Notification « documents modifiés » ignorée juste après notre propre changement. */
@@ -204,24 +206,17 @@ export function CockpitRemote({
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <SyncStatus status={status} direct={direct} />
         {folders.length > 0 && (
-          <label className={`flex items-center gap-2 text-sm ${folderPending ? "opacity-60" : ""}`}>
-            <span className="text-slate-400">Dossier actif</span>
-            <select
-              className="input w-auto max-w-[60vw]"
-              value={activeFolderId ?? ""}
-              onChange={(e) => changeFolder(e.target.value || null)}
-            >
-              <option value="">Tous les documents</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.readOnly ? `⇄ ${f.name} (${f.squadronName ?? "escadron"})` : `📁 ${f.name}`}
-                </option>
-              ))}
-            </select>
-          </label>
+          <Select
+            label="Dossier actif"
+            value={activeFolderId ?? ""}
+            onChange={(v) => changeFolder(v || null)}
+            disabled={folderPending}
+            className="w-full sm:w-64"
+            options={folderOptions(folders, [{ value: "", label: "Tous les documents" }])}
+          />
         )}
+        <SyncStatus status={status} direct={direct} />
       </div>
       <PrepMode
         documents={documents}

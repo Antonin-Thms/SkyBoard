@@ -6,7 +6,9 @@ import { DEVICE_GESTURE_OVERRIDES, GESTURE_CONFIG } from "@/lib/gestures/constan
 import { GestureRecognizer, type GestureAction } from "@/lib/gestures/recognizer";
 import type { ViewTransform } from "@/lib/gestures/transform";
 import type { LinkStatus } from "@/lib/sync/cockpit-link";
+import { LogOut, Moon, MousePointer2, PenLine } from "lucide-react";
 import { HoldButton } from "@/components/hold-button";
+import { StatusDot, type StatusTone } from "@/components/ui/status-dot";
 
 interface FlightModeProps {
   getView: () => ViewTransform;
@@ -29,11 +31,15 @@ const STATUS_LABEL: Record<LinkStatus, string> = {
   disconnected: "Reconnexion…",
 };
 
-const STATUS_COLOR: Record<LinkStatus, string> = {
-  connecting: "bg-amber-400",
-  connected: "bg-emerald-400",
-  disconnected: "bg-red-500",
+const STATUS_TONE: Record<LinkStatus, StatusTone> = {
+  connecting: "pending",
+  connected: "ok",
+  disconnected: "pending",
 };
+
+/** Bouton de la barre du haut : icône seule sur téléphone. */
+const topButton = (active: boolean) =>
+  `flex h-10 items-center gap-2 rounded-[2px] px-3 text-sm ${active ? "bg-accent-subtle text-accent" : "text-muted"}`;
 
 /**
  * Mode vol : tout l'écran reçoit les gestes, sans bouton au centre.
@@ -153,33 +159,36 @@ export function FlightMode({
 
   return (
     <div className="fixed inset-0 z-50 flex select-none flex-col bg-black pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] text-slate-500 [-webkit-touch-callout:none]">
-      <div className="flex h-12 shrink-0 items-center justify-between gap-3 border-b border-slate-900 px-3 text-sm">
+      <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-line px-2 text-sm">
         {/* Appui long : un tap à l'aveugle près du bord ne fait pas sortir du mode vol. */}
         <HoldButton
           label="Quitter le mode vol (maintenir)"
           onHold={onExit}
-          className="rounded-lg px-3 py-1.5 text-slate-300"
+          className={`${topButton(false)} text-slate-300`}
         >
-          ✕ {compact ? "Quitter" : "Quitter (maintenir)"}
+          <LogOut size={18} strokeWidth={1.75} className="rotate-180" />
+          {compact ? "Quitter" : "Quitter (maintenir)"}
         </HoldButton>
         <span role="status" className="flex items-center gap-2" aria-label={STATUS_LABEL[status]}>
-          <span className={`h-2.5 w-2.5 rounded-full ${STATUS_COLOR[status]}`} />
-          {status !== "connected" && <span className="text-xs text-slate-400">{STATUS_LABEL[status]}</span>}
+          <StatusDot tone={STATUS_TONE[status]} />
+          {status !== "connected" && <span className="text-xs text-muted">{STATUS_LABEL[status]}</span>}
         </span>
         <span className="flex items-center gap-1">
           <HoldButton
             label={`Mode nuit ${night ? "activé" : "désactivé"} (maintenir pour basculer)`}
             onHold={onToggleNight}
-            className={`rounded-lg px-3 py-1.5 ${night ? "bg-sky-900 text-sky-200" : "text-slate-400"}`}
+            className={topButton(night)}
           >
-            ☾{compact ? "" : " Nuit"}
+            <Moon size={18} strokeWidth={1.75} />
+            {!compact && "Nuit"}
           </HoldButton>
           <HoldButton
             label={`Curseur ${cursorEnabled ? "activé" : "désactivé"} (maintenir pour basculer)`}
             onHold={onToggleCursor}
-            className={`rounded-lg px-3 py-1.5 ${cursorEnabled ? "bg-sky-900 text-sky-200" : "text-slate-400"}`}
+            className={topButton(cursorEnabled)}
           >
-            Curseur {compact ? (cursorEnabled ? "●" : "○") : cursorEnabled ? "activé" : "désactivé"}
+            <MousePointer2 size={18} strokeWidth={1.75} />
+            {!compact && "Curseur"}
           </HoldButton>
         </span>
       </div>
@@ -188,31 +197,32 @@ export function FlightMode({
         {/* Bandes latérales : swipe vertical = page précédente / suivante (désactivées avec le crayon) */}
         {!pen && (
           <>
-            <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 left-0 flex items-center justify-center bg-slate-900/60">
-              <span className="text-xs [writing-mode:vertical-rl] rotate-180">▲ page ▼</span>
-            </div>
-            <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 right-0 flex items-center justify-center bg-slate-900/60">
-              <span className="text-xs [writing-mode:vertical-rl]">▲ page ▼</span>
-            </div>
+            <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 left-0 border-r border-dashed border-line-strong bg-sunken" />
+            <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 right-0 border-l border-dashed border-line-strong bg-sunken" />
           </>
         )}
-        {pen && <div className="pointer-events-none absolute inset-0 border-2 border-sky-500/40" />}
+        {pen && <div className="pointer-events-none absolute inset-0 border-[3px] border-accent/80" />}
 
         <div
           className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 text-center"
           style={{ paddingInline: config.edgeWidthPx + 12 }}
         >
-          {pen && <p className="text-lg font-semibold text-sky-400">✎ Crayon actif</p>}
+          {pen && (
+            <p className="mb-2 flex items-center gap-2 text-lg font-semibold text-accent">
+              <PenLine size={22} strokeWidth={1.75} />
+              Crayon actif
+            </p>
+          )}
           <p className={`max-w-full truncate text-slate-300 ${compact ? "text-base" : "text-lg"}`}>{info.docName ?? "Aucun document"}</p>
           {info.docName && (
-            <p className="text-sm">
-              Page {info.page} / {info.pageCount} · zoom ×{info.zoom.toFixed(1)}
+            <p className="numeric text-sm tracking-wider text-subtle">
+              PAGE {info.page}/{info.pageCount} · ×{info.zoom.toFixed(1)}
             </p>
           )}
         </div>
 
         <p
-          className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs leading-relaxed text-slate-400"
+          className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs leading-relaxed text-subtle"
           style={{ paddingInline: config.edgeWidthPx + 12 }}
         >
           {pen

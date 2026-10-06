@@ -19,13 +19,15 @@ interface MenuProps {
   items: MenuItem[];
   /** Alignement du menu sous le bouton */
   align?: "start" | "end";
+  /** Ouverture vers le bas (défaut) ou vers le haut (barre en bas d'écran) */
+  side?: "bottom" | "top";
   /** Contenu du bouton (par défaut : ⋯) */
   trigger?: ReactNode;
   triggerClassName?: string;
 }
 
 /** Menu d'actions (bouton ⋯) : clavier, clic extérieur et Échap ferment. */
-export function Menu({ label, items, align = "end", trigger, triggerClassName = "btn-icon" }: MenuProps) {
+export function Menu({ label, items, align = "end", side = "bottom", trigger, triggerClassName = "btn-icon" }: MenuProps) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
   const root = useRef<HTMLDivElement>(null);
@@ -71,7 +73,7 @@ export function Menu({ label, items, align = "end", trigger, triggerClassName = 
         <div
           id={id}
           role="menu"
-          className={`absolute top-full z-40 mt-1 min-w-52 rounded-[4px] bg-overlay p-1.5 shadow-popover ${
+          className={`absolute z-40 min-w-52 ${side === "top" ? "bottom-full mb-1" : "top-full mt-1"} rounded-[4px] bg-overlay p-1.5 shadow-popover ${
             align === "end" ? "right-0" : "left-0"
           }`}
           onKeyDown={(e) => {

@@ -1,5 +1,6 @@
 "use client";
 
+import { PenLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import { useViewerData } from "@/hooks/use-viewer-data";
 import { createAnonClient } from "@/lib/supabase/anon";
@@ -267,23 +268,24 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
         />
       ) : (
         data && (
-          <div className="flex h-full items-center justify-center text-sm text-white/50">
+          <div className="flex h-full items-center justify-center text-base text-white/70">
             Aucun document
           </div>
         )
       )}
       {view?.pen && (
-        // Crayon actif sur la remote : le doigt dessine.
+        // Crayon actif sur la remote : le doigt dessine. Visible en périphérie.
         <div
-          className="pointer-events-none fixed left-2 top-2 rounded-full bg-black/60 px-2.5 py-1 text-base text-white/90"
+          className="pointer-events-none fixed left-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-accent px-3 py-1.5 text-sm font-semibold text-on-accent"
           aria-label="Crayon actif"
         >
-          ✎
+          <PenLine size={18} strokeWidth={2} />
+          Crayon
         </div>
       )}
       {options.showStatus && <StatusBadge status={status} detail={detail} direct={direct} />}
       {options.showStatus && hintVisible && !helpOpen && (
-        <div className="pointer-events-none fixed bottom-2 left-2 rounded-full bg-black/40 px-2 py-1 text-[10px] text-white/70">
+        <div className="pointer-events-none fixed bottom-2 left-2 rounded-full bg-black/70 px-3 py-1.5 text-sm text-white/80">
           H : aide
         </div>
       )}
@@ -291,7 +293,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
         <ViewerHelp
           cockpitName={
             data
-              ? `${data.cockpit.name}${data.folder ? ` · 📁 ${data.folder.name}` : ""}`
+              ? `${data.cockpit.name}${data.folder ? ` · dossier ${data.folder.name}` : ""}`
               : null
           }
           docName={current?.doc.name ?? null}

@@ -64,14 +64,14 @@ export function AuthForm({ mode, action, next, initialError }: AuthFormProps) {
         )}
 
         {state.error && (
-          <p role="alert" className="text-sm text-red-400">
+          <p role="alert" className="text-sm text-danger">
             {state.error}
           </p>
         )}
-        {state.message && <p className="text-sm text-emerald-400">{state.message}</p>}
+        {state.message && <p className="text-sm text-success">{state.message}</p>}
 
         <button type="submit" className="btn-primary w-full" disabled={pending}>
-          {pending ? "…" : isSignup ? "Créer le compte" : "Se connecter"}
+          {pending ? (isSignup ? "Création…" : "Connexion…") : isSignup ? "Créer le compte" : "Se connecter"}
         </button>
 
         <p className="text-center text-sm text-slate-400">

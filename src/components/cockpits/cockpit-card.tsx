@@ -7,7 +7,11 @@ import {
   renameCockpit,
   setActiveFolder,
 } from "@/app/(app)/cockpits/actions";
+import { ExternalLink, Pencil, Plane, RefreshCw, Trash2 } from "lucide-react";
 import { CopyButton } from "@/components/copy-button";
+import { folderOptions } from "@/components/ui/folder-options";
+import { Menu } from "@/components/ui/menu";
+import { Select } from "@/components/ui/select";
 import { buildViewerUrl } from "@/lib/cockpits/token";
 import type { FolderSummary } from "@/lib/documents/folders";
 
@@ -33,6 +37,7 @@ function useOrigin(): string {
 export function CockpitCard({ id, name, token, activeFolderId, folders }: CockpitCardProps) {
   const origin = useOrigin();
   const [editing, setEditing] = useState(false);
+  const [folder, setFolder] = useState(activeFolderId ?? "");
   const [draft, setDraft] = useState(name);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -48,7 +53,7 @@ export function CockpitCard({ id, name, token, activeFolderId, folders }: Cockpi
 
   return (
     <li
-      className={`space-y-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4 ${
+      className={`space-y-5 border border-line bg-raised p-5 ${
         pending ? "opacity-60" : ""
       }`}
     >
@@ -69,11 +74,11 @@ export function CockpitCard({ id, name, token, activeFolderId, folders }: Cockpi
               onChange={(e) => setDraft(e.target.value)}
             />
             <button type="submit" className="btn-primary">
-              OK
+              Enregistrer
             </button>
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-ghost"
               onClick={() => {
                 setDraft(name);
                 setEditing(false);
@@ -83,89 +88,83 @@ export function CockpitCard({ id, name, token, activeFolderId, folders }: Cockpi
             </button>
           </form>
         ) : (
-          <h2 className="text-lg font-medium">{name}</h2>
+          <h2 className="flex items-center gap-2.5 text-lg font-medium">
+            <Plane size={18} strokeWidth={1.75} className="text-muted" />
+            {name}
+          </h2>
         )}
-        <div className="flex gap-3 text-sm">
-          {!editing && (
-            <button type="button" className="text-slate-400 hover:text-white" onClick={() => setEditing(true)}>
-              Renommer
-            </button>
-          )}
-          <button
-            type="button"
-            className="text-red-400 hover:text-red-300"
-            onClick={() => {
-              if (window.confirm(`Supprimer le cockpit « ${name} » ? Son URL viewer cessera de fonctionner.`)) {
-                run(() => deleteCockpit(id));
-              }
-            }}
-          >
-            Supprimer
-          </button>
-        </div>
+        {!editing && (
+          <Menu
+            label={`Actions pour ${name}`}
+            items={[
+              { label: "Renommer", icon: <Pencil size={16} strokeWidth={1.75} />, onSelect: () => setEditing(true) },
+              {
+                label: "Régénérer l'URL",
+                icon: <RefreshCw size={16} strokeWidth={1.75} />,
+                onSelect: () => {
+                  if (
+                    window.confirm(
+                      "Régénérer l'URL ? L'URL actuelle cessera immédiatement de fonctionner : il faudra coller la nouvelle dans OpenKneeboard.",
+                    )
+                  ) {
+                    run(() => regenerateCockpitToken(id));
+                  }
+                },
+              },
+              {
+                label: "Supprimer le cockpit",
+                icon: <Trash2 size={16} strokeWidth={1.75} />,
+                danger: true,
+                separator: true,
+                onSelect: () => {
+                  if (window.confirm(`Supprimer le cockpit « ${name} » ? Son URL viewer cessera de fonctionner.`)) {
+                    run(() => deleteCockpit(id));
+                  }
+                },
+              },
+            ]}
+          />
+        )}
       </div>
 
       {folders.length > 0 && (
-        <label className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-slate-400">Dossier actif</span>
-          <select
-            className="input w-auto"
-            defaultValue={activeFolderId ?? ""}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+          <span className="label-caps w-full">Dossier actif</span>
+          <Select
+            label="Dossier actif"
+            value={folder}
             disabled={pending}
-            onChange={(e) => {
-              const folderId = e.target.value || null;
-              run(() => setActiveFolder(id, folderId));
+            className="w-full sm:w-72"
+            options={folderOptions(folders, [{ value: "", label: "Tous les documents" }])}
+            onChange={(v) => {
+              setFolder(v);
+              run(() => setActiveFolder(id, v || null));
             }}
-          >
-            <option value="">Tous les documents</option>
-            {folders.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.readOnly ? `⇄ ${f.name} (${f.squadronName ?? "escadron"})` : `📁 ${f.name}`}
-              </option>
-            ))}
-          </select>
-          <span className="text-xs text-slate-500">+ les documents Communs</span>
-        </label>
+          />
+          <span className="text-xs text-subtle">+ les documents Communs</span>
+        </div>
       )}
 
-      <div className="space-y-2">
-        <span className="text-sm text-slate-400">
-          URL viewer — à coller dans un onglet Web Dashboard d&apos;OpenKneeboard
-        </span>
+      <div className="space-y-1.5">
+        <span className="label-caps">URL viewer · onglet Web Dashboard d&apos;OpenKneeboard</span>
         <div className="flex flex-wrap gap-2">
           <input
-            className="input min-w-0 flex-1 font-mono text-xs"
+            className="input min-w-0 basis-full font-mono sm:basis-0 sm:flex-1 text-xs text-slate-300"
+            aria-label="URL viewer"
             value={url}
             readOnly
             onFocus={(e) => e.currentTarget.select()}
           />
           <CopyButton text={url} />
           <a className="btn-secondary" href={url || undefined} target="_blank" rel="noreferrer">
+            <ExternalLink size={16} strokeWidth={1.75} />
             Ouvrir
           </a>
         </div>
+        <p className="text-xs text-subtle">Garde-la secrète. Si elle a fuité : menu ⋯ → Régénérer l&apos;URL.</p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <button
-          type="button"
-          className="btn-danger"
-          onClick={() => {
-            if (
-              window.confirm(
-                "Régénérer le token ? L'URL actuelle cessera immédiatement de fonctionner : il faudra coller la nouvelle dans OpenKneeboard.",
-              )
-            ) {
-              run(() => regenerateCockpitToken(id));
-            }
-          }}
-        >
-          Régénérer le token
-        </button>
-        <span className="text-xs text-slate-500">À faire si l&apos;URL a fuité.</span>
-      </div>
-
-      {error && <p className="text-sm text-red-400">{error}</p>}
+      {error && <p className="text-sm text-danger">{error}</p>}
     </li>
   );
 }
