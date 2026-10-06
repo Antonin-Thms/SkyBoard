@@ -11,6 +11,9 @@ export type Json =
 
 export type DocumentMimeType = "application/pdf" | "image/png" | "image/jpeg";
 
+/** Rotation d'affichage, sens horaire. */
+export type Rotation = 0 | 90 | 180 | 270;
+
 export interface Database {
   public: {
     Tables: {
@@ -45,6 +48,7 @@ export interface Database {
           page_count: number;
           sort_order: number;
           folder_id: string | null;
+          rotation: Rotation;
           created_at: string;
         };
         Insert: {
@@ -61,6 +65,7 @@ export interface Database {
           thumbnail_path?: string | null;
           sort_order?: number;
           folder_id?: string | null;
+          rotation?: Rotation;
         };
         Relationships: [];
       };

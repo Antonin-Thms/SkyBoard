@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { INITIAL_VIEW_STATE, parseViewState } from "./protocol";
+import { INITIAL_VIEW_STATE, parseViewState, rotateBy } from "./protocol";
 
 const valid = { docId: "abc", page: 2, zoom: 1.5, panX: 0.1, panY: -0.2, seq: 7, ts: 1700000000000 };
 
 describe("parseViewState", () => {
   it("accepte un état valide", () => {
-    expect(parseViewState(valid)).toEqual({ ...valid, cursor: null });
+    expect(parseViewState(valid)).toEqual({ ...valid, rotation: 0, cursor: null });
     expect(parseViewState(INITIAL_VIEW_STATE)).toEqual(INITIAL_VIEW_STATE);
   });
 
@@ -24,5 +24,20 @@ describe("parseViewState", () => {
     expect(parseViewState({ ...valid, docId: 42 })).toBeNull();
     expect(parseViewState({ ...valid, docId: "x".repeat(65) })).toBeNull();
     expect(parseViewState({ ...valid, seq: undefined })).toBeNull();
+  });
+});
+
+describe("rotation", () => {
+  it("est validée, 0 par défaut pour les anciens états", () => {
+    expect(parseViewState({ ...valid, rotation: 270 })?.rotation).toBe(270);
+    expect(parseViewState(valid)?.rotation).toBe(0);
+    expect(parseViewState({ ...valid, rotation: 45 })).toBeNull();
+  });
+
+  it("tourne par pas de 90°", () => {
+    expect(rotateBy(0, 1)).toBe(90);
+    expect(rotateBy(270, 1)).toBe(0);
+    expect(rotateBy(0, -1)).toBe(270);
+    expect(rotateBy(90, 2)).toBe(270);
   });
 });

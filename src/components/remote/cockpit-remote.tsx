@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useOptimistic, useTransition } from "react";
 import { setActiveFolder } from "@/app/(app)/cockpits/actions";
+import { setDocumentRotation } from "@/app/(app)/documents/actions";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { useRemoteSync } from "@/hooks/use-remote-sync";
 import type { DeviceKind } from "@/lib/device/kind";
@@ -12,7 +13,7 @@ import { IDENTITY_VIEW } from "@/lib/gestures/transform";
 import { readPageMemory, rememberPage } from "@/lib/remote/page-memory";
 import type { RemoteCockpit, RemoteDocument } from "@/lib/remote/types";
 import type { ViewState } from "@/lib/sync/protocol";
-import { selectDocument, stepDocument, stepPage } from "@/lib/sync/state";
+import { rotateView, selectDocument, stepDocument, stepPage } from "@/lib/sync/state";
 import { FlightMode } from "./flight-mode";
 import { PrepMode } from "./prep-mode";
 import { SyncStatus } from "./sync-status";
@@ -163,12 +164,20 @@ export function CockpitRemote({
         documents={documents}
         current={current}
         page={state.page}
+        rotation={state.rotation ?? 0}
         zoomed={state.zoom > 1.01}
         compact={device === "phone"}
         onSelect={(doc) => apply(selectDocument(state, doc, pageMemory()))}
         onStepPage={(delta) => apply(stepPageOrStart(state, delta))}
         onStepDocument={(delta) => apply(stepDocument(state, documents, delta, pageMemory()))}
         onResetZoom={() => apply({ ...state, ...IDENTITY_VIEW })}
+        onRotate={(delta) => {
+          if (!current) return;
+          const next = rotateView(state, delta);
+          apply(next);
+          // Mémorisée sur le document : il s'affichera tourné la prochaine fois.
+          void setDocumentRotation(current.id, next.rotation ?? 0);
+        }}
       />
     </div>
   );

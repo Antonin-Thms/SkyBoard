@@ -1,4 +1,4 @@
-import type { DocumentMimeType } from "@/lib/database.types";
+import type { DocumentMimeType, Rotation } from "@/lib/database.types";
 import type { ViewState } from "@/lib/sync/protocol";
 
 export interface ViewerDocument {
@@ -6,6 +6,8 @@ export interface ViewerDocument {
   name: string;
   type: DocumentMimeType;
   pageCount: number;
+  /** Rotation mémorisée du document */
+  rotation: Rotation;
   /** URL signée à durée limitée (voir expiresAt) */
   url: string;
 }

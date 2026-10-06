@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useElementSize } from "@/hooks/use-element-size";
 import { useSmoothedView, type SmoothedFrame } from "@/hooks/use-smoothed-view";
+import type { Rotation } from "@/lib/database.types";
 import type { ViewTransform } from "@/lib/gestures/transform";
 import type { NormalizedPoint } from "@/lib/sync/protocol";
 import {
@@ -22,6 +23,8 @@ import type { ViewerDocument } from "@/lib/viewer/types";
 interface PageViewProps {
   doc: ViewerDocument;
   page: number;
+  /** Rotation de la page (sens horaire) */
+  rotation: Rotation;
   /** Zoom / déplacement cibles (bornés), atteints en douceur */
   view: ViewTransform;
   /** Point de la page sous le doigt de la remote (null : masqué) */
@@ -41,7 +44,7 @@ const isCancellation = (err: unknown) =>
  *    à coût borné. En attendant, le rendu de base agrandi reste affiché.
  * Les rendus se font hors écran puis remplacent l'ancien d'un coup.
  */
-export function PageView({ doc, page, view, cursor, onError }: PageViewProps) {
+export function PageView({ doc, page, rotation, view, cursor, onError }: PageViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detailRef = useRef<HTMLCanvasElement>(null);
@@ -52,7 +55,7 @@ export function PageView({ doc, page, view, cursor, onError }: PageViewProps) {
   /** Page dont le rendu de base est affiché (la tuile doit correspondre). */
   const [shownKey, setShownKey] = useState<string | null>(null);
   const tileRef = useRef<DetailTile | null>(null);
-  const pageKey = `${doc.id}:${page}`;
+  const pageKey = `${doc.id}:${page}:${rotation}`;
 
   const hideDetail = () => {
     tileRef.current = null;
@@ -68,17 +71,24 @@ export function PageView({ doc, page, view, cursor, onError }: PageViewProps) {
     (async () => {
       const source = await loadDocumentSource(doc);
       if (cancelled) return;
-      const natural = await naturalSize(source, page);
+      const natural = await naturalSize(source, page, rotation);
       if (cancelled) return;
       const fit = fitScale(container, natural);
       const dpr = window.devicePixelRatio || 1;
-      const rendered = await renderRegion(source, page, fit * dpr, undefined, (c) => (cancelRender = c));
+      const rendered = await renderRegion(
+        source,
+        page,
+        fit * dpr,
+        undefined,
+        (c) => (cancelRender = c),
+        rotation,
+      );
       if (cancelled || !canvasRef.current) return;
 
       blit(rendered.canvas, canvasRef.current);
       hideDetail();
       setDisplaySize({ width: natural.width * fit, height: natural.height * fit });
-      setShownKey(`${doc.id}:${page}`);
+      setShownKey(`${doc.id}:${page}:${rotation}`);
       onError?.(null);
     })().catch((err: unknown) => {
       if (cancelled || isCancellation(err)) return;
@@ -89,7 +99,7 @@ export function PageView({ doc, page, view, cursor, onError }: PageViewProps) {
       cancelled = true;
       cancelRender?.();
     };
-  }, [doc, page, container, onError]);
+  }, [doc, page, rotation, container, onError]);
 
   // 3. Tuile de détail, après stabilisation de la vue cible
   useEffect(() => {
@@ -106,12 +116,19 @@ export function PageView({ doc, page, view, cursor, onError }: PageViewProps) {
     const timer = setTimeout(() => {
       (async () => {
         const source = await loadDocumentSource(doc);
-        const natural = await naturalSize(source, page);
+        const natural = await naturalSize(source, page, rotation);
         if (cancelled) return;
         const rect = expandRect(visible, DETAIL_MARGIN);
         const dpr = window.devicePixelRatio || 1;
         const scale = (displaySize.width / natural.width) * view.zoom * dpr;
-        const rendered = await renderRegion(source, page, scale, rect, (c) => (cancelRender = c));
+        const rendered = await renderRegion(
+          source,
+          page,
+          scale,
+          rect,
+          (c) => (cancelRender = c),
+          rotation,
+        );
         const el = detailRef.current;
         if (cancelled || !el) return;
 
@@ -134,7 +151,7 @@ export function PageView({ doc, page, view, cursor, onError }: PageViewProps) {
       clearTimeout(timer);
       cancelRender?.();
     };
-  }, [view, displaySize, container, doc, page, pageKey, shownKey]);
+  }, [view, displaySize, container, doc, page, rotation, pageKey, shownKey]);
 
   // 2. Transformation écrite directement dans le DOM (appelé à chaque frame).
   const width = displaySize?.width ?? 0;

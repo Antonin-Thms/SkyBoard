@@ -4,6 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useState, useTransition } from "react";
 import { deleteDocument, moveDocument, renameDocument } from "@/app/(app)/documents/actions";
+import { RotatedThumbnail } from "@/components/rotated-thumbnail";
 import type { FolderSummary } from "@/lib/documents/folders";
 import type { DocumentItem } from "./document-grid";
 
@@ -66,13 +67,7 @@ export function DocumentCard({ item, folders, onDeleted, onRenamed }: DocumentCa
     >
       <div className="relative aspect-[3/4] bg-slate-950">
         {item.thumbnailUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element -- URL signée Supabase, pas d'optimisation Next voulue
-          <img
-            src={item.thumbnailUrl}
-            alt=""
-            className="h-full w-full object-contain"
-            draggable={false}
-          />
+          <RotatedThumbnail src={item.thumbnailUrl} rotation={item.rotation} />
         ) : (
           <div className="flex h-full items-center justify-center text-slate-600">
             {TYPE_LABEL[item.type]}

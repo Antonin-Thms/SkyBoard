@@ -1,7 +1,7 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, DocumentMimeType } from "@/lib/database.types";
+import type { Database, DocumentMimeType, Rotation } from "@/lib/database.types";
 import type { FolderSummary } from "./folders";
 import { STORAGE_BUCKET, THUMBNAIL_URL_TTL } from "./storage";
 
@@ -12,6 +12,7 @@ export interface DocumentSummary {
   pageCount: number;
   sortOrder: number;
   folderId: string | null;
+  rotation: Rotation;
   thumbnailUrl: string | null;
 }
 
@@ -21,7 +22,7 @@ export async function listDocumentsWithThumbnails(
 ): Promise<{ documents: DocumentSummary[]; error: boolean }> {
   const { data: rows, error } = await supabase
     .from("documents")
-    .select("id, name, type, page_count, sort_order, folder_id, thumbnail_path")
+    .select("id, name, type, page_count, sort_order, folder_id, rotation, thumbnail_path")
     .order("sort_order")
     .order("created_at");
   if (error) return { documents: [], error: true };
@@ -46,6 +47,7 @@ export async function listDocumentsWithThumbnails(
       pageCount: d.page_count,
       sortOrder: d.sort_order,
       folderId: d.folder_id,
+      rotation: d.rotation,
       thumbnailUrl: d.thumbnail_path ? (thumbUrls.get(d.thumbnail_path) ?? null) : null,
     })),
   };

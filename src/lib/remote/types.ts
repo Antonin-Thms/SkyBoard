@@ -1,4 +1,4 @@
-import type { DocumentMimeType } from "@/lib/database.types";
+import type { DocumentMimeType, Rotation } from "@/lib/database.types";
 import type { ViewState } from "@/lib/sync/protocol";
 
 export interface RemoteCockpit {
@@ -18,4 +18,5 @@ export interface RemoteDocument {
   pageCount: number;
   thumbnailUrl: string | null;
   folderId: string | null;
+  rotation: Rotation;
 }

@@ -18,7 +18,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useState } from "react";
 import { reorderDocuments } from "@/app/(app)/documents/actions";
-import type { DocumentMimeType } from "@/lib/database.types";
+import type { DocumentMimeType, Rotation } from "@/lib/database.types";
 import type { FolderSummary } from "@/lib/documents/folders";
 import { DocumentCard } from "./document-card";
 
@@ -29,6 +29,7 @@ export interface DocumentItem {
   pageCount: number;
   thumbnailUrl: string | null;
   folderId: string | null;
+  rotation: Rotation;
 }
 
 interface DocumentGridProps {

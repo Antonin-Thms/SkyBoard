@@ -36,7 +36,7 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/viewer/[tok
   // Dossier actif : ses documents + les documents communs (sans dossier).
   let docsQuery = admin
     .from("documents")
-    .select("id, name, type, page_count, storage_path")
+    .select("id, name, type, page_count, rotation, storage_path")
     .eq("user_id", cockpit.user_id);
   let folder: { name: string } | null = null;
   if (cockpit.active_folder_id) {
@@ -73,7 +73,9 @@ export async function GET(_req: NextRequest, ctx: RouteContext<"/api/viewer/[tok
 
   const documents: ViewerDocument[] = docs.flatMap((d) => {
     const url = urls.get(d.storage_path);
-    return url ? [{ id: d.id, name: d.name, type: d.type, pageCount: d.page_count, url }] : [];
+    return url
+      ? [{ id: d.id, name: d.name, type: d.type, pageCount: d.page_count, rotation: d.rotation, url }]
+      : [];
   });
 
   const payload: ViewerPayload = {

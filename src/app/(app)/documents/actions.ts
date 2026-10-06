@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { STORAGE_BUCKET } from "@/lib/documents/storage";
 import { createClient } from "@/lib/supabase/server";
 import { notifyDocumentsChanged } from "@/lib/sync/notify";
+import { isRotation } from "@/lib/sync/protocol";
 import { cleanName, isUuid } from "@/lib/validation";
 
 export interface ActionResult {
@@ -133,4 +134,17 @@ export async function moveDocument(id: string, folderId: string | null): Promise
 /** Appelé après un envoi de fichiers : les viewers rechargent leur liste. */
 export async function documentsUploaded(): Promise<void> {
   await notifyDocumentsChanged(await createClient());
+}
+
+/** Rotation mémorisée d'un document (0, 90, 180, 270). */
+export async function setDocumentRotation(id: string, rotation: number): Promise<ActionResult> {
+  if (!isUuid(id) || !isRotation(rotation)) return { error: "Rotation invalide." };
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("documents").update({ rotation }).eq("id", id);
+  if (error) return { error: "Rotation impossible." };
+
+  revalidatePath("/documents");
+  revalidatePath("/remote");
+  return {};
 }

@@ -24,13 +24,14 @@ export default async function DocumentsPage({ searchParams }: PageProps<"/docume
 
   const items: DocumentItem[] = documents
     .filter((d) => matchesFilter(d.folderId, filter))
-    .map(({ id, name, type, pageCount, thumbnailUrl, folderId }) => ({
+    .map(({ id, name, type, pageCount, thumbnailUrl, folderId, rotation }) => ({
       id,
       name,
       type,
       pageCount,
       thumbnailUrl,
       folderId,
+      rotation,
     }));
   const nextSortOrder = documents.reduce((max, d) => Math.max(max, d.sortOrder), 0) + 1;
   const folderCounts = folders.map((f) => ({
