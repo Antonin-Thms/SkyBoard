@@ -1,7 +1,17 @@
 import type { NextRequest } from "next/server";
+import { missingServerEnv } from "@/lib/env";
 import { updateSession } from "@/lib/supabase/proxy";
 
 export async function proxy(request: NextRequest) {
+  const missing = missingServerEnv();
+  if (missing.length) {
+    return new Response(
+      `SkyBoard : configuration incomplète.\n\nVariables d'environnement manquantes :\n${missing
+        .map((m) => `  - ${m}`)
+        .join("\n")}\n\nSur Vercel : Settings → Environment Variables, cocher l'environnement concerné (Production et/ou Preview), puis Redeploy.\n`,
+      { status: 500, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } },
+    );
+  }
   return updateSession(request);
 }
 

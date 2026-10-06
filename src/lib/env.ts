@@ -34,3 +34,19 @@ export function supabasePublishableKey(): string {
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   );
 }
+
+/**
+ * Variables requises absentes (noms seulement, jamais les valeurs).
+ * Sert à afficher un diagnostic clair plutôt qu'une erreur 500 muette.
+ */
+export function missingServerEnv(): string[] {
+  const vars: Record<string, string | undefined> = {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    VIEWER_CHANNEL_SECRET: process.env.VIEWER_CHANNEL_SECRET,
+  };
+  return Object.entries(vars)
+    .filter(([, v]) => !v)
+    .map(([k]) => k);
+}
