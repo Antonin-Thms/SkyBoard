@@ -50,7 +50,7 @@ export async function updateSession(request: NextRequest) {
 
   if (isLoggedIn && matches(pathname, AUTH_PAGES)) {
     const url = request.nextUrl.clone();
-    url.pathname = "/documents";
+    url.pathname = "/";
     url.search = "";
     return redirectWithCookies(url, response);
   }

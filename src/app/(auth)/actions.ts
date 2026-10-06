@@ -62,7 +62,7 @@ export async function signup(_prev: AuthFormState, formData: FormData): Promise<
   if (error) return { error: error.message };
 
   // Confirmation d'email désactivée dans Supabase : session ouverte directement.
-  if (data.session) redirect("/documents");
+  if (data.session) redirect("/");
 
   return { message: "Compte créé. Vérifie ta boîte mail pour confirmer ton adresse." };
 }

@@ -24,7 +24,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     <div className="flex flex-1 flex-col md:flex-row">
       <aside className="flex shrink-0 flex-col gap-6 border-b border-slate-800 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] pl-[max(1rem,env(safe-area-inset-left))] md:sticky md:top-0 md:h-dvh md:w-60 md:gap-8 md:border-b-0 md:border-r md:px-6 md:py-8">
         <div className="flex items-center justify-between gap-3 md:block">
-          <Link href="/documents" className="font-condensed text-xl font-semibold tracking-[0.2em]">
+          <Link href="/" className="font-condensed text-xl font-semibold tracking-[0.2em]" title="Accueil">
             SKYBOARD
           </Link>
           <span className="font-mono text-[10px] text-slate-600 md:mt-1 md:block">

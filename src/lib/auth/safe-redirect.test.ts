@@ -8,9 +8,9 @@ describe("safeRedirectPath", () => {
   });
 
   it("rejette les redirections externes", () => {
-    expect(safeRedirectPath("https://evil.example")).toBe("/documents");
-    expect(safeRedirectPath("//evil.example")).toBe("/documents");
-    expect(safeRedirectPath("/\\evil.example")).toBe("/documents");
-    expect(safeRedirectPath(null)).toBe("/documents");
+    expect(safeRedirectPath("https://evil.example")).toBe("/");
+    expect(safeRedirectPath("//evil.example")).toBe("/");
+    expect(safeRedirectPath("/\\evil.example")).toBe("/");
+    expect(safeRedirectPath(null)).toBe("/");
   });
 });
