@@ -4,10 +4,14 @@ import { STORAGE_BUCKET, VIEWER_URL_TTL } from "@/lib/documents/storage";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { channelNameForToken } from "@/lib/sync/channel";
 import { logError } from "@/lib/log";
+import { createRateLimiter } from "@/lib/rate-limit";
 import { parseViewState } from "@/lib/sync/protocol";
 import type { ViewerDocument, ViewerPayload } from "@/lib/viewer/types";
 
 const NO_STORE = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
+
+/** Un viewer normal fait une requête par heure (plus quelques rechargements). */
+const allowRequest = createRateLimiter({ limit: 30, windowMs: 60_000 });
 
 function notFound() {
   // Réponse identique pour un token mal formé ou inconnu.
@@ -18,7 +22,11 @@ function notFound() {
  * Accès viewer par token (sans compte) : valide le token avec la clé
  * service_role et renvoie les documents du propriétaire avec des URLs signées.
  */
-export async function GET(_req: NextRequest, ctx: RouteContext<"/api/viewer/[token]">) {
+export async function GET(req: NextRequest, ctx: RouteContext<"/api/viewer/[token]">) {
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  if (!allowRequest(ip)) {
+    return Response.json({ error: "rate_limited" }, { status: 429, headers: { ...NO_STORE, "Retry-After": "60" } });
+  }
   const { token } = await ctx.params;
   if (!isViewerToken(token)) return notFound();
 
