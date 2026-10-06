@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 /**
  * Page affichée dans l'onglet Web Dashboard d'OpenKneeboard.
  * Accès par token uniquement, aucune interaction requise.
- * Paramètres : ?transparent=1 · ?status=0 · ?cursor=1
+ * Paramètres optionnels (à ajouter à la main) : ?transparent=1 · ?status=0 · ?cursor=0
  */
 export default async function ViewerPage({ params, searchParams }: PageProps<"/viewer/[token]">) {
   const { token } = await params;
@@ -22,7 +22,8 @@ export default async function ViewerPage({ params, searchParams }: PageProps<"/v
   const query = await searchParams;
   const transparent = query.transparent === "1";
   const showStatus = query.status !== "0";
-  const showCursor = query.cursor === "1";
+  // Curseur affiché quand la remote l'envoie (bouton « Curseur ») ; ?cursor=0 le masque.
+  const showCursor = query.cursor !== "0";
 
   return (
     <>

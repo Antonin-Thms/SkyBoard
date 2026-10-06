@@ -67,10 +67,10 @@ export function ViewerHelp(props: ViewerHelpProps) {
               <code className="whitespace-nowrap">?status=0</code> sans indicateur
             </li>
             <li>
-              <code className="whitespace-nowrap">?cursor=1</code> curseur
+              <code className="whitespace-nowrap">?cursor=0</code> jamais de curseur
             </li>
           </ul>
-          <p className="text-slate-400">Elles se règlent avec les cases de la page Cockpits.</p>
+          <p className="text-slate-400">Facultatives, à ajouter à la main à la fin de l&apos;URL.</p>
         </div>
       </div>
     </div>

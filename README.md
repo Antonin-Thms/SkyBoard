@@ -157,7 +157,6 @@ La remote détecte le type d'appareil : téléphone, tablette ou ordinateur. Un 
 
 1. Dans SkyBoard, page **Cockpits** :
    - crée un cockpit (par ex. « F-16C ») ;
-   - coche les options voulues ;
    - clique sur **Copier**.
 2. Dans OpenKneeboard (version 1.7 ou plus) :
    - ouvre les réglages (roue crantée en bas à gauche), puis **Tabs** ;
@@ -165,13 +164,13 @@ La remote détecte le type d'appareil : téléphone, tablette ou ordinateur. Un 
    - colle l'URL.
 3. Dans les réglages de l'onglet, choisis une taille proche du ratio de tes kneeboards (par ex. 768 × 1024 pour du portrait A4/Letter). Pour l'option `?transparent=1`, active aussi la transparence de l'onglet si OpenKneeboard la propose.
 
-Options de l'URL viewer :
+Options facultatives, à ajouter à la main à la fin de l'URL du viewer :
 
 | Paramètre | Effet |
 | --- | --- |
 | `?transparent=1` | `html` et `body` transparents (rien n'est dessiné autour de la page) |
 | `?status=0` | masque l'indicateur de connexion (point en bas à droite) |
-| `?cursor=1` | autorise l'affichage du curseur envoyé par la remote (bouton « Curseur » du mode vol) |
+| `?cursor=0` | n'affiche jamais le curseur (sinon il apparaît quand le bouton « Curseur » du mode vol est activé) |
 
 Le viewer ne demande aucune interaction : il charge la liste des documents et affiche le dernier document et la dernière page connus. Il renouvelle aussi seul les URLs signées, qui expirent au bout d'1 h.
 
@@ -263,7 +262,7 @@ Tout l'écran reçoit les gestes, sans bouton au centre. Les gestes sont relatif
   - `preventDefault` sur `touchstart`, `touchmove` et `gesturestart`/`gesturechange` ;
   - `overscroll-behavior: none`.
 - **Envoi** : pendant un geste, au plus 1 message toutes les 33 ms (en gardant toujours le dernier état), plus un envoi final garanti quand le dernier doigt se lève. Les commandes ponctuelles (page, document, double tap) partent immédiatement.
-- **Curseur** : le bouton « Curseur » du mode vol envoie la position du doigt. Le viewer ne l'affiche que si son URL contient `?cursor=1`.
+- **Curseur** : le bouton « Curseur » du mode vol envoie la position du doigt, et le viewer l'affiche (sauf si son URL contient `?cursor=0`).
 
 ### Modèle de vue
 

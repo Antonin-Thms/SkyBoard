@@ -28,9 +28,6 @@ export default async function CockpitsPage() {
         <ol className="list-decimal space-y-1 pl-5">
           <li>Crée un cockpit (par ex. un par avion, ou un seul pour tout).</li>
           <li>
-            Coche les options voulues sous l&apos;URL : elles modifient l&apos;URL affichée.
-          </li>
-          <li>
             Clique sur <strong>Copier</strong>, puis colle l&apos;URL dans un onglet{" "}
             <em>Web Dashboard</em> d&apos;OpenKneeboard.
           </li>

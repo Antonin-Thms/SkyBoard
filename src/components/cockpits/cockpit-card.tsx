@@ -32,15 +32,12 @@ function useOrigin(): string {
 
 export function CockpitCard({ id, name, token, activeFolderId, folders }: CockpitCardProps) {
   const origin = useOrigin();
-  const [transparent, setTransparent] = useState(false);
-  const [hideStatus, setHideStatus] = useState(false);
-  const [cursor, setCursor] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const url = origin ? buildViewerUrl(origin, token, { transparent, hideStatus, cursor }) : "";
+  const url = origin ? buildViewerUrl(origin, token) : "";
 
   const run = (fn: () => Promise<{ error?: string }>) =>
     startTransition(async () => {
@@ -147,26 +144,6 @@ export function CockpitCard({ id, name, token, activeFolderId, folders }: Cockpi
             Ouvrir
           </a>
         </div>
-        <div className="grid gap-2 pt-1 text-sm sm:grid-cols-3">
-          <Option
-            checked={transparent}
-            onChange={setTransparent}
-            label="Fond transparent"
-            hint="Pas de fond noir autour de la page : seul le document apparaît dans le casque."
-          />
-          <Option
-            checked={hideStatus}
-            onChange={setHideStatus}
-            label="Masquer l'indicateur"
-            hint="Cache le petit point de connexion en bas à droite (vert = OK, orange = connexion, rouge = erreur)."
-          />
-          <Option
-            checked={cursor}
-            onChange={setCursor}
-            label="Autoriser le curseur"
-            hint="Affiche la position de ton doigt sur l'iPad (disponible en phase 5)."
-          />
-        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -193,26 +170,3 @@ export function CockpitCard({ id, name, token, activeFolderId, folders }: Cockpi
   );
 }
 
-interface OptionProps {
-  checked: boolean;
-  onChange: (value: boolean) => void;
-  label: string;
-  hint: string;
-}
-
-function Option({ checked, onChange, label, hint }: OptionProps) {
-  return (
-    <label className="flex cursor-pointer gap-2 rounded-lg border border-slate-800 p-2 hover:border-slate-700">
-      <input
-        type="checkbox"
-        className="mt-0.5"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-      />
-      <span>
-        <span className="block text-slate-200">{label}</span>
-        <span className="block text-xs text-slate-500">{hint}</span>
-      </span>
-    </label>
-  );
-}

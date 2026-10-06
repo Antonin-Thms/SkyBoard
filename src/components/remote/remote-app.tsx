@@ -109,7 +109,7 @@ export function RemoteApp({ cockpits, documents, folders, initialCockpitId, init
                 bandes étroites sur les bords gauche et droit de l&apos;écran : swipe vers le bas =
                 document suivant, vers le haut = précédent ;
               </li>
-              <li>« Curseur » (en haut) : affiche la position du doigt dans le casque (URL avec l&apos;option curseur).</li>
+              <li>« Curseur » (en haut) : affiche la position du doigt dans le casque.</li>
             </ul>
           </li>
           <li>
