@@ -46,7 +46,7 @@ export default async function DocumentsPage() {
           </li>
           <li>
             Pour réordonner, fais glisser la poignée <span className="font-mono">⠿</span> en haut à
-            gauche d&apos;une miniature (sur iPad : appui long, puis glisse).
+            gauche d&apos;une miniature (au doigt : appui long, puis glisse).
           </li>
         </ul>
       </HelpPanel>

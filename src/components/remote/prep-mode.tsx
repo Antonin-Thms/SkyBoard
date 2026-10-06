@@ -16,7 +16,7 @@ interface PrepModeProps {
   onResetZoom: () => void;
 }
 
-/** Mode préparation : on regarde l'iPad, grille de miniatures et gros boutons. */
+/** Mode préparation : on regarde l'écran, grille de miniatures et gros boutons. */
 export function PrepMode({
   documents,
   current,

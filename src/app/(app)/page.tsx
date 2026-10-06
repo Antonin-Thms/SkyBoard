@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { FlowDiagram } from "@/components/home/flow-diagram";
 import { Gestures } from "@/components/home/gestures";
 import { Steps } from "@/components/home/steps";
 import { getDocuments, getFolders } from "@/lib/documents/server";
@@ -35,11 +34,11 @@ export default async function HomePage() {
         <div className="max-w-2xl space-y-3">
           <div className="label-caps">Kneeboards pour DCS World en VR</div>
           <h1 className="text-3xl font-medium leading-tight md:text-4xl">
-            Tes kneeboards dans le casque, pilotés depuis l&apos;iPad.
+            Tes kneeboards dans le casque, pilotés du bout des doigts.
           </h1>
           <p className="text-slate-400">
-            SkyBoard affiche tes documents dans OpenKneeboard et te laisse changer de page, zoomer
-            et te déplacer avec des gestes, sans retirer le casque.
+            SkyBoard affiche tes documents dans OpenKneeboard. Depuis une tablette ou un téléphone,
+            change de page, zoome et déplace-toi avec des gestes, sans retirer le casque.
           </p>
         </div>
         <Link href={next.href} className="btn-primary">
@@ -58,13 +57,6 @@ export default async function HomePage() {
             <div className="mt-1 text-3xl font-medium tabular-nums">{s.value}</div>
           </Link>
         ))}
-      </section>
-
-      <section className="space-y-5">
-        <h2 className="text-xl font-medium">Comment ça marche</h2>
-        <div className="border border-slate-800 p-4 md:p-8">
-          <FlowDiagram />
-        </div>
       </section>
 
       <section className="space-y-5">

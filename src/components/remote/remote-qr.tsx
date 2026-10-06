@@ -12,7 +12,7 @@ interface RemoteQrProps {
   cockpitName: string;
 }
 
-/** QR code affiché sur le PC : scanné avec l'iPad / l'iPhone, il ouvre directement le mode vol. */
+/** QR code affiché sur le PC : scanné avec une tablette ou un téléphone, il ouvre directement le mode vol. */
 export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
   const [autoLogin, setAutoLogin] = useState(true);
   const [qr, setQr] = useState<{ svg: string; autoLogin: boolean } | null>(null);
@@ -42,7 +42,7 @@ export function RemoteQr({ cockpitId, cockpitName }: RemoteQrProps) {
   return (
     <div className="flex flex-wrap items-start gap-4 rounded-2xl border border-slate-800 bg-slate-900/60 p-4">
       <div className="min-w-0 flex-1 space-y-2 text-sm">
-        <h2 className="font-medium text-slate-200">Piloter depuis l&apos;iPad ou l&apos;iPhone</h2>
+        <h2 className="font-medium text-slate-200">Piloter depuis une tablette ou un téléphone</h2>
         <p className="text-slate-400">
           Scanne le QR code avec l&apos;appareil photo : la remote s&apos;ouvre directement en mode
           vol sur le cockpit « {cockpitName} ».

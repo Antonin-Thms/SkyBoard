@@ -1,7 +1,7 @@
 /**
  * UUID v4. crypto.randomUUID n'existe qu'en contexte sécurisé (https,
  * localhost) : repli sur crypto.getRandomValues, disponible partout
- * (ex. iPad sur http://192.168.x.x en développement).
+ * (ex. tablette sur http://192.168.x.x en développement).
  */
 export function uuid(): string {
   if (typeof crypto.randomUUID === "function") {

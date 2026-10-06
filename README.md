@@ -1,9 +1,9 @@
 # SkyBoard
 
-Pilote l'affichage de tes kneeboards dans le casque VR (DCS World + OpenKneeboard) depuis un iPad.
+Pilote l'affichage de tes kneeboards dans le casque VR (DCS World + OpenKneeboard) depuis une tablette ou un téléphone (tout écran tactile).
 
 - **Viewer** (`/viewer/[token]`) : page affichée dans l'onglet *Web Dashboard* d'OpenKneeboard.
-- **Remote** (`/remote`) : télécommande tactile sur iPad (mode préparation + mode vol à l'aveugle).
+- **Remote** (`/remote`) : télécommande tactile sur tablette ou téléphone (mode préparation + mode vol à l'aveugle).
 - La synchro passe par Supabase Realtime (Broadcast). Seul un **état** (document, page, zoom, pan) circule, jamais de vidéo.
 
 Stack : Next.js 16 (App Router) · TypeScript strict · Tailwind 4 · Supabase (Auth, Storage, Postgres, Realtime) · pdf.js · Vitest.
@@ -114,13 +114,13 @@ Chaque `git push` redéploie automatiquement. Les migrations SQL, elles, restent
 
 Une variable d'environnement modifiée dans Vercel ne s'applique qu'après un redéploiement (**Deployments → … → Redeploy**).
 
-## 5. Ouvrir la remote sur l'iPad / l'iPhone
+## 5. Ouvrir la remote sur une tablette ou un téléphone
 
 ### Par QR code (le plus rapide)
 
 1. Sur le PC, ouvre la page **Remote** et choisis le cockpit.
 2. Clique sur **Afficher le QR code**.
-3. Scanne-le avec l'appareil photo de l'iPad ou de l'iPhone : la remote s'ouvre directement en **mode vol** sur ce cockpit.
+3. Scanne-le avec l'appareil photo de la tablette ou du téléphone : la remote s'ouvre directement en **mode vol** sur ce cockpit.
 
 Avec l'option **Connexion automatique** (cochée par défaut), le QR code contient un jeton de connexion à **usage unique**. C'est un magic link Supabase, valable 1 h par défaut (réglage *Email OTP Expiration* dans Supabase). Il connecte l'appareil sans saisir de mot de passe.
 
@@ -130,7 +130,7 @@ Le QR code ouvre Safari, pas l'application installée. iOS ne permet pas d'ouvri
 
 ### Installer en application (PWA)
 
-1. Ouvre l'URL Vercel dans **Safari** sur l'iPad, puis connecte-toi.
+1. Ouvre l'URL Vercel sur la tablette ou le téléphone (Safari sur iOS, Chrome sur Android), puis connecte-toi.
 2. Bouton **Partager** → **Sur l'écran d'accueil** → **Ajouter**.
 3. L'icône SkyBoard ouvre directement la remote, en plein écran, sans barre Safari.
 
@@ -187,9 +187,9 @@ Si la connexion faiblit :
   - En test uniquement, les flèches **← →** changent de page et **↑ ↓** changent de document.
   - **H** affiche une aide (document et page courants, touches, indicateur, options d'URL).
   - Pour vérifier l'ajustement, sors la fenêtre du plein écran (bouton « Restaurer ») et tire sur ses bords.
-- **Remote** : ouvre `/remote` dans un autre onglet, ou sur l'iPad (`http://<IP-du-PC>:3000/remote` sur le même Wi-Fi). Tu peux aussi utiliser les DevTools de Chrome/Edge en mode appareil (Ctrl+Shift+M) avec un iPad en émulation tactile.
+- **Remote** : ouvre `/remote` dans un autre onglet, ou sur la tablette / le téléphone (`http://<IP-du-PC>:3000/remote` sur le même Wi-Fi). Tu peux aussi utiliser les DevTools de Chrome/Edge en mode appareil (Ctrl+Shift+M) avec une tablette en émulation tactile.
   - Mode **Préparation** : tape une miniature, le viewer change immédiatement.
-  - Mode **Vol** : dans les DevTools, active l'émulation tactile. Pour pincer sans écran tactile, Chrome simule un deuxième doigt avec **Maj + glisser** ; le plus fiable reste l'iPad.
+  - Mode **Vol** : dans les DevTools, active l'émulation tactile. Pour pincer sans écran tactile, Chrome simule un deuxième doigt avec **Maj + glisser** ; le plus fiable reste un vrai écran tactile.
   - Ferme puis rouvre le viewer : il reprend l'état courant, en le demandant à la remote si elle est ouverte, sinon depuis la base.
 
 ---
@@ -357,6 +357,6 @@ Remote et viewer peuvent donc avoir des écrans de tailles et de formats différ
 | « Invalid path specified in request URL » | `NEXT_PUBLIC_SUPABASE_URL` doit être `https://<id>.supabase.co`, sans chemin |
 | Point orange permanent (viewer ou remote) | Realtime → Settings : l'accès public aux canaux doit être autorisé ; `VIEWER_CHANNEL_SECRET` identique partout |
 | Viewer : « URL invalide ou révoquée » | token régénéré ou cockpit supprimé : recopie l'URL depuis la page Cockpits |
-| L'iPad n'atteint pas le PC en local | même Wi-Fi, IP `192.168.x.x` (pas celle d'un VPN), pare-feu Windows : autoriser Node.js sur le réseau privé |
-| Fonctions manquantes sur l'iPad en `http://192.168…` (cache, copie) | certaines API du navigateur sont réservées au HTTPS : utilise l'URL Vercel |
+| La tablette / le téléphone n'atteint pas le PC en local | même Wi-Fi, IP `192.168.x.x` (pas celle d'un VPN), pare-feu Windows : autoriser Node.js sur le réseau privé |
+| Fonctions manquantes sur tablette / téléphone en `http://192.168…` (cache, copie) | certaines API du navigateur sont réservées au HTTPS : utilise l'URL Vercel |
 | `git pull` refuse à cause de `package-lock.json` | `git restore package-lock.json`, puis `git pull` et `npm ci` |

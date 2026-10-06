@@ -33,8 +33,8 @@ const STEPS = [
   },
   {
     href: "/remote",
-    title: "Pilote depuis l'iPad",
-    text: "Ouvre la remote (ou scanne le QR code affiché sur le PC). Préparation pour choisir, Vol pour piloter sans regarder.",
+    title: "Pilote au doigt",
+    text: "Ouvre la remote sur une tablette ou un téléphone (ou scanne le QR code affiché sur le PC). Préparation pour choisir, Vol pour piloter sans regarder.",
     cta: "Remote",
     icon: (
       <svg viewBox="0 0 120 90" className="h-20 w-full" aria-hidden="true" fill="none" strokeWidth="2">

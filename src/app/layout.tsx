@@ -15,7 +15,7 @@ const sairaCondensed = Saira_Condensed({
 
 export const metadata: Metadata = {
   title: "SkyBoard",
-  description: "Pilote tes kneeboards OpenKneeboard depuis un iPad.",
+  description: "Pilote tes kneeboards OpenKneeboard depuis une tablette ou un téléphone.",
   applicationName: "SkyBoard",
   // iOS : « Ajouter à l'écran d'accueil » → application plein écran.
   appleWebApp: { capable: true, title: "SkyBoard", statusBarStyle: "black-translucent" },

@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-/** PWA : « Ajouter à l'écran d'accueil » sur iPad ouvre directement la remote, en plein écran. */
+/** PWA : « Ajouter à l'écran d'accueil » sur tablette ou téléphone ouvre directement la remote, en plein écran. */
 export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "SkyBoard",

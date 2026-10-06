@@ -49,7 +49,7 @@ export function FlightMode({
     onActionsRef.current = onActions;
   });
 
-  // Plein écran (iPad) et blocage du défilement de la page pendant le mode vol.
+  // Plein écran (tablettes) et blocage du défilement de la page pendant le mode vol.
   useEffect(() => {
     const root = document.documentElement;
     const prev = { overflow: root.style.overflow, overscroll: root.style.overscrollBehavior };

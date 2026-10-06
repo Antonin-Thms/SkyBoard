@@ -29,7 +29,7 @@ export interface ViewState {
   seq: number;
   /** Horodatage d'émission (ms epoch) */
   ts: number;
-  /** Position du doigt sur l'iPad, si l'affichage du curseur est demandé */
+  /** Position du doigt sur la remote, si l'affichage du curseur est demandé */
   cursor?: NormalizedPoint | null;
 }
 

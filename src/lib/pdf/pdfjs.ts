@@ -1,7 +1,7 @@
 "use client";
 
 // Build "legacy" : inclut les polyfills (le build moderne exige des API JS
-// très récentes, absentes de WebView2 / Safari iPad actuels).
+// très récentes, absentes de WebView2 / Safari mobile actuels).
 type PdfjsModule = typeof import("pdfjs-dist/legacy/build/pdf.mjs");
 
 let pdfjsPromise: Promise<PdfjsModule> | undefined;
