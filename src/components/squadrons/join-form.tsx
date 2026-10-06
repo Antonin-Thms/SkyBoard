@@ -23,7 +23,7 @@ export function JoinSquadronForm({ code }: { code: string }) {
       }}
     >
       <label className="flex flex-col gap-1 text-sm">
-        <span className="text-muted">Ton indicatif (visible par l&apos;escadron)</span>
+        <span className="text-muted">Ton nom (visible par l&apos;escadron)</span>
         <input
           className="input"
           autoFocus

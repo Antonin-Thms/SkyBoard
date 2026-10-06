@@ -30,7 +30,7 @@ function message(error: { code?: string; message?: string }, fallback: string): 
 export async function createSquadron(name: string, callsign: string): Promise<ActionResult> {
   const n = clean(name, 60);
   const c = clean(callsign, 40);
-  if (!n || !c) return { error: "Nom de l'escadron et indicatif requis." };
+  if (!n || !c) return { error: "Nom de l'escadron et ton nom requis." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("create_squadron", { name: n, callsign: c });
   if (error) return { error: message(error, "Création impossible.") };
@@ -41,7 +41,7 @@ export async function createSquadron(name: string, callsign: string): Promise<Ac
 export async function joinSquadron(code: string, callsign: string): Promise<ActionResult> {
   const c = clean(callsign, 40);
   if (!isInviteCode(code)) return { error: "Lien d'invitation invalide." };
-  if (!c) return { error: "Choisis un indicatif." };
+  if (!c) return { error: "Indique ton nom." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("join_squadron", { code, callsign: c });
   if (error) return { error: message(error, "Impossible de rejoindre l'escadron.") };

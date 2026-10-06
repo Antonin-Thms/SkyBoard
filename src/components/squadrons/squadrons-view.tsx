@@ -58,7 +58,7 @@ export function SquadronsView({ squadrons, folders, origin }: SquadronsViewProps
           />
         </label>
         <label className="flex min-w-40 flex-col gap-1 text-sm">
-          <span className="text-muted">Ton indicatif</span>
+          <span className="text-muted">Ton nom</span>
           <input
             className="input"
             maxLength={40}
