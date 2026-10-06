@@ -1,7 +1,7 @@
 import { CockpitCard } from "@/components/cockpits/cockpit-card";
 import { CreateCockpitForm } from "@/components/cockpits/create-cockpit-form";
 import { HelpPanel } from "@/components/help-panel";
-import { listFolders } from "@/lib/documents/server";
+import { getFolders } from "@/lib/documents/server";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "Cockpits · SkyBoard" };
@@ -10,7 +10,7 @@ export default async function CockpitsPage() {
   const supabase = await createClient();
   const [{ data, error }, folders] = await Promise.all([
     supabase.from("cockpits").select("id, name, viewer_token, active_folder_id").order("created_at"),
-    listFolders(supabase),
+    getFolders(),
   ]);
   const cockpits = data ?? [];
 

@@ -1,9 +1,49 @@
 import "server-only";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { cache } from "react";
 import type { Database, DocumentMimeType, Rotation } from "@/lib/database.types";
 import type { FolderSummary } from "./folders";
+import { createClient } from "@/lib/supabase/server";
 import { STORAGE_BUCKET, THUMBNAIL_URL_TTL } from "./storage";
+
+/**
+ * URLs signées des miniatures, réutilisées tant qu'il leur reste au moins
+ * 30 min de validité : l'URL reste identique d'une navigation à l'autre, le
+ * navigateur garde donc l'image en cache au lieu de la retélécharger.
+ * Cache mémoire de l'instance serveur (les chemins contiennent l'id du
+ * propriétaire et ne sont demandés qu'après une lecture soumise à la RLS).
+ */
+const thumbUrlCache = new Map<string, { url: string; expiresAt: number }>();
+const THUMB_REUSE_MARGIN_MS = 30 * 60 * 1000;
+const THUMB_CACHE_MAX = 5000;
+
+async function signedThumbnailUrls(
+  supabase: SupabaseClient<Database>,
+  paths: string[],
+): Promise<Map<string, string>> {
+  const now = Date.now();
+  const result = new Map<string, string>();
+  const missing: string[] = [];
+  for (const path of paths) {
+    const hit = thumbUrlCache.get(path);
+    if (hit && hit.expiresAt - now > THUMB_REUSE_MARGIN_MS) result.set(path, hit.url);
+    else missing.push(path);
+  }
+  if (missing.length) {
+    const { data: signed } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrls(missing, THUMBNAIL_URL_TTL);
+    const expiresAt = now + THUMBNAIL_URL_TTL * 1000;
+    if (thumbUrlCache.size > THUMB_CACHE_MAX) thumbUrlCache.clear();
+    signed?.forEach((s) => {
+      if (!s.path || !s.signedUrl) return;
+      result.set(s.path, s.signedUrl);
+      thumbUrlCache.set(s.path, { url: s.signedUrl, expiresAt });
+    });
+  }
+  return result;
+}
 
 export interface DocumentSummary {
   id: string;
@@ -28,15 +68,9 @@ export async function listDocumentsWithThumbnails(
   if (error) return { documents: [], error: true };
 
   const thumbPaths = rows.map((d) => d.thumbnail_path).filter((p): p is string => !!p);
-  const thumbUrls = new Map<string, string>();
-  if (thumbPaths.length) {
-    const { data: signed } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .createSignedUrls(thumbPaths, THUMBNAIL_URL_TTL);
-    signed?.forEach((s) => {
-      if (s.path && s.signedUrl) thumbUrls.set(s.path, s.signedUrl);
-    });
-  }
+  const thumbUrls = thumbPaths.length
+    ? await signedThumbnailUrls(supabase, thumbPaths)
+    : new Map<string, string>();
 
   return {
     error: false,
@@ -58,3 +92,9 @@ export async function listFolders(supabase: SupabaseClient<Database>): Promise<F
   const { data } = await supabase.from("folders").select("id, name").order("sort_order").order("created_at");
   return data ?? [];
 }
+
+/** Documents de l'utilisateur connecté, une seule fois par requête (mise en page + page). */
+export const getDocuments = cache(async () => listDocumentsWithThumbnails(await createClient()));
+
+/** Dossiers de l'utilisateur connecté, une seule fois par requête. */
+export const getFolders = cache(async () => listFolders(await createClient()));

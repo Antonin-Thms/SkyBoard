@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionClaims } from "@/lib/supabase/server";
 
 export default async function Home() {
-  const supabase = await createClient();
-  const { data } = await supabase.auth.getClaims();
-  if (data?.claims?.sub) redirect("/documents");
+  if ((await getSessionClaims())?.sub) redirect("/documents");
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center gap-8 p-8 text-center">

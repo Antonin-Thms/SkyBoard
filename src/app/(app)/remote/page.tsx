@@ -1,7 +1,7 @@
 import type { Viewport } from "next";
 import Link from "next/link";
 import { RemoteApp } from "@/components/remote/remote-app";
-import { listDocumentsWithThumbnails, listFolders } from "@/lib/documents/server";
+import { getDocuments, getFolders } from "@/lib/documents/server";
 import type { RemoteCockpit, RemoteDocument } from "@/lib/remote/types";
 import { createClient } from "@/lib/supabase/server";
 import { channelNameForToken } from "@/lib/sync/channel";
@@ -26,8 +26,8 @@ export default async function RemotePage({ searchParams }: PageProps<"/remote">)
       .from("cockpits")
       .select("id, name, viewer_token, last_state, active_folder_id")
       .order("created_at"),
-    listDocumentsWithThumbnails(supabase),
-    listFolders(supabase),
+    getDocuments(),
+    getFolders(),
   ]);
 
   // Le token reste côté serveur : la remote ne reçoit que le nom du canal.

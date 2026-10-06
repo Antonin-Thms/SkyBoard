@@ -4,20 +4,18 @@ import { DocumentUploader } from "@/components/documents/document-uploader";
 import { FolderBar } from "@/components/documents/folder-bar";
 import { HelpPanel } from "@/components/help-panel";
 import { matchesFilter, parseFolderFilter } from "@/lib/documents/folders";
-import { listDocumentsWithThumbnails, listFolders } from "@/lib/documents/server";
-import { createClient } from "@/lib/supabase/server";
+import { getDocuments, getFolders } from "@/lib/documents/server";
+import { getSessionClaims } from "@/lib/supabase/server";
 
 export const metadata = { title: "Documents · SkyBoard" };
 
 export default async function DocumentsPage({ searchParams }: PageProps<"/documents">) {
-  const supabase = await createClient();
-  const { data: auth } = await supabase.auth.getClaims();
-  const userId = auth?.claims?.sub;
+  const userId = (await getSessionClaims())?.sub;
   if (!userId) redirect("/login");
 
   const [{ documents, error }, folders, query] = await Promise.all([
-    listDocumentsWithThumbnails(supabase),
-    listFolders(supabase),
+    getDocuments(),
+    getFolders(),
     searchParams,
   ]);
   const filter = parseFolderFilter(query.folder, folders.map((f) => f.id));
