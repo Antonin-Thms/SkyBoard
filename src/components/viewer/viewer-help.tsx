@@ -61,7 +61,7 @@ export function ViewerHelp(props: ViewerHelpProps) {
           <h3 className="font-medium">{t.urlOptionsTitle}</h3>
           <ul className="space-y-0.5">
             <li>
-              <code className="whitespace-nowrap">?transparent=1</code> {t.optionTransparent}
+              <code className="whitespace-nowrap">?transparent=0</code> {t.optionTransparent}
             </li>
             <li>
               <code className="whitespace-nowrap">?status=0</code> {t.optionNoStatus}

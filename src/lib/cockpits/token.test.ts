@@ -20,8 +20,8 @@ describe("isViewerToken", () => {
 describe("buildViewerUrl", () => {
   it("construit l'URL avec les options", () => {
     expect(buildViewerUrl("https://sb.app", TOKEN)).toBe(`https://sb.app/viewer/${TOKEN}`);
-    expect(buildViewerUrl("https://sb.app", TOKEN, { transparent: true, hideStatus: true, cursor: true })).toBe(
-      `https://sb.app/viewer/${TOKEN}?transparent=1&status=0&cursor=1`,
+    expect(buildViewerUrl("https://sb.app", TOKEN, { opaque: true, hideStatus: true, cursor: true })).toBe(
+      `https://sb.app/viewer/${TOKEN}?transparent=0&status=0&cursor=1`,
     );
   });
 });

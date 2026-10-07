@@ -162,13 +162,13 @@ La remote détecte le type d'appareil : téléphone, tablette ou ordinateur. Un 
    - ouvre les réglages (roue crantée en bas à gauche), puis **Tabs** ;
    - clique sur **+ Add a tab**, choisis **Web Dashboard** ;
    - colle l'URL.
-3. Dans les réglages de l'onglet, choisis une taille proche du ratio de tes kneeboards (par ex. 768 × 1024 pour du portrait A4/Letter). Pour l'option `?transparent=1`, active aussi la transparence de l'onglet si OpenKneeboard la propose.
+3. Dans les réglages de l'onglet, choisis une taille proche du ratio de tes kneeboards (par ex. 768 × 1024 pour du portrait A4/Letter). Le fond est transparent par défaut : active aussi la transparence de l'onglet si OpenKneeboard la propose.
 
 Options facultatives, à ajouter à la main à la fin de l'URL du viewer :
 
 | Paramètre | Effet |
 | --- | --- |
-| `?transparent=1` | `html` et `body` transparents (rien n'est dessiné autour de la page) |
+| `?transparent=0` | fond noir autour de la page (par défaut : transparent, rien n'est dessiné autour) |
 | `?status=0` | masque l'indicateur de connexion (point en bas à droite) |
 | `?cursor=0` | n'affiche jamais le curseur (sinon il apparaît quand le bouton « Curseur » du mode vol est activé) |
 
