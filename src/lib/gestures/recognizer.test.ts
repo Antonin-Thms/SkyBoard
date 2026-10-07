@@ -75,28 +75,43 @@ describe("swipe de document (zoom = 1)", () => {
   });
 });
 
-describe("bandes latérales", () => {
-  it("swipe vertical dans une bande = page suivante (bas) / précédente (haut)", () => {
+describe("swipe vertical : favoris", () => {
+  it("vers le haut = favori suivant, vers le bas = précédent, n'importe où sur l'écran", () => {
+    const g = setup();
+    g.drag(1, [500, 600], [505, 300]);
+    g.tick(500);
+    g.drag(1, [20, 200], [25, 450]);
+    expect(g.commands().filter((c) => c.type === "favorite")).toEqual([
+      { type: "favorite", delta: 1 },
+      { type: "favorite", delta: -1 },
+    ]);
+  });
+
+  it("plus de changement de page au doigt", () => {
     const g = setup();
     g.drag(1, [20, 200], [25, 450]);
     g.tick(500);
     g.drag(1, [W - 20, 600], [W - 30, 300]);
-    expect(g.commands().filter((c) => c.type === "page")).toEqual([
-      { type: "page", delta: 1 },
-      { type: "page", delta: -1 },
-    ]);
+    expect(g.commands().some((c) => (c.type as string) === "page")).toBe(false);
   });
 
-  it("un swipe vertical hors des bandes ne change pas de page", () => {
+  it("un swipe en diagonale ne fait rien", () => {
     const g = setup();
-    g.drag(1, [500, 200], [500, 500]);
-    expect(g.commands().filter((c) => c.type === "page")).toEqual([]);
+    g.drag(1, [300, 300], [450, 450]);
+    expect(g.commands().filter((c) => c.type === "favorite" || c.type === "document")).toEqual([]);
   });
 
-  it("un swipe horizontal parti d'une bande ne change ni page ni document", () => {
+  it("pas de favori quand la page est zoomée : le doigt déplace la page", () => {
+    const g = setup({ zoom: 3, panX: 0, panY: 0 });
+    g.drag(1, [500, 600], [500, 300]);
+    expect(g.commands().filter((c) => c.type === "favorite")).toEqual([]);
+  });
+
+  it("crayon actif : un swipe vertical dessine au lieu de changer de favori", () => {
     const g = setup();
-    g.drag(1, [20, 400], [300, 400]);
-    expect(g.commands().filter((c) => c.type === "page" || c.type === "document")).toEqual([]);
+    g.r.setPen(true);
+    g.drag(1, [500, 600], [500, 300]);
+    expect(g.commands().filter((c) => c.type === "favorite")).toEqual([]);
   });
 });
 

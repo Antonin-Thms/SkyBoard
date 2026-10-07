@@ -39,8 +39,8 @@ export default defineMessages({
         pan: "glisser à deux doigts (ou à un doigt quand c'est zoomé) : déplacer ;",
         swipe: "swipe horizontal à un doigt (non zoomé) : document suivant ← / précédent → ;",
         doubleTap: "double tap : zoom et position remis à zéro ;",
-        edges:
-          "bandes étroites sur les bords gauche et droit de l'écran : swipe vers le bas = page suivante, vers le haut = précédente (PDF de plusieurs pages) ;",
+        favorites:
+          "swipe vertical à un doigt (non zoomé) : favori suivant ↑ / précédent ↓ (favoris choisis sur la page Documents) ;",
         cursor: "« Curseur » (en haut, maintenir) : affiche la position du doigt dans le casque ;",
         pen: "appui long de {s} s sans bouger, n'importe où : crayon activé / désactivé. Crayon actif : un doigt dessine, tap à deux doigts = annuler le dernier trait, pincer = zoom.",
         status: "Le point en haut indique la connexion temps réel : vert = connecté, orange = connexion en cours.",
@@ -85,11 +85,15 @@ export default defineMessages({
       pageInfo: "PAGE {page}/{count} · ×{zoom}",
       hintPen:
         "1 doigt : dessiner · Tap 2 doigts : annuler le dernier trait · Pincer : zoom · Appui long {s} s : arrêter le crayon",
-      hintCompact: "Pincer : zoom · Swipe ← → : document · Double tap : reset · Bords ↕ : page · Appui long : crayon",
-      hint: "Pincer : zoom · 2 doigts : déplacer · 1 doigt (zoomé) : déplacer · Swipe ← → : document · Double tap : réinitialiser · Bords ↕ : page · Appui long {s} s : crayon",
+      hintCompact: "Pincer : zoom · Swipe ← → : document · Double tap : reset · Swipe ↕ : favoris · Appui long : crayon",
+      favoriteInfo: "FAVORI {index}/{count}",
+      favoriteCount: "{count} FAVORIS",
+      noFavorites: "Aucun favori : ajoute-en depuis la page Documents",
+      hint: "Pincer : zoom · 2 doigts : déplacer · 1 doigt (zoomé) : déplacer · Swipe ← → : document · Double tap : réinitialiser · Swipe ↕ : favoris · Appui long {s} s : crayon",
     },
     prep: {
       inHeadset: "Dans le casque",
+      favorite: "Favori",
       noDocument: "Aucun document",
       pageInfo: "PAGE {page}/{count}",
       night: "Mode nuit",
@@ -159,8 +163,8 @@ export default defineMessages({
         pan: "two-finger drag (or one finger when zoomed): pan;",
         swipe: "one-finger horizontal swipe (not zoomed): next ← / previous → document;",
         doubleTap: "double tap: reset zoom and position;",
-        edges:
-          "narrow strips along the left and right edges of the screen: swipe down = next page, up = previous (multi-page PDFs);",
+        favorites:
+          "one-finger vertical swipe (not zoomed): next ↑ / previous ↓ favorite (favorites are chosen on the Documents page);",
         cursor: "“Cursor” (top, hold): shows your finger position in the headset;",
         pen: "hold still for {s} s, anywhere: pen on / off. With the pen on: one finger draws, two-finger tap = undo the last stroke, pinch = zoom.",
         status: "The dot at the top shows the real-time connection: green = connected, orange = connecting.",
@@ -205,11 +209,15 @@ export default defineMessages({
       pageInfo: "PAGE {page}/{count} · ×{zoom}",
       hintPen:
         "1 finger: draw · 2-finger tap: undo last stroke · Pinch: zoom · Long press {s} s: stop pen",
-      hintCompact: "Pinch: zoom · Swipe ← →: document · Double tap: reset · Edges ↕: page · Long press: pen",
-      hint: "Pinch: zoom · 2 fingers: pan · 1 finger (zoomed): pan · Swipe ← →: document · Double tap: reset · Edges ↕: page · Long press {s} s: pen",
+      hintCompact: "Pinch: zoom · Swipe ← →: document · Double tap: reset · Swipe ↕: favorites · Long press: pen",
+      favoriteInfo: "FAVORITE {index}/{count}",
+      favoriteCount: "{count} FAVORITES",
+      noFavorites: "No favorites: add some from the Documents page",
+      hint: "Pinch: zoom · 2 fingers: pan · 1 finger (zoomed): pan · Swipe ← →: document · Double tap: reset · Swipe ↕: favorites · Long press {s} s: pen",
     },
     prep: {
       inHeadset: "In the headset",
+      favorite: "Favorite",
       noDocument: "No document",
       pageInfo: "PAGE {page}/{count}",
       night: "Night mode",
@@ -279,8 +287,8 @@ export default defineMessages({
         pan: "mit zwei Fingern ziehen (oder mit einem, wenn gezoomt): verschieben;",
         swipe: "horizontal mit einem Finger wischen (nicht gezoomt): nächstes ← / vorheriges → Dokument;",
         doubleTap: "Doppeltippen: Zoom und Position zurücksetzen;",
-        edges:
-          "schmale Streifen am linken und rechten Bildschirmrand: nach unten wischen = nächste Seite, nach oben = vorherige (mehrseitige PDFs);",
+        favorites:
+          "vertikal mit einem Finger wischen (nicht gezoomt): nächster ↑ / vorheriger ↓ Favorit (Favoriten wählst du auf der Seite Dokumente);",
         cursor: "„Cursor“ (oben, gedrückt halten): zeigt die Fingerposition im Headset;",
         pen: "{s} s lang irgendwo gedrückt halten, ohne zu bewegen: Stift an / aus. Stift aktiv: ein Finger zeichnet, Tippen mit zwei Fingern = letzten Strich rückgängig, auseinanderziehen = Zoom.",
         status: "Der Punkt oben zeigt die Echtzeitverbindung: grün = verbunden, orange = Verbindung wird hergestellt.",
@@ -325,11 +333,15 @@ export default defineMessages({
       pageInfo: "SEITE {page}/{count} · ×{zoom}",
       hintPen:
         "1 Finger: zeichnen · Tippen mit 2 Fingern: letzten Strich rückgängig · Auseinanderziehen: Zoom · Lang drücken {s} s: Stift aus",
-      hintCompact: "Auseinanderziehen: Zoom · Wischen ← →: Dokument · Doppeltippen: Reset · Ränder ↕: Seite · Lang drücken: Stift",
-      hint: "Auseinanderziehen: Zoom · 2 Finger: verschieben · 1 Finger (gezoomt): verschieben · Wischen ← →: Dokument · Doppeltippen: zurücksetzen · Ränder ↕: Seite · Lang drücken {s} s: Stift",
+      hintCompact: "Auseinanderziehen: Zoom · Wischen ← →: Dokument · Doppeltippen: Reset · Wischen ↕: Favoriten · Lang drücken: Stift",
+      favoriteInfo: "FAVORIT {index}/{count}",
+      favoriteCount: "{count} FAVORITEN",
+      noFavorites: "Keine Favoriten: füge welche auf der Seite Dokumente hinzu",
+      hint: "Auseinanderziehen: Zoom · 2 Finger: verschieben · 1 Finger (gezoomt): verschieben · Wischen ← →: Dokument · Doppeltippen: zurücksetzen · Wischen ↕: Favoriten · Lang drücken {s} s: Stift",
     },
     prep: {
       inHeadset: "Im Headset",
+      favorite: "Favorit",
       noDocument: "Kein Dokument",
       pageInfo: "SEITE {page}/{count}",
       night: "Nachtmodus",
@@ -399,8 +411,8 @@ export default defineMessages({
         pan: "arrastrar con dos dedos (o con uno cuando hay zoom): desplazar;",
         swipe: "deslizar en horizontal con un dedo (sin zoom): documento siguiente ← / anterior →;",
         doubleTap: "doble toque: restablece el zoom y la posición;",
-        edges:
-          "franjas estrechas en los bordes izquierdo y derecho de la pantalla: deslizar hacia abajo = página siguiente, hacia arriba = anterior (PDF de varias páginas);",
+        favorites:
+          "deslizar en vertical con un dedo (sin zoom): favorito siguiente ↑ / anterior ↓ (los favoritos se eligen en la página Documentos);",
         cursor: "«Cursor» (arriba, mantener): muestra la posición del dedo en el casco;",
         pen: "pulsación larga de {s} s sin moverse, en cualquier sitio: lápiz activado / desactivado. Con el lápiz activo: un dedo dibuja, toque con dos dedos = deshacer el último trazo, pellizcar = zoom.",
         status: "El punto de arriba indica la conexión en tiempo real: verde = conectado, naranja = conectando.",
@@ -445,11 +457,15 @@ export default defineMessages({
       pageInfo: "PÁG. {page}/{count} · ×{zoom}",
       hintPen:
         "1 dedo: dibujar · Toque con 2 dedos: deshacer el último trazo · Pellizcar: zoom · Pulsación larga {s} s: detener el lápiz",
-      hintCompact: "Pellizcar: zoom · Deslizar ← →: documento · Doble toque: reset · Bordes ↕: página · Pulsación larga: lápiz",
-      hint: "Pellizcar: zoom · 2 dedos: desplazar · 1 dedo (con zoom): desplazar · Deslizar ← →: documento · Doble toque: restablecer · Bordes ↕: página · Pulsación larga {s} s: lápiz",
+      hintCompact: "Pellizcar: zoom · Deslizar ← →: documento · Doble toque: reset · Deslizar ↕: favoritos · Pulsación larga: lápiz",
+      favoriteInfo: "FAVORITO {index}/{count}",
+      favoriteCount: "{count} FAVORITOS",
+      noFavorites: "Sin favoritos: añádelos desde la página Documentos",
+      hint: "Pellizcar: zoom · 2 dedos: desplazar · 1 dedo (con zoom): desplazar · Deslizar ← →: documento · Doble toque: restablecer · Deslizar ↕: favoritos · Pulsación larga {s} s: lápiz",
     },
     prep: {
       inHeadset: "En el casco",
+      favorite: "Favorito",
       noDocument: "Ningún documento",
       pageInfo: "PÁG. {page}/{count}",
       night: "Modo noche",

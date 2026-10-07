@@ -21,4 +21,6 @@ export interface RemoteDocument {
   rotation: Rotation;
   /** Partagé par un autre pilote de l'escadron */
   readOnly: boolean;
+  /** Favori : parcouru en mode vol par swipe vertical */
+  favorite: boolean;
 }

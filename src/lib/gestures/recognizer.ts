@@ -5,8 +5,9 @@ import { panBy, screenToPage, zoomAt, type ViewTransform } from "./transform";
 /** Actions produites par le reconnaisseur, appliquées par la remote. */
 export type GestureAction =
   | { type: "view"; view: ViewTransform }
-  | { type: "page"; delta: 1 | -1 }
   | { type: "document"; delta: 1 | -1 }
+  /** Favori suivant (swipe vers le haut) / précédent (vers le bas) */
+  | { type: "favorite"; delta: 1 | -1 }
   | { type: "reset" }
   /** Point de la page sous le doigt (null : plus de doigt) */
   | { type: "cursor"; point: NormalizedPoint | null }
@@ -36,10 +37,8 @@ interface Pointer {
 }
 
 type Mode =
-  /** Un doigt, en attente : tap, swipe de document ou pan selon la suite */
+  /** Un doigt, en attente : tap, swipe (document / favori) ou pan selon la suite */
   | "single"
-  /** Un doigt parti d'une bande latérale : swipe vertical = changement de page */
-  | "edge"
   /** Un doigt qui déplace la page zoomée */
   | "pan"
   /** Crayon : un doigt posé, pas encore de trait (point, trait ou appui long) */
@@ -58,7 +57,7 @@ type Mode =
  *
  * Crayon : un appui long sans bouger (n'importe où) l'active ou le désactive.
  * Crayon actif : un doigt dessine, deux doigts zooment / déplacent, un tap à
- * deux doigts annule le dernier trait ; swipes et bandes sont désactivés.
+ * deux doigts annule le dernier trait ; les swipes sont désactivés.
  * L'appui long est détecté par `poll`, appelé par un minuteur de l'interface.
  */
 export class GestureRecognizer {
@@ -104,11 +103,11 @@ export class GestureRecognizer {
 
     if (this.pointers.size === 1) {
       if (this.penOn) this.mode = "ink-pending";
-      else this.mode = this.isInEdge(x) ? "edge" : "single";
+      else this.mode = "single";
       return [this.cursorAt(x, y)];
     }
 
-    // Deuxième doigt : pincement (annule tap / swipe / bande latérale / trait en cours).
+    // Deuxième doigt : pincement (annule tap / swipe / trait en cours).
     const actions: GestureAction[] = [];
     if (this.mode === "ink") actions.push({ type: "ink", phase: "cancel" });
     // Après un appui long consommé, plus rien jusqu'au relâcher complet.
@@ -178,7 +177,7 @@ export class GestureRecognizer {
    */
   poll(t: number): GestureAction[] {
     if (this.pointers.size !== 1) return [];
-    if (this.mode !== "single" && this.mode !== "edge" && this.mode !== "ink-pending") return [];
+    if (this.mode !== "single" && this.mode !== "ink-pending") return [];
     const [p] = this.pointers.values();
     if (p.maxMove > this.config.penHoldSlopPx || t - p.startT < this.config.penHoldMs) return [];
     this.penOn = !this.penOn;
@@ -196,7 +195,7 @@ export class GestureRecognizer {
     const actions: GestureAction[] = [];
 
     if (this.pointers.size === 1) {
-      if (this.mode === "single" || this.mode === "edge") actions.push(...this.finishSingle(p, t));
+      if (this.mode === "single") actions.push(...this.finishSingle(p, t));
       if (this.mode === "ink") actions.push({ type: "ink", phase: "end" });
       if (this.mode === "ink-pending") {
         // Tap avec le crayon : un point (décimales, ponctuation…).
@@ -269,23 +268,15 @@ export class GestureRecognizer {
     }
     this.lastTap = null;
 
-    // Bande latérale : swipe vertical = page précédente / suivante (PDF de plusieurs pages)
-    if (this.mode === "edge") {
-      if (Math.abs(dy) >= c.edgeSwipeMinPx && Math.abs(dy) >= Math.abs(dx) * c.swipeDirectionRatio) {
-        return [{ type: "page", delta: dy > 0 ? 1 : -1 }];
-      }
-      return [];
-    }
-
-    // Swipe horizontal à zoom 1 : vers la gauche = document suivant (comme on tourne une page).
-    // Un kneeboard = un document dans l'immense majorité des cas.
-    if (
-      !this.isZoomed() &&
-      duration <= c.swipeMaxMs &&
-      Math.abs(dx) >= c.swipeMinPx &&
-      Math.abs(dx) >= Math.abs(dy) * c.swipeDirectionRatio
-    ) {
+    // Swipes à zoom 1 (un kneeboard = un document dans l'immense majorité des cas) :
+    // - horizontal : vers la gauche = document suivant (comme on tourne une page) ;
+    // - vertical : vers le haut = favori suivant, vers le bas = précédent.
+    if (this.isZoomed() || duration > c.swipeMaxMs) return [];
+    if (Math.abs(dx) >= c.swipeMinPx && Math.abs(dx) >= Math.abs(dy) * c.swipeDirectionRatio) {
       return [{ type: "document", delta: dx < 0 ? 1 : -1 }];
+    }
+    if (Math.abs(dy) >= c.swipeMinPx && Math.abs(dy) >= Math.abs(dx) * c.swipeDirectionRatio) {
+      return [{ type: "favorite", delta: dy < 0 ? 1 : -1 }];
     }
     return [];
   }
@@ -328,10 +319,6 @@ export class GestureRecognizer {
 
   private isZoomed(): boolean {
     return this.getView().zoom > this.config.zoomMin + this.config.zoomEpsilon;
-  }
-
-  private isInEdge(x: number): boolean {
-    return x <= this.config.edgeWidthPx || x >= this.surface.width - this.config.edgeWidthPx;
   }
 
   private movedBeyond(p: Pointer, slop: number): boolean {

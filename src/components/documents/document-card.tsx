@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, RotateCcw, RotateCw, Trash2 } from "lucide-react";
+import { GripVertical, Pencil, RotateCcw, RotateCw, Star, StarOff, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { moveDocument, renameDocument } from "@/app/(app)/documents/actions";
 import { CachedThumbnail } from "@/components/cached-thumbnail";
@@ -30,6 +30,7 @@ interface DocumentCardProps {
   /** range : Maj+clic (sélection d'une plage) */
   onToggleSelect: (range: boolean) => void;
   onRotate: (delta: 1 | -1) => void;
+  onFavorite: (favorite: boolean) => void;
   /** Suppression (annulable quelques secondes, gérée par la grille) */
   onDelete: () => void;
   onRenamed: (name: string) => void;
@@ -46,6 +47,7 @@ export function DocumentCard({
   selecting,
   onToggleSelect,
   onRotate,
+  onFavorite,
   onDelete,
   onRenamed,
 }: DocumentCardProps) {
@@ -162,8 +164,11 @@ export function DocumentCard({
             />
           </form>
         ) : (
-          <p className="truncate text-[15px] font-medium" title={item.name}>
-            {item.name}
+          <p className="flex min-w-0 items-center gap-1.5 text-[15px] font-medium" title={item.name}>
+            {item.favorite && (
+              <Star size={14} strokeWidth={2} className="shrink-0 fill-accent text-accent" aria-label={t.grid.favoriteBadge} />
+            )}
+            <span className="truncate">{item.name}</span>
           </p>
         )}
         <div className="flex items-center justify-between gap-2">
@@ -186,7 +191,10 @@ export function DocumentCard({
             label={fmt(t.card.actionsFor, { name: item.name })}
             triggerClassName="btn-icon -mr-2 size-8"
             items={[
-              { label: t.card.menuRotateLeft, icon: <RotateCcw size={16} strokeWidth={1.75} />, onSelect: () => onRotate(-1) },
+              item.favorite
+                ? { label: t.grid.favoriteRemove, icon: <StarOff size={16} strokeWidth={1.75} />, onSelect: () => onFavorite(false) }
+                : { label: t.grid.favoriteAdd, icon: <Star size={16} strokeWidth={1.75} />, onSelect: () => onFavorite(true) },
+              { label: t.card.menuRotateLeft, icon: <RotateCcw size={16} strokeWidth={1.75} />, onSelect: () => onRotate(-1), separator: true },
               { label: t.card.menuRotateRight, icon: <RotateCw size={16} strokeWidth={1.75} />, onSelect: () => onRotate(1) },
               {
                 label: t.card.rename,

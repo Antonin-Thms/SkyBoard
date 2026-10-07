@@ -45,9 +45,9 @@ export default defineMessages({
       pan: { title: "Glisser à deux doigts", text: "Déplacer la page (ou à un doigt si zoomé)" },
       swipe: { title: "Swipe horizontal", text: "← document suivant · → document précédent" },
       doubleTap: { title: "Double tap", text: "Revenir à la page entière" },
-      edges: {
-        title: "Bords de l'écran",
-        text: "Swipe vertical : ↓ page suivante · ↑ précédente (PDF de plusieurs pages)",
+      favorites: {
+        title: "Swipe vertical",
+        text: "↑ favori suivant · ↓ précédent (étoile sur la page Documents)",
       },
       cursor: { title: "Curseur", text: "Bouton « Curseur » : ton doigt apparaît dans le casque" },
     },
@@ -95,9 +95,9 @@ export default defineMessages({
       pan: { title: "Two-finger drag", text: "Move the page (or one finger when zoomed in)" },
       swipe: { title: "Horizontal swipe", text: "← next document · → previous document" },
       doubleTap: { title: "Double tap", text: "Back to the full page" },
-      edges: {
-        title: "Screen edges",
-        text: "Vertical swipe: ↓ next page · ↑ previous (multi-page PDFs)",
+      favorites: {
+        title: "Vertical swipe",
+        text: "↑ next favorite · ↓ previous (star them on the Documents page)",
       },
       cursor: { title: "Cursor", text: "“Cursor” button: your finger shows up in the headset" },
     },
@@ -145,9 +145,9 @@ export default defineMessages({
       pan: { title: "Mit zwei Fingern ziehen", text: "Seite verschieben (oder mit einem Finger, wenn gezoomt)" },
       swipe: { title: "Horizontal wischen", text: "← nächstes Dokument · → vorheriges Dokument" },
       doubleTap: { title: "Doppeltippen", text: "Zurück zur ganzen Seite" },
-      edges: {
-        title: "Bildschirmränder",
-        text: "Vertikal wischen: ↓ nächste Seite · ↑ vorherige (mehrseitige PDFs)",
+      favorites: {
+        title: "Vertikal wischen",
+        text: "↑ nächster Favorit · ↓ vorheriger (Stern auf der Seite Dokumente)",
       },
       cursor: { title: "Cursor", text: "Schaltfläche „Cursor“: Dein Finger erscheint im Headset" },
     },
@@ -195,9 +195,9 @@ export default defineMessages({
       pan: { title: "Arrastrar con dos dedos", text: "Mover la página (o con un dedo si hay zoom)" },
       swipe: { title: "Deslizar en horizontal", text: "← documento siguiente · → documento anterior" },
       doubleTap: { title: "Doble toque", text: "Volver a la página completa" },
-      edges: {
-        title: "Bordes de la pantalla",
-        text: "Deslizar en vertical: ↓ página siguiente · ↑ anterior (PDF de varias páginas)",
+      favorites: {
+        title: "Deslizar en vertical",
+        text: "↑ favorito siguiente · ↓ anterior (estrella en la página Documentos)",
       },
       cursor: { title: "Cursor", text: "Botón «Cursor»: tu dedo aparece en el visor" },
     },

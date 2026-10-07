@@ -11,5 +11,7 @@ export interface DocumentSummary {
   rotation: Rotation;
   /** Partagé par un autre pilote de l'escadron : lecture seule */
   readOnly: boolean;
+  /** Dans mes favoris (parcourus en mode vol par swipe vertical) */
+  favorite: boolean;
   thumbnailUrl: string | null;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Maximize, Moon, PenLine } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Maximize, Moon, PenLine, Star } from "lucide-react";
 import { CachedThumbnail } from "@/components/cached-thumbnail";
 import { Menu, type MenuItem } from "@/components/ui/menu";
 import { fmt } from "@/lib/i18n/define";
@@ -165,6 +165,11 @@ export function PrepMode({
                   ) : (
                     <span className="flex h-full items-center justify-center text-xs text-subtle">
                       {doc.type === "application/pdf" ? t.pdf : t.image}
+                    </span>
+                  )}
+                  {doc.favorite && (
+                    <span className="absolute left-1.5 top-1.5 flex size-6 items-center justify-center bg-surface/85" aria-label={t.favorite}>
+                      <Star size={14} strokeWidth={2} className="fill-accent text-accent" />
                     </span>
                   )}
                   {doc.pageCount > 1 && (

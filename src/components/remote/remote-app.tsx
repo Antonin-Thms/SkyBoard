@@ -7,6 +7,7 @@ import { HelpPanel } from "@/components/help-panel";
 import { Select } from "@/components/ui/select";
 import { useDeviceKind } from "@/hooks/use-device-kind";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { useWakeLock } from "@/hooks/use-wake-lock";
 import type { FolderSummary } from "@/lib/documents/folders";
 import { GESTURE_CONFIG } from "@/lib/gestures/constants";
 import { fmt } from "@/lib/i18n/define";
@@ -28,6 +29,8 @@ export function RemoteApp({ cockpits, documents, folders, initialCockpitId, init
   const [storedId, setStoredId] = useLocalStorage("skyboard:cockpit");
   const [mode, setMode] = useState<"prep" | "flight">(initialMode);
   const device = useDeviceKind();
+  // Remote ouverte : l'écran ne se met pas en veille (vol de plusieurs heures).
+  useWakeLock();
   const t = useT().remote.app;
   const locale = useLocale();
   const holdSeconds = new Intl.NumberFormat(locale).format(GESTURE_CONFIG.penHoldMs / 1000);
@@ -108,7 +111,7 @@ export function RemoteApp({ cockpits, documents, folders, initialCockpitId, init
               <li>{t.help.pan}</li>
               <li>{t.help.swipe}</li>
               <li>{t.help.doubleTap}</li>
-              <li>{t.help.edges}</li>
+              <li>{t.help.favorites}</li>
               <li>{t.help.cursor}</li>
               <li>{fmt(t.help.pen, { s: holdSeconds })}</li>
             </ul>

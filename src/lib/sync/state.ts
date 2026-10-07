@@ -58,3 +58,24 @@ export function stepDocument(
   return selectDocument(state, doc, pageMemory);
 }
 
+
+/**
+ * Favori suivant / précédent, dans l'ordre de la liste (boucle).
+ * Depuis un document qui n'est pas favori : le premier favori après lui
+ * (ou avant, vers l'arrière). Renvoie null s'il n'y a pas d'autre favori.
+ */
+export function stepFavorite(
+  state: ViewState,
+  docs: (DocRef & { favorite: boolean })[],
+  delta: number,
+  pageMemory: Record<string, number>,
+): ViewState | null {
+  const n = docs.length;
+  const index = docs.findIndex((d) => d.id === state.docId);
+  const start = index !== -1 ? index : delta > 0 ? -1 : n;
+  for (let k = 1; k <= n; k++) {
+    const doc = docs[(((start + k * delta) % n) + n) % n];
+    if (doc.favorite && doc.id !== state.docId) return selectDocument(state, doc, pageMemory);
+  }
+  return null;
+}

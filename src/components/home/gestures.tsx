@@ -60,14 +60,12 @@ const GESTURES = [
     ),
   },
   {
-    key: "edges",
+    key: "favorites",
     art: (
       <Tablet>
-        <rect x="12" y="10" width="16" height="90" className="fill-slate-800" />
-        <rect x="132" y="10" width="16" height="90" className="fill-slate-800" />
-        <Finger x={140} y={40} />
-        <Arrow d="M140 52 V86" />
-        <Arrow d="M20 70 V26" />
+        <Finger x={80} y={78} />
+        <Arrow d="M80 66 V24" />
+        <path d="M112 30 l3 6 7 1 -5 5 1 7 -6 -3 -6 3 1 -7 -5 -5 7 -1 z" className="fill-amber-400 stroke-none" />
       </Tablet>
     ),
   },

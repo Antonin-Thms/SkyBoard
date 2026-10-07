@@ -10,11 +10,6 @@ export const GESTURE_CONFIG = {
   /** En dessous de zoomMin + zoomEpsilon, on considère que la page n'est pas zoomée */
   zoomEpsilon: 0.02,
 
-  /** Largeur des bandes latérales (page précédente / suivante) */
-  edgeWidthPx: 56,
-  /** Distance verticale minimale d'un swipe dans une bande latérale */
-  edgeSwipeMinPx: 60,
-
   /** Tolérance de mouvement pour qu'un appui reste un « tap » */
   tapSlopPx: 12,
   /** Durée max d'un tap */
@@ -24,9 +19,9 @@ export const GESTURE_CONFIG = {
   /** Distance max entre les deux taps d'un double tap */
   doubleTapSlopPx: 48,
 
-  /** Distance horizontale minimale d'un swipe de document (zoom = 1) */
+  /** Distance minimale d'un swipe (document ou favori, zoom = 1) */
   swipeMinPx: 60,
-  /** Durée max d'un swipe de document */
+  /** Durée max d'un swipe */
   swipeMaxMs: 700,
   /** Le déplacement principal doit dominer l'autre axe de ce facteur */
   swipeDirectionRatio: 1.5,
@@ -45,10 +40,10 @@ export type GestureConfig = { -readonly [K in keyof typeof GESTURE_CONFIG]: numb
 
 /**
  * Ajustements par type d'appareil (fusionnés avec GESTURE_CONFIG).
- * Sur téléphone, l'écran est plus petit : bandes et distances réduites.
+ * Sur téléphone, l'écran est plus petit : distances réduites.
  */
 export const DEVICE_GESTURE_OVERRIDES: Record<"phone" | "tablet" | "desktop", Partial<GestureConfig>> = {
-  phone: { edgeWidthPx: 40, edgeSwipeMinPx: 45, swipeMinPx: 45, doubleTapSlopPx: 40 },
+  phone: { swipeMinPx: 45, doubleTapSlopPx: 40 },
   tablet: {},
   desktop: {},
 };

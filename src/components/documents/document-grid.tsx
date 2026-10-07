@@ -16,7 +16,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { Folder, FolderInput, PenLine, RotateCcw, RotateCw, Trash2 } from "lucide-react";
+import { Folder, FolderInput, PenLine, RotateCcw, RotateCw, Star, StarOff, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import {
   clearDocumentAnnotations,
@@ -25,6 +25,7 @@ import {
   reorderDocuments,
   rotateDocuments,
   setDocumentRotation,
+  setFavorites,
 } from "@/app/(app)/documents/actions";
 import { rotateBy } from "@/lib/sync/protocol";
 import type { DocumentMimeType, Rotation } from "@/lib/database.types";
@@ -52,6 +53,8 @@ export interface DocumentItem {
   thumbnailUrl: string | null;
   folderId: string | null;
   rotation: Rotation;
+  /** Dans mes favoris (mode vol : swipe vertical) */
+  favorite: boolean;
 }
 
 interface DocumentGridProps {
@@ -208,6 +211,14 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
     };
   }, []);
 
+  /** Favoris : la sélection entière bascule (tous favoris → retirés, sinon ajoutés). */
+  const setFavorite = (ids: string[], favorite: boolean) =>
+    run(
+      (list) => list.map((i) => (ids.includes(i.id) ? { ...i, favorite } : i)),
+      () => setFavorites(ids, favorite),
+    );
+  const allFavorite = selectedIds.length > 0 && items.every((i) => !selected.has(i.id) || i.favorite);
+
   const deleteSelected = () => scheduleDelete(selectedIds);
 
   const clearSelectedAnnotations = () => {
@@ -307,6 +318,16 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
                 })),
               ]}
             />
+            <button
+              type="button"
+              className="btn-ghost text-fg"
+              title={g.favoriteHint}
+              onClick={() => setFavorite(selectedIds, !allFavorite)}
+            >
+              {allFavorite ? <StarOff size={17} strokeWidth={1.75} /> : <Star size={17} strokeWidth={1.75} />}
+              <span className="hidden sm:inline">{allFavorite ? g.favoriteRemove : g.favoriteAdd}</span>
+              <span className="sr-only sm:hidden">{allFavorite ? g.favoriteRemove : g.favoriteAdd}</span>
+            </button>
             <button type="button" className="btn-ghost text-fg" title={g.clearTitle} onClick={clearSelectedAnnotations}>
               <PenLine size={17} strokeWidth={1.75} />
               <span className="hidden sm:inline">{g.clear}</span>
@@ -333,6 +354,7 @@ export function DocumentGrid({ initialItems, folders }: DocumentGridProps) {
                 selecting={count > 0}
                 onToggleSelect={(range) => toggle(item.id, range)}
                 onRotate={(delta) => rotateOne(item.id, delta)}
+                onFavorite={(favorite) => setFavorite([item.id], favorite)}
                 onDelete={() => scheduleDelete([item.id])}
                 onRenamed={(name) =>
                   setItems((list) => list.map((i) => (i.id === item.id ? { ...i, name } : i)))

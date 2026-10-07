@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { INITIAL_VIEW_STATE, type ViewState } from "./protocol";
-import { isNewer, nextSeq, selectDocument, stepDocument, stepPage } from "./state";
+import { isNewer, nextSeq, selectDocument, stepDocument, stepFavorite, stepPage } from "./state";
 
 const docs = [
   { id: "a", pageCount: 3 },
@@ -70,3 +70,42 @@ describe("stepDocument", () => {
   });
 });
 
+
+describe("stepFavorite", () => {
+  const favs = [
+    { id: "a", pageCount: 1, favorite: true },
+    { id: "b", pageCount: 1, favorite: false },
+    { id: "c", pageCount: 3, favorite: true },
+    { id: "d", pageCount: 1, favorite: false },
+    { id: "e", pageCount: 1, favorite: true },
+  ];
+  const at = (docId: string | null) => ({ ...base, docId });
+
+  it("passe d'un favori à l'autre dans l'ordre de la liste, en boucle", () => {
+    expect(stepFavorite(at("a"), favs, 1, {})?.docId).toBe("c");
+    expect(stepFavorite(at("c"), favs, 1, {})?.docId).toBe("e");
+    expect(stepFavorite(at("e"), favs, 1, {})?.docId).toBe("a");
+    expect(stepFavorite(at("a"), favs, -1, {})?.docId).toBe("e");
+  });
+
+  it("depuis un document non favori : le favori suivant ou précédent", () => {
+    expect(stepFavorite(at("b"), favs, 1, {})?.docId).toBe("c");
+    expect(stepFavorite(at("b"), favs, -1, {})?.docId).toBe("a");
+    expect(stepFavorite(at("d"), favs, 1, {})?.docId).toBe("e");
+  });
+
+  it("sans document affiché : premier favori (haut) ou dernier (bas)", () => {
+    expect(stepFavorite(at(null), favs, 1, {})?.docId).toBe("a");
+    expect(stepFavorite(at(null), favs, -1, {})?.docId).toBe("e");
+  });
+
+  it("reprend la dernière page vue du favori", () => {
+    expect(stepFavorite(at("a"), favs, 1, { c: 2 })).toMatchObject({ docId: "c", page: 2, zoom: 1 });
+  });
+
+  it("ne fait rien sans autre favori", () => {
+    expect(stepFavorite(at("a"), favs.map((d) => ({ ...d, favorite: d.id === "a" })), 1, {})).toBeNull();
+    expect(stepFavorite(at("b"), favs.map((d) => ({ ...d, favorite: false })), 1, {})).toBeNull();
+    expect(stepFavorite(at(null), [], 1, {})).toBeNull();
+  });
+});

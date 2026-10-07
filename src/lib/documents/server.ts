@@ -54,12 +54,17 @@ export async function listDocumentsWithThumbnails(
   userId: string | null,
 ): Promise<{ documents: DocumentSummary[]; error: boolean }> {
   // RLS : mes documents + ceux des dossiers partagés avec mes escadrons.
-  const { data: rows, error } = await supabase
-    .from("documents")
-    .select("id, user_id, name, type, page_count, sort_order, folder_id, rotation, thumbnail_path")
-    .order("sort_order")
-    .order("created_at");
+  // Favoris : RLS, uniquement ceux de l'utilisateur connecté.
+  const [{ data: rows, error }, { data: favoriteRows }] = await Promise.all([
+    supabase
+      .from("documents")
+      .select("id, user_id, name, type, page_count, sort_order, folder_id, rotation, thumbnail_path")
+      .order("sort_order")
+      .order("created_at"),
+    supabase.from("document_favorites").select("document_id"),
+  ]);
   if (error) return { documents: [], error: true };
+  const favorites = new Set((favoriteRows ?? []).map((f) => f.document_id));
 
   const thumbPaths = rows.map((d) => d.thumbnail_path).filter((p): p is string => !!p);
   const thumbUrls = thumbPaths.length
@@ -77,6 +82,7 @@ export async function listDocumentsWithThumbnails(
       folderId: d.folder_id,
       rotation: d.rotation,
       readOnly: d.user_id !== userId,
+      favorite: favorites.has(d.id),
       thumbnailUrl: d.thumbnail_path ? (thumbUrls.get(d.thumbnail_path) ?? null) : null,
     })),
   };

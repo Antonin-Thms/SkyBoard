@@ -14,7 +14,7 @@ import { IDENTITY_VIEW } from "@/lib/gestures/transform";
 import { readPageMemory, rememberPage } from "@/lib/remote/page-memory";
 import type { RemoteCockpit, RemoteDocument } from "@/lib/remote/types";
 import type { ViewState } from "@/lib/sync/protocol";
-import { selectDocument, stepDocument, stepPage } from "@/lib/sync/state";
+import { selectDocument, stepDocument, stepFavorite, stepPage } from "@/lib/sync/state";
 import { FlightMode } from "./flight-mode";
 import { InkEditor } from "./ink-editor";
 import { PrepMode } from "./prep-mode";
@@ -62,6 +62,12 @@ export function CockpitRemote({
   const [cursorPref, setCursorPref] = useLocalStorage("skyboard:cursor");
   const cursorEnabled = cursorPref === "1";
   const current = documents.find((d) => d.id === state.docId) ?? null;
+  // Mode vol : position dans les favoris (swipe vertical).
+  const favoriteIds = documents.filter((d) => d.favorite).map((d) => d.id);
+  const favoriteInfo = {
+    count: favoriteIds.length,
+    index: current ? favoriteIds.indexOf(current.id) + 1 : 0,
+  };
   const pageMemory = () => readPageMemory(cockpit.id);
 
   const apply = (next: ViewState | null, immediate = true) => {
@@ -157,11 +163,11 @@ export function CockpitRemote({
           if (target) ink.undo(target.docId, target.page);
           break;
         }
-        case "page":
+        case "favorite":
         case "document": {
           const stepped =
-            action.type === "page"
-              ? stepPageOrStart(next, action.delta)
+            action.type === "favorite"
+              ? stepFavorite(next, documents, action.delta, pageMemory())
               : stepDocument(next, documents, action.delta, pageMemory());
           if (stepped) {
             next = stepped;
@@ -201,6 +207,7 @@ export function CockpitRemote({
           page: state.page,
           pageCount: current?.pageCount ?? 1,
           zoom: state.zoom,
+          favorites: favoriteInfo,
         }}
       />
     );

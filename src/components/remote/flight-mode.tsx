@@ -8,7 +8,7 @@ import type { ViewTransform } from "@/lib/gestures/transform";
 import { fmt } from "@/lib/i18n/define";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { LinkStatus } from "@/lib/sync/cockpit-link";
-import { LogOut, Moon, MousePointer2, PenLine } from "lucide-react";
+import { LogOut, Moon, MousePointer2, PenLine, Star } from "lucide-react";
 import { HoldButton } from "@/components/hold-button";
 import { StatusDot, type StatusTone } from "@/components/ui/status-dot";
 
@@ -24,7 +24,14 @@ interface FlightModeProps {
   onToggleNight: () => void;
   /** Crayon actif (affichage) */
   pen: boolean;
-  info: { docName: string | null; page: number; pageCount: number; zoom: number };
+  info: {
+    docName: string | null;
+    page: number;
+    pageCount: number;
+    zoom: number;
+    /** Position dans les favoris (index 0 : le document affiché n'est pas favori) */
+    favorites: { index: number; count: number };
+  };
 }
 
 const STATUS_TONE: Record<LinkStatus, StatusTone> = {
@@ -159,8 +166,6 @@ export function FlightMode({
     };
   }, [device]);
 
-  const edgeStyle = { width: config.edgeWidthPx };
-
   return (
     <div className="fixed inset-0 z-50 flex select-none flex-col bg-black pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] pt-[env(safe-area-inset-top)] text-slate-500 [-webkit-touch-callout:none]">
       <div className="flex h-12 shrink-0 items-center justify-between gap-2 border-b border-line px-2 text-sm">
@@ -198,18 +203,10 @@ export function FlightMode({
       </div>
 
       <div ref={surfaceRef} className="relative flex-1 touch-none overflow-hidden">
-        {/* Bandes latérales : swipe vertical = page précédente / suivante (désactivées avec le crayon) */}
-        {!pen && (
-          <>
-            <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 left-0 border-r border-dashed border-line-strong bg-sunken" />
-            <div style={edgeStyle} className="pointer-events-none absolute inset-y-0 right-0 border-l border-dashed border-line-strong bg-sunken" />
-          </>
-        )}
         {pen && <div className="pointer-events-none absolute inset-0 border-[3px] border-accent/80" />}
 
         <div
-          className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 text-center"
-          style={{ paddingInline: config.edgeWidthPx + 12 }}
+          className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 px-6 text-center"
         >
           {pen && (
             <p className="mb-2 flex items-center gap-2 text-lg font-semibold text-accent">
@@ -223,11 +220,19 @@ export function FlightMode({
               {fmt(t.pageInfo, { page: info.page, count: info.pageCount, zoom: info.zoom.toFixed(1) })}
             </p>
           )}
+          {/* Favoris : position quand le document en est un, sinon leur nombre */}
+          <p className={`numeric flex items-center gap-1.5 text-sm tracking-wider ${info.favorites.index ? "text-accent" : "text-subtle"}`}>
+            {info.favorites.count > 0 && <Star size={13} strokeWidth={2} className={info.favorites.index ? "fill-accent" : ""} />}
+            {info.favorites.count === 0
+              ? t.noFavorites
+              : info.favorites.index
+                ? fmt(t.favoriteInfo, { index: info.favorites.index, count: info.favorites.count })
+                : fmt(t.favoriteCount, { count: info.favorites.count })}
+          </p>
         </div>
 
         <p
-          className="pointer-events-none absolute inset-x-0 bottom-3 text-center text-xs leading-relaxed text-subtle"
-          style={{ paddingInline: config.edgeWidthPx + 12 }}
+          className="pointer-events-none absolute inset-x-0 bottom-3 px-6 text-center text-xs leading-relaxed text-subtle"
         >
           {pen
             ? fmt(t.hintPen, { s: holdSeconds })

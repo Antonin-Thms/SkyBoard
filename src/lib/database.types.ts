@@ -124,6 +124,19 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      document_favorites: {
+        Row: {
+          user_id: string;
+          document_id: string;
+          created_at: string;
+        };
+        Insert: {
+          user_id?: string;
+          document_id: string;
+        };
+        Update: never;
+        Relationships: [];
+      };
       /** Jumelage par QR code : accessible uniquement côté serveur (service_role). */
       remote_pairings: {
         Row: {

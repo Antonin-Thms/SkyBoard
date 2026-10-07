@@ -219,3 +219,24 @@ export async function deleteDocuments(ids: string[]): Promise<ActionResult> {
   notifyDocumentsChanged(supabase);
   return {};
 }
+
+/** Ajoute ou retire des documents de mes favoris (parcourus en mode vol). */
+export async function setFavorites(ids: string[], favorite: boolean): Promise<ActionResult> {
+  const t = await getT();
+  if (!validIds(ids) || typeof favorite !== "boolean") return { error: t.documents.errors.invalidSelection };
+
+  const supabase = await createClient();
+  // RLS : seuls mes favoris, et seulement sur des documents que je peux lire.
+  const { error } = favorite
+    ? await supabase
+        .from("document_favorites")
+        .upsert(ids.map((document_id) => ({ document_id })), { onConflict: "user_id,document_id", ignoreDuplicates: true })
+    : await supabase.from("document_favorites").delete().in("document_id", ids);
+  if (error) return { error: t.documents.errors.favoriteFailed };
+
+  revalidatePath("/documents");
+  revalidatePath("/remote");
+  // La remote ouverte (tablette) recharge sa liste de favoris.
+  notifyDocumentsChanged(supabase);
+  return {};
+}
