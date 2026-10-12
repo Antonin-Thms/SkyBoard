@@ -5,7 +5,6 @@ export default defineMessages({
   fr: {
     app: {
       noDocuments: "Aucun document",
-      missingDocument: "Document en cours de chargement…",
       penActive: "Crayon actif",
       pen: "Crayon",
       helpHint: "H : aide",
@@ -48,7 +47,6 @@ export default defineMessages({
   en: {
     app: {
       noDocuments: "No documents",
-      missingDocument: "Loading document…",
       penActive: "Pen active",
       pen: "Pen",
       helpHint: "H: help",
@@ -91,7 +89,6 @@ export default defineMessages({
   de: {
     app: {
       noDocuments: "Keine Dokumente",
-      missingDocument: "Dokument wird geladen…",
       penActive: "Stift aktiv",
       pen: "Stift",
       helpHint: "H: Hilfe",
@@ -134,7 +131,6 @@ export default defineMessages({
   es: {
     app: {
       noDocuments: "Ningún documento",
-      missingDocument: "Cargando el documento…",
       penActive: "Lápiz activo",
       pen: "Lápiz",
       helpHint: "H: ayuda",
