@@ -159,9 +159,28 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
     };
   }, [channel, reload]);
 
+  // Document demandé par la remote mais absent de la liste (ajouté ou modifié,
+  // notification perdue) : on recharge la liste plutôt que d'afficher un autre
+  // document. Quelques essais espacés par document, sans boucle.
+  const wantedId = view?.docId ?? null;
+  const missing = !!wantedId && !!data && !documents.some((d) => d.id === wantedId);
+  const [missingAttempts, setMissingAttempts] = useState<Record<string, number>>({});
+  const attempts = wantedId ? (missingAttempts[wantedId] ?? 0) : 0;
+  // Toujours introuvable après les essais (document supprimé…) : premier document, comme avant.
+  const gaveUp = missing && attempts >= 3;
+  useEffect(() => {
+    if (!missing || !wantedId || attempts >= 3) return;
+    const timer = setTimeout(() => {
+      setMissingAttempts((prev) => ({ ...prev, [wantedId]: attempts + 1 }));
+      reload();
+    }, attempts * 2_000);
+    return () => clearTimeout(timer);
+  }, [missing, wantedId, attempts, documents, reload]);
+
   // Affichage effectif : état reçu, sinon premier document.
   const current = useMemo(() => {
     const wanted = view;
+    if (missing && !gaveUp) return null;
     const doc = documents.find((d) => d.id === wanted?.docId) ?? documents[0];
     if (!doc) return null;
     const page = wanted && wanted.docId === doc.id ? wanted.page : 1;
@@ -177,7 +196,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
         : null;
     // Rotation : propriété du document (réglée sur la page Documents).
     return { doc, page: clampPage(page, doc.pageCount), rotation: doc.rotation, transform, cursor };
-  }, [view, documents, options.showCursor]);
+  }, [view, documents, options.showCursor, missing, gaveUp]);
 
   const currentKey = current ? pageKey(current.doc.id, current.page) : null;
   const pageStrokes = useMemo(
@@ -273,7 +292,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
       ) : (
         data && (
           <div className="flex h-full items-center justify-center text-base text-white/70">
-            {t.app.noDocuments}
+            {missing ? t.app.missingDocument : t.app.noDocuments}
           </div>
         )
       )}
