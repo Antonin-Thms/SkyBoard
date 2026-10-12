@@ -14,7 +14,33 @@ const Tablet = ({ children }: { children?: React.ReactNode }) => (
   </svg>
 );
 
-const Finger = ({ x, y }: { x: number; y: number }) => <circle cx={x} cy={y} r="8" className="fill-sky-500/80" />;
+/** Appui d'un doigt : empreinte digitale (boucles concentriques ouvertes, comme les crêtes). */
+const RINGS = [
+  { r: 2, gap: 100 },
+  { r: 4.6, gap: 60 },
+  { r: 7.2, gap: 120 },
+  { r: 9.8, gap: 75 },
+  { r: 12.4, gap: 105 },
+] as const;
+/** Arc d'ellipse (rx, ry = 1,3 × rx) laissant une ouverture centrée sur `gap` degrés (0 = droite, 90 = bas). */
+function ridge(x: number, y: number, r: number, gap: number): string {
+  const rx = r;
+  const ry = r * 1.3;
+  const open = 50;
+  const point = (deg: number) => {
+    const a = (deg * Math.PI) / 180;
+    return `${(x + rx * Math.cos(a)).toFixed(2)} ${(y + ry * Math.sin(a)).toFixed(2)}`;
+  };
+  return `M${point(gap + open / 2)} A${rx} ${ry} 0 1 1 ${point(gap - open / 2)}`;
+}
+const Finger = ({ x, y }: { x: number; y: number }) => (
+  <g className="stroke-sky-400" strokeWidth="1.5" strokeLinecap="round">
+    <ellipse cx={x} cy={y} rx="14" ry="17.5" className="fill-slate-900 stroke-none" />
+    {RINGS.map(({ r, gap }) => (
+      <path key={r} d={ridge(x, y, r, gap)} />
+    ))}
+  </g>
+);
 const Arrow = ({ d }: { d: string }) => <path d={d} className="stroke-sky-500" markerEnd="url(#g-arrow)" />;
 
 const GESTURES = [
@@ -22,10 +48,10 @@ const GESTURES = [
     key: "pinch",
     art: (
       <Tablet>
-        <Finger x={66} y={64} />
-        <Finger x={94} y={46} />
-        <Arrow d="M58 72 L42 86" />
-        <Arrow d="M102 38 L118 24" />
+        <Finger x={64} y={66} />
+        <Finger x={96} y={44} />
+        <Arrow d="M52 78 L36 92" />
+        <Arrow d="M108 32 L124 18" />
       </Tablet>
     ),
   },
@@ -33,9 +59,10 @@ const GESTURES = [
     key: "pan",
     art: (
       <Tablet>
-        <Finger x={60} y={48} />
-        <Finger x={60} y={70} />
-        <Arrow d="M74 59 H118" />
+        <Finger x={44} y={36} />
+        <Finger x={44} y={76} />
+        <Arrow d="M64 36 H124" />
+        <Arrow d="M64 76 H124" />
       </Tablet>
     ),
   },
@@ -44,8 +71,8 @@ const GESTURES = [
     art: (
       <Tablet>
         <Finger x={80} y={56} />
-        <Arrow d="M68 56 H34" />
-        <Arrow d="M92 56 H126" />
+        <Arrow d="M62 56 H28" />
+        <Arrow d="M98 56 H132" />
       </Tablet>
     ),
   },
@@ -54,8 +81,8 @@ const GESTURES = [
     art: (
       <Tablet>
         <Finger x={80} y={56} />
-        <circle cx="80" cy="56" r="16" className="stroke-sky-500" />
-        <circle cx="80" cy="56" r="24" className="stroke-sky-500/50" />
+        <circle cx="80" cy="56" r="23" className="stroke-sky-500" />
+        <circle cx="80" cy="56" r="31" className="stroke-sky-500/50" />
       </Tablet>
     ),
   },
@@ -63,8 +90,8 @@ const GESTURES = [
     key: "favorites",
     art: (
       <Tablet>
-        <Finger x={80} y={78} />
-        <Arrow d="M80 66 V24" />
+        <Finger x={80} y={76} />
+        <Arrow d="M80 56 V18" />
         <path d="M112 30 l3 6 7 1 -5 5 1 7 -6 -3 -6 3 1 -7 -5 -5 7 -1 z" className="fill-amber-400 stroke-none" />
       </Tablet>
     ),
@@ -73,9 +100,9 @@ const GESTURES = [
     key: "cursor",
     art: (
       <Tablet>
-        <Finger x={70} y={60} />
-        <circle cx="104" cy="40" r="7" className="stroke-sky-500" />
-        <path d="M78 54 L96 44" className="stroke-sky-500/60" strokeDasharray="3 3" />
+        <Finger x={62} y={66} />
+        <circle cx="110" cy="36" r="7" className="stroke-sky-500" />
+        <path d="M76 56 L102 41" className="stroke-sky-500/60" strokeDasharray="3 3" />
       </Tablet>
     ),
   },
