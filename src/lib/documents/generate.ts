@@ -120,3 +120,79 @@ export async function renderChecklist(
     pages.map((canvas, i) => toFile(canvas, pages.length > 1 ? `${title} (${i + 1}-${pages.length})` : title)),
   );
 }
+
+/** Nombre de colonnes d'une table RAMROD (chiffres 0 à 9). */
+export const RAMROD_SIZE = 10;
+
+/** Un caractère par case : majuscule, sans espace (gère les caractères accentués). */
+export function normalizeRamrodChar(input: string): string {
+  return Array.from(input.replace(/\s+/g, "").toLocaleUpperCase()).at(-1) ?? "";
+}
+
+/** Texte collé ou saisi d'un coup : un caractère par case, au plus 10. */
+export function splitRamrodChars(input: string): string[] {
+  return Array.from(input.replace(/\s+/g, "").toLocaleUpperCase()).slice(0, RAMROD_SIZE);
+}
+
+/** Caractères présents plusieurs fois (une table RAMROD n'en a normalement aucun). */
+export function ramrodDuplicates(chars: string[]): string[] {
+  const seen = new Set<string>();
+  const dupes = new Set<string>();
+  for (const c of chars) {
+    if (!c) continue;
+    if (seen.has(c)) dupes.add(c);
+    seen.add(c);
+  }
+  return [...dupes];
+}
+
+/**
+ * Table d'authentification RAMROD : ligne 1 = chiffres 0 à 9, ligne 2 = le
+ * caractère associé à chaque chiffre. Cases vides laissées à remplir au crayon.
+ */
+export async function renderRamrod(title: string, chars: string[]): Promise<File> {
+  const { canvas, ctx } = newPage();
+  ctx.fillStyle = INK;
+  ctx.font = "600 56px sans-serif";
+  ctx.textBaseline = "alphabetic";
+  ctx.fillText(title, MARGIN, MARGIN + 50);
+  ctx.fillRect(MARGIN, MARGIN + 80, PAGE.width - 2 * MARGIN, 4);
+
+  const top = MARGIN + 170;
+  const cell = (PAGE.width - 2 * MARGIN) / RAMROD_SIZE;
+  const digitsHeight = 110;
+  const charsHeight = 170;
+
+  // Ligne des chiffres : fond gris clair, lisible même atténuée (mode nuit).
+  ctx.fillStyle = "#e4e4e4";
+  ctx.fillRect(MARGIN, top, cell * RAMROD_SIZE, digitsHeight);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  for (let i = 0; i < RAMROD_SIZE; i++) {
+    const cx = MARGIN + cell * i + cell / 2;
+    ctx.fillStyle = INK;
+    ctx.font = "600 60px sans-serif";
+    ctx.fillText(String(i), cx, top + digitsHeight / 2 + 2);
+    const ch = chars[i] ?? "";
+    if (ch) {
+      ctx.font = "700 100px sans-serif";
+      ctx.fillText(ch, cx, top + digitsHeight + charsHeight / 2 + 4, cell - 12);
+    }
+  }
+
+  // Quadrillage
+  ctx.strokeStyle = INK;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(MARGIN, top, cell * RAMROD_SIZE, digitsHeight + charsHeight);
+  ctx.beginPath();
+  ctx.moveTo(MARGIN, top + digitsHeight);
+  ctx.lineTo(MARGIN + cell * RAMROD_SIZE, top + digitsHeight);
+  for (let i = 1; i < RAMROD_SIZE; i++) {
+    ctx.moveTo(MARGIN + cell * i, top);
+    ctx.lineTo(MARGIN + cell * i, top + digitsHeight + charsHeight);
+  }
+  ctx.stroke();
+
+  return toFile(canvas, title);
+}
