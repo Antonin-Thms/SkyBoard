@@ -264,6 +264,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
           rotation={current.rotation}
           view={current.transform}
           cursor={current.cursor}
+          cursorMode={view?.pen ? (view.inkArmed ? "ink" : "aim") : "default"}
           dim={view?.night === true}
           strokes={pageStrokes}
           onError={handleRenderError}

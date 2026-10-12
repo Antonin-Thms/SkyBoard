@@ -16,6 +16,8 @@ export type GestureAction =
   /** Crayon : trait commencé, prolongé, terminé ou abandonné (point de la page affichée) */
   | { type: "ink"; phase: "start" | "move"; point: NormalizedPoint }
   | { type: "ink"; phase: "end" | "cancel" }
+  /** Crayon : pointe posée (le casque montre où le trait va partir) ou relevée */
+  | { type: "inkArmed"; armed: boolean }
   /** Crayon : annuler le dernier trait (tap à deux doigts) */
   | { type: "undo" }
   /** Fin de geste (tous les doigts levés) : envoi final garanti */
@@ -34,6 +36,10 @@ interface Pointer {
   startT: number;
   /** Plus grand écart depuis l'appui (appui long, tap à deux doigts) */
   maxMove: number;
+  /** Crayon : dernière position où le doigt s'est arrêté, et depuis quand */
+  stillX: number;
+  stillY: number;
+  stillT: number;
 }
 
 type Mode =
@@ -41,8 +47,10 @@ type Mode =
   | "single"
   /** Un doigt qui déplace la page zoomée */
   | "pan"
-  /** Crayon : un doigt posé, pas encore de trait (point, trait ou appui long) */
-  | "ink-pending"
+  /** Crayon : un doigt vise (le curseur suit dans le casque), rien ne s'écrit */
+  | "ink-aim"
+  /** Crayon : doigt arrêté assez longtemps, pointe posée : le prochain mouvement écrit */
+  | "ink-armed"
   /** Crayon : trait en cours */
   | "ink"
   /** Deux doigts : pincement + déplacement */
@@ -56,9 +64,13 @@ type Mode =
  * surface, le temps en ms. `getView` fournit la vue courante.
  *
  * Crayon : un appui long sans bouger (n'importe où) l'active ou le désactive.
- * Crayon actif : un doigt dessine, deux doigts zooment / déplacent, un tap à
- * deux doigts annule le dernier trait ; les swipes sont désactivés.
- * L'appui long est détecté par `poll`, appelé par un minuteur de l'interface.
+ * Crayon actif (« viser, puis écrire », utilisable sans regarder) : le doigt
+ * posé déplace seulement le curseur du casque ; arrêté `inkArmMs`, il pose la
+ * pointe (le casque le montre) et le mouvement suivant écrit à cet endroit.
+ * Deux doigts zooment / déplacent, un tap à deux doigts annule le dernier
+ * trait ; les swipes sont désactivés.
+ * Appui long et pointe posée sont détectés par `poll`, appelé régulièrement
+ * par un minuteur de l'interface tant qu'un doigt est posé.
  */
 export class GestureRecognizer {
   private pointers = new Map<number, Pointer>();
@@ -71,6 +83,8 @@ export class GestureRecognizer {
   private penOn = false;
   /** Appui long consommé : plus rien jusqu'au relâcher de tous les doigts. */
   private holdConsumed = false;
+  /** Point où la pointe est posée (mode ink-armed) */
+  private armed: { x: number; y: number } | null = null;
 
   constructor(
     private surface: Size,
@@ -99,10 +113,10 @@ export class GestureRecognizer {
 
   down(id: number, x: number, y: number, t: number): GestureAction[] {
     if (this.pointers.size >= 2) return []; // 3e doigt et plus : ignorés
-    this.pointers.set(id, { x, y, startX: x, startY: y, startT: t, maxMove: 0 });
+    this.pointers.set(id, { x, y, startX: x, startY: y, startT: t, maxMove: 0, stillX: x, stillY: y, stillT: t });
 
     if (this.pointers.size === 1) {
-      if (this.penOn) this.mode = "ink-pending";
+      if (this.penOn) this.mode = "ink-aim";
       else this.mode = "single";
       return [this.cursorAt(x, y)];
     }
@@ -110,6 +124,7 @@ export class GestureRecognizer {
     // Deuxième doigt : pincement (annule tap / swipe / trait en cours).
     const actions: GestureAction[] = [];
     if (this.mode === "ink") actions.push({ type: "ink", phase: "cancel" });
+    actions.push(...this.disarm());
     // Après un appui long consommé, plus rien jusqu'au relâcher complet.
     this.mode = this.holdConsumed ? "settling" : "pinch";
     this.lastTap = null;
@@ -120,9 +135,15 @@ export class GestureRecognizer {
     return actions;
   }
 
-  move(id: number, x: number, y: number): GestureAction[] {
+  move(id: number, x: number, y: number, t: number): GestureAction[] {
     const p = this.pointers.get(id);
     if (!p) return [];
+    // Le doigt repart : nouvelle position d'arrêt (pointe posée après `inkArmMs` immobile).
+    if (Math.hypot(x - p.stillX, y - p.stillY) > this.config.inkArmSlopPx) {
+      p.stillX = x;
+      p.stillY = y;
+      p.stillT = t;
+    }
     const prevX = p.x;
     const prevY = p.y;
     p.x = x;
@@ -145,13 +166,17 @@ export class GestureRecognizer {
       case "pan":
         return [this.panAction(x - prevX, y - prevY), this.cursorAt(x, y)];
 
-      case "ink-pending": {
-        if (!this.movedBeyond(p, this.config.inkStartSlopPx)) return [this.cursorAt(x, y)];
-        // Le trait part du point d'appui.
+      case "ink-aim":
+        return [this.cursorAt(x, y)];
+
+      case "ink-armed": {
+        const a = this.armed!;
+        if (Math.hypot(x - a.x, y - a.y) <= this.config.inkStartSlopPx) return [this.cursorAt(x, y)];
+        // Le trait part de l'endroit visé (là où la pointe a été posée).
         this.mode = "ink";
         return [
           this.cursorAt(x, y),
-          { type: "ink", phase: "start", point: this.pageAt(p.startX, p.startY) },
+          { type: "ink", phase: "start", point: this.pageAt(a.x, a.y) },
           { type: "ink", phase: "move", point: this.pageAt(x, y) },
         ];
       }
@@ -172,19 +197,28 @@ export class GestureRecognizer {
   }
 
   /**
-   * Appui long : à appeler par un minuteur après `penHoldMs`. Un seul doigt,
-   * immobile depuis l'appui → bascule le crayon.
+   * À appeler régulièrement (minuteur) tant qu'un doigt est posé :
+   * - appui long (un doigt immobile depuis l'appui, `penHoldMs`) → bascule le crayon ;
+   * - crayon, doigt arrêté `inkArmMs` → pointe posée à cet endroit.
    */
   poll(t: number): GestureAction[] {
     if (this.pointers.size !== 1) return [];
-    if (this.mode !== "single" && this.mode !== "ink-pending") return [];
+    if (this.mode !== "single" && this.mode !== "ink-aim" && this.mode !== "ink-armed") return [];
     const [p] = this.pointers.values();
-    if (p.maxMove > this.config.penHoldSlopPx || t - p.startT < this.config.penHoldMs) return [];
-    this.penOn = !this.penOn;
-    this.mode = "settling";
-    this.holdConsumed = true;
-    this.lastTap = null;
-    return [{ type: "pen", on: this.penOn }];
+    if (p.maxMove <= this.config.penHoldSlopPx && t - p.startT >= this.config.penHoldMs) {
+      const actions = this.disarm();
+      this.penOn = !this.penOn;
+      this.mode = "settling";
+      this.holdConsumed = true;
+      this.lastTap = null;
+      return [...actions, { type: "pen", on: this.penOn }];
+    }
+    if (this.mode === "ink-aim" && t - p.stillT >= this.config.inkArmMs) {
+      this.mode = "ink-armed";
+      this.armed = { x: p.x, y: p.y };
+      return [{ type: "inkArmed", armed: true }];
+    }
+    return [];
   }
 
   up(id: number, x: number, y: number, t: number): GestureAction[] {
@@ -197,11 +231,13 @@ export class GestureRecognizer {
     if (this.pointers.size === 1) {
       if (this.mode === "single") actions.push(...this.finishSingle(p, t));
       if (this.mode === "ink") actions.push({ type: "ink", phase: "end" });
-      if (this.mode === "ink-pending") {
-        // Tap avec le crayon : un point (décimales, ponctuation…).
-        const point = this.pageAt(p.startX, p.startY);
+      if (this.mode === "ink-armed" && this.armed) {
+        // Pointe posée puis levée sans bouger : un point (décimales, ponctuation…).
+        const point = this.pageAt(this.armed.x, this.armed.y);
         actions.push({ type: "ink", phase: "start", point }, { type: "ink", phase: "end" });
       }
+      // ink-aim : doigt levé sans s'arrêter → rien n'est écrit.
+      actions.push(...this.disarm());
       this.pointers.delete(id);
       this.mode = null;
       this.pinchPrev = null;
@@ -233,6 +269,7 @@ export class GestureRecognizer {
   cancel(id: number): GestureAction[] {
     if (!this.pointers.delete(id)) return [];
     const actions: GestureAction[] = this.mode === "ink" ? [{ type: "ink", phase: "cancel" }] : [];
+    actions.push(...this.disarm());
     if (this.pointers.size > 0) {
       this.mode = "settling";
       this.pinchPrev = null;
@@ -245,6 +282,13 @@ export class GestureRecognizer {
   }
 
   // --- Détails ----------------------------------------------------------
+
+  /** Relève la pointe (fin de trait, second doigt, crayon désactivé…). */
+  private disarm(): GestureAction[] {
+    if (!this.armed) return [];
+    this.armed = null;
+    return [{ type: "inkArmed", armed: false }];
+  }
 
   private finishSingle(p: Pointer, t: number): GestureAction[] {
     const dx = p.x - p.startX;

@@ -35,6 +35,8 @@ export interface ViewState {
   night?: boolean;
   /** Crayon actif sur la remote (le casque affiche un indicateur) */
   pen?: boolean;
+  /** Crayon : pointe posée, le prochain mouvement écrit (curseur plein dans le casque) */
+  inkArmed?: boolean;
 }
 
 export const INITIAL_VIEW_STATE: ViewState = {
@@ -99,6 +101,7 @@ export function parseViewState(value: unknown, now: number = Date.now()): ViewSt
     cursor: parsePoint(v.cursor),
     ...(v.night === true ? { night: true } : {}),
     ...(v.pen === true ? { pen: true } : {}),
+    ...(v.pen === true && v.inkArmed === true ? { inkArmed: true } : {}),
   };
 }
 

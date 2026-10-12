@@ -35,6 +35,11 @@ interface PageViewProps {
   view: ViewTransform;
   /** Point de la page sous le doigt de la remote (null : masqué) */
   cursor: NormalizedPoint | null;
+  /**
+   * Aspect du curseur : normal, crayon qui vise (réticule : rien ne s'écrit)
+   * ou crayon posé (point plein : le mouvement écrit à cet endroit).
+   */
+  cursorMode?: "default" | "aim" | "ink";
   onError?: (message: string | null) => void;
   /** Mode nuit : page atténuée */
   dim?: boolean;
@@ -70,6 +75,7 @@ export function PageView({
   rotation,
   view,
   cursor,
+  cursorMode = "default",
   dim = false,
   strokes = NO_STROKES,
   onError,
@@ -273,7 +279,17 @@ export function PageView({
       {/* Curseur : position du doigt sur la remote (centré sur la fenêtre puis décalé) */}
       <div className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0">
         <div ref={cursorRef} className="h-0 w-0 opacity-0 transition-opacity duration-300">
-          <div className="-ml-2.5 -mt-2.5 h-5 w-5 rounded-full border-2 border-white/90 bg-sky-400/50 shadow-[0_0_0_2px_rgba(0,0,0,0.35)]" />
+          {cursorMode === "aim" ? (
+            // Réticule : le centre montre précisément où le trait partira.
+            <div className="relative -ml-4 -mt-4 h-8 w-8 rounded-full border-2 border-white/95 shadow-[0_0_0_2px_rgba(0,0,0,0.45)]">
+              <div className="absolute left-1/2 top-1/2 -ml-[3px] -mt-[3px] h-1.5 w-1.5 rounded-full bg-amber-400 shadow-[0_0_0_1.5px_rgba(0,0,0,0.6)]" />
+            </div>
+          ) : cursorMode === "ink" ? (
+            // Pointe posée : point plein, le mouvement écrit.
+            <div className="-ml-2 -mt-2 h-4 w-4 rounded-full border-2 border-white bg-amber-400 shadow-[0_0_0_2px_rgba(0,0,0,0.5),0_0_10px_rgba(251,191,36,0.8)]" />
+          ) : (
+            <div className="-ml-2.5 -mt-2.5 h-5 w-5 rounded-full border-2 border-white/90 bg-sky-400/50 shadow-[0_0_0_2px_rgba(0,0,0,0.35)]" />
+          )}
         </div>
       </div>
     </div>

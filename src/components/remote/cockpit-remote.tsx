@@ -143,6 +143,14 @@ export function CockpitRemote({
         case "pen":
           if (!action.on) ink.end();
           next = { ...next, pen: action.on, cursor: action.on ? next.cursor : cursorEnabled ? next.cursor : null };
+          if (!action.on) delete next.inkArmed;
+          changed = immediate = true;
+          break;
+        case "inkArmed":
+          // Pointe posée : le curseur du casque change d'aspect (le trait partira de là).
+          next = { ...next };
+          if (action.armed) next.inkArmed = true;
+          else delete next.inkArmed;
           changed = immediate = true;
           break;
         case "ink": {

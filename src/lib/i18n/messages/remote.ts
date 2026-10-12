@@ -42,7 +42,7 @@ export default defineMessages({
         favorites:
           "swipe vertical à un doigt (non zoomé) : favori suivant ↑ / précédent ↓ (favoris choisis sur la page Documents) ;",
         cursor: "« Curseur » (en haut, maintenir) : affiche la position du doigt dans le casque ;",
-        pen: "appui long de {s} s sans bouger, n'importe où : crayon activé / désactivé. Crayon actif : un doigt dessine, tap à deux doigts = annuler le dernier trait, pincer = zoom.",
+        pen: "appui long de {s} s sans bouger, n'importe où : crayon activé / désactivé. Crayon actif : le doigt vise sans écrire (réticule dans le casque) ; arrête-le un instant pour poser la pointe (point ambre), puis bouge pour écrire à cet endroit. Tap à deux doigts = annuler le dernier trait, pincer = zoom.",
         status: "Le point en haut indique la connexion temps réel : vert = connecté, orange = connexion en cours.",
       },
     },
@@ -84,7 +84,7 @@ export default defineMessages({
       noDocument: "Aucun document",
       pageInfo: "PAGE {page}/{count} · ×{zoom}",
       hintPen:
-        "1 doigt : dessiner · Tap 2 doigts : annuler le dernier trait · Pincer : zoom · Appui long {s} s : arrêter le crayon",
+        "1 doigt : viser · S'arrêter : poser la pointe, puis écrire · Tap 2 doigts : annuler le dernier trait · Pincer : zoom · Appui long {s} s : arrêter le crayon",
       hintCompact: "Pincer : zoom · Swipe ← → : document · Double tap : reset · Swipe ↕ : favoris · Appui long : crayon",
       favoriteInfo: "FAVORI {index}/{count}",
       favoriteCount: "{count} FAVORIS",
@@ -166,7 +166,7 @@ export default defineMessages({
         favorites:
           "one-finger vertical swipe (not zoomed): next ↑ / previous ↓ favorite (favorites are chosen on the Documents page);",
         cursor: "“Cursor” (top, hold): shows your finger position in the headset;",
-        pen: "hold still for {s} s, anywhere: pen on / off. With the pen on: one finger draws, two-finger tap = undo the last stroke, pinch = zoom.",
+        pen: "hold still for {s} s, anywhere: pen on / off. With the pen on: your finger aims without drawing (crosshair in the headset); pause briefly to set the pen down (amber dot), then move to draw from that spot. Two-finger tap = undo the last stroke, pinch = zoom.",
         status: "The dot at the top shows the real-time connection: green = connected, orange = connecting.",
       },
     },
@@ -208,7 +208,7 @@ export default defineMessages({
       noDocument: "No document",
       pageInfo: "PAGE {page}/{count} · ×{zoom}",
       hintPen:
-        "1 finger: draw · 2-finger tap: undo last stroke · Pinch: zoom · Long press {s} s: stop pen",
+        "1 finger: aim · Pause: set the pen down, then draw · 2-finger tap: undo last stroke · Pinch: zoom · Long press {s} s: stop pen",
       hintCompact: "Pinch: zoom · Swipe ← →: document · Double tap: reset · Swipe ↕: favorites · Long press: pen",
       favoriteInfo: "FAVORITE {index}/{count}",
       favoriteCount: "{count} FAVORITES",
@@ -290,7 +290,7 @@ export default defineMessages({
         favorites:
           "vertikal mit einem Finger wischen (nicht gezoomt): nächster ↑ / vorheriger ↓ Favorit (Favoriten wählst du auf der Seite Dokumente);",
         cursor: "„Cursor“ (oben, gedrückt halten): zeigt die Fingerposition im Headset;",
-        pen: "{s} s lang irgendwo gedrückt halten, ohne zu bewegen: Stift an / aus. Stift aktiv: ein Finger zeichnet, Tippen mit zwei Fingern = letzten Strich rückgängig, auseinanderziehen = Zoom.",
+        pen: "{s} s lang irgendwo gedrückt halten, ohne zu bewegen: Stift an / aus. Stift aktiv: der Finger zielt, ohne zu zeichnen (Fadenkreuz im Headset); kurz anhalten setzt den Stift auf (gelber Punkt), dann bewegen, um ab dort zu zeichnen. Tippen mit zwei Fingern = letzten Strich rückgängig, auseinanderziehen = Zoom.",
         status: "Der Punkt oben zeigt die Echtzeitverbindung: grün = verbunden, orange = Verbindung wird hergestellt.",
       },
     },
@@ -332,7 +332,7 @@ export default defineMessages({
       noDocument: "Kein Dokument",
       pageInfo: "SEITE {page}/{count} · ×{zoom}",
       hintPen:
-        "1 Finger: zeichnen · Tippen mit 2 Fingern: letzten Strich rückgängig · Auseinanderziehen: Zoom · Lang drücken {s} s: Stift aus",
+        "1 Finger: zielen · Anhalten: Stift aufsetzen, dann zeichnen · Tippen mit 2 Fingern: letzten Strich rückgängig · Auseinanderziehen: Zoom · Lang drücken {s} s: Stift aus",
       hintCompact: "Auseinanderziehen: Zoom · Wischen ← →: Dokument · Doppeltippen: Reset · Wischen ↕: Favoriten · Lang drücken: Stift",
       favoriteInfo: "FAVORIT {index}/{count}",
       favoriteCount: "{count} FAVORITEN",
@@ -414,7 +414,7 @@ export default defineMessages({
         favorites:
           "deslizar en vertical con un dedo (sin zoom): favorito siguiente ↑ / anterior ↓ (los favoritos se eligen en la página Documentos);",
         cursor: "«Cursor» (arriba, mantener): muestra la posición del dedo en el casco;",
-        pen: "pulsación larga de {s} s sin moverse, en cualquier sitio: lápiz activado / desactivado. Con el lápiz activo: un dedo dibuja, toque con dos dedos = deshacer el último trazo, pellizcar = zoom.",
+        pen: "pulsación larga de {s} s sin moverse, en cualquier sitio: lápiz activado / desactivado. Con el lápiz activo: el dedo apunta sin dibujar (retícula en el casco); detenlo un instante para apoyar el lápiz (punto ámbar) y muévelo para escribir desde ahí. Toque con dos dedos = deshacer el último trazo, pellizcar = zoom.",
         status: "El punto de arriba indica la conexión en tiempo real: verde = conectado, naranja = conectando.",
       },
     },
@@ -456,7 +456,7 @@ export default defineMessages({
       noDocument: "Ningún documento",
       pageInfo: "PÁG. {page}/{count} · ×{zoom}",
       hintPen:
-        "1 dedo: dibujar · Toque con 2 dedos: deshacer el último trazo · Pellizcar: zoom · Pulsación larga {s} s: detener el lápiz",
+        "1 dedo: apuntar · Detenerse: apoyar el lápiz y escribir · Toque con 2 dedos: deshacer el último trazo · Pellizcar: zoom · Pulsación larga {s} s: detener el lápiz",
       hintCompact: "Pellizcar: zoom · Deslizar ← →: documento · Doble toque: reset · Deslizar ↕: favoritos · Pulsación larga: lápiz",
       favoriteInfo: "FAVORITO {index}/{count}",
       favoriteCount: "{count} FAVORITOS",

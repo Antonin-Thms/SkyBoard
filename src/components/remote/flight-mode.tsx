@@ -124,9 +124,16 @@ export function FlightMode({
       if (actions.length) onActionsRef.current(actions);
     };
 
-    // Appui long (crayon) : vérifié par un minuteur, sans attendre un mouvement.
-    let holdTimer: ReturnType<typeof setTimeout> | undefined;
-    const holdMs = (DEVICE_GESTURE_OVERRIDES[device].penHoldMs ?? GESTURE_CONFIG.penHoldMs) + 30;
+    // Appui long (crayon) et pointe posée (doigt arrêté) : vérifiés par un
+    // minuteur tant qu'un doigt est posé, sans attendre un mouvement.
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
+    const stopPolling = () => {
+      clearInterval(pollTimer);
+      pollTimer = undefined;
+    };
+    const afterRelease = () => {
+      if (recognizer.activePointers === 0) stopPolling();
+    };
 
     const onDown = (e: PointerEvent) => {
       e.preventDefault();
@@ -134,15 +141,20 @@ export function FlightMode({
       origin = el.getBoundingClientRect();
       el.setPointerCapture?.(e.pointerId);
       emit(recognizer.down(e.pointerId, ...local(e), e.timeStamp));
-      clearTimeout(holdTimer);
-      holdTimer = setTimeout(() => emit(recognizer.poll(performance.now())), holdMs);
+      pollTimer ??= setInterval(() => emit(recognizer.poll(performance.now())), 50);
     };
     const onMove = (e: PointerEvent) => {
       // Événements coalescés : on prend la position la plus récente.
-      emit(recognizer.move(e.pointerId, ...local(e)));
+      emit(recognizer.move(e.pointerId, ...local(e), e.timeStamp));
     };
-    const onUp = (e: PointerEvent) => emit(recognizer.up(e.pointerId, ...local(e), e.timeStamp));
-    const onCancel = (e: PointerEvent) => emit(recognizer.cancel(e.pointerId));
+    const onUp = (e: PointerEvent) => {
+      emit(recognizer.up(e.pointerId, ...local(e), e.timeStamp));
+      afterRelease();
+    };
+    const onCancel = (e: PointerEvent) => {
+      emit(recognizer.cancel(e.pointerId));
+      afterRelease();
+    };
     // iOS : empêche défilement, zoom double tap, loupe et menu contextuel.
     const prevent = (e: Event) => e.preventDefault();
 
@@ -154,7 +166,7 @@ export function FlightMode({
     el.addEventListener("touchmove", prevent, { passive: false });
     el.addEventListener("contextmenu", prevent);
     return () => {
-      clearTimeout(holdTimer);
+      stopPolling();
       resize.disconnect();
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointermove", onMove);

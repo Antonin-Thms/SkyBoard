@@ -30,7 +30,11 @@ export const GESTURE_CONFIG = {
   penHoldMs: 1500,
   /** Tolérance de mouvement de l'appui long (le doigt tremble un peu) */
   penHoldSlopPx: 10,
-  /** Crayon : le trait commence quand le doigt a bougé de cette distance (sinon : un point) */
+  /** Crayon : temps d'arrêt du doigt pour poser la pointe (avant : on vise sans écrire) */
+  inkArmMs: 400,
+  /** Crayon : tolérance de mouvement pendant cet arrêt (le doigt tremble un peu) */
+  inkArmSlopPx: 6,
+  /** Crayon : pointe posée, le trait commence quand le doigt a bougé de cette distance (sinon : un point) */
   inkStartSlopPx: 8,
   /** Crayon : tap à deux doigts (annuler le dernier trait), durée max */
   twoFingerTapMs: 350,
