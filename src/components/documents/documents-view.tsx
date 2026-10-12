@@ -40,7 +40,7 @@ export function DocumentsView({ userId, documents, folders, squadrons, nextSortO
 
   const items: DocumentItem[] = documents
     .filter((d) => matchesFilter(d, filter))
-    .map(({ id, name, type, pageCount, thumbnailUrl, folderId, rotation, favorite }) => ({
+    .map(({ id, name, type, pageCount, thumbnailUrl, folderId, rotation, favorite, source }) => ({
       id,
       name,
       type,
@@ -49,6 +49,7 @@ export function DocumentsView({ userId, documents, folders, squadrons, nextSortO
       folderId,
       rotation,
       favorite,
+      source,
     }));
   const currentFolder = filter.kind === "folder" ? folders.find((f) => f.id === filter.id) : undefined;
   const contextLabel =

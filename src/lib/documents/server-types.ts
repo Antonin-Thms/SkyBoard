@@ -1,4 +1,5 @@
 import type { DocumentMimeType, Rotation } from "@/lib/database.types";
+import type { GeneratedSource } from "./generated";
 
 /** Document tel que listé pour les pages (miniature signée comprise). */
 export interface DocumentSummary {
@@ -13,5 +14,7 @@ export interface DocumentSummary {
   readOnly: boolean;
   /** Dans mes favoris (parcourus en mode vol par swipe vertical) */
   favorite: boolean;
+  /** Planche créée dans SkyBoard (checklist, RAMROD) : contenu modifiable */
+  source: GeneratedSource | null;
   thumbnailUrl: string | null;
 }

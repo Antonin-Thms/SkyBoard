@@ -1,7 +1,7 @@
 "use client";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, DocumentRow } from "@/lib/database.types";
+import type { Database, DocumentRow, Json } from "@/lib/database.types";
 import { analyzeFile } from "./analyze";
 import { checkFile, defaultDocumentName, EXTENSION_BY_MIME, formatBytes, MAX_UPLOAD_BYTES, type ByteUnits } from "./file-type";
 import { fmt } from "@/lib/i18n/define";
@@ -38,6 +38,8 @@ export async function uploadDocument(
   /** Dossier de destination (null : Communs) */
   folderId: string | null,
   texts: UploadTexts,
+  /** Planche créée dans SkyBoard : contenu d'origine, pour la modifier ensuite */
+  source: Json | null = null,
 ): Promise<DocumentRow> {
   const check = await checkFile(file);
   if (!check.ok) {
@@ -101,6 +103,7 @@ export async function uploadDocument(
         page_count: analysis.pageCount,
         sort_order: sortOrder,
         folder_id: folderId,
+        source,
       })
       .select()
       .single();

@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Pencil, RotateCcw, RotateCw, Star, StarOff, Trash2 } from "lucide-react";
+import { FilePenLine, GripVertical, Pencil, RotateCcw, RotateCw, Star, StarOff, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { moveDocument, renameDocument } from "@/app/(app)/documents/actions";
 import { CachedThumbnail } from "@/components/cached-thumbnail";
@@ -14,6 +14,7 @@ import type { FolderSummary } from "@/lib/documents/folders";
 import { fmt } from "@/lib/i18n/define";
 import { useT } from "@/lib/i18n/client";
 import type { DocumentItem } from "./document-grid";
+import { useEditPage } from "./document-uploader";
 
 const TYPE_LABEL: Record<DocumentItem["type"], string> = {
   "application/pdf": "PDF",
@@ -59,6 +60,8 @@ export function DocumentCard({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const isPdf = item.type === "application/pdf";
+  const editPage = useEditPage();
+  const source = item.source;
 
   function submitRename() {
     const name = draft.trim();
@@ -191,6 +194,9 @@ export function DocumentCard({
             label={fmt(t.card.actionsFor, { name: item.name })}
             triggerClassName="btn-icon -mr-2 size-8"
             items={[
+              ...(source && editPage
+                ? [{ label: t.grid.edit, icon: <FilePenLine size={16} strokeWidth={1.75} />, onSelect: () => editPage({ id: item.id, source }) }]
+                : []),
               item.favorite
                 ? { label: t.grid.favoriteRemove, icon: <StarOff size={16} strokeWidth={1.75} />, onSelect: () => onFavorite(false) }
                 : { label: t.grid.favoriteAdd, icon: <Star size={16} strokeWidth={1.75} />, onSelect: () => onFavorite(true) },

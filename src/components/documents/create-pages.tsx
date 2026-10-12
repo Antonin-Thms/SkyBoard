@@ -14,16 +14,36 @@ import {
   splitRamrodChars,
 } from "@/lib/documents/generate";
 import { fmt } from "@/lib/i18n/define";
+import type { GeneratedSource } from "@/lib/documents/generated";
 import { useT } from "@/lib/i18n/client";
+import { uuid } from "@/lib/uuid";
+
+/** Page à envoyer (avec son contenu d'origine si c'est une planche modifiable). */
+export interface CreatedPage {
+  file: File;
+  name: string;
+  source?: GeneratedSource;
+}
+
+/** Planche en cours de modification (ouverte depuis le menu ⋯ d'une carte). */
+export interface EditingPage {
+  id: string;
+  source: GeneratedSource;
+}
 
 interface CreatePagesProps {
   busy: boolean;
   /** Envoie les pages créées comme des documents */
-  onCreate: (items: { file: File; name: string }[]) => void;
+  onCreate: (items: CreatedPage[]) => void;
+  /** Planche à modifier (null : aucune) */
+  editing: EditingPage | null;
+  onEditClose: () => void;
+  /** Remplace la planche modifiée par les nouvelles pages (résolu une fois terminé) */
+  onReplace: (oldId: string, items: CreatedPage[]) => Promise<boolean>;
 }
 
 /** Bouton « Créer » : page de notes vierge, checklist à cocher au doigt, table RAMROD. */
-export function CreatePages({ busy, onCreate }: CreatePagesProps) {
+export function CreatePages({ busy, onCreate, editing, onEditClose, onReplace }: CreatePagesProps) {
   const t = useT().documents.create;
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [ramrodOpen, setRamrodOpen] = useState(false);
@@ -96,22 +116,45 @@ export function CreatePages({ busy, onCreate }: CreatePagesProps) {
           }}
         />
       )}
+      {editing?.source.kind === "checklist" && (
+        <ChecklistDialog
+          key={editing.id}
+          initial={editing.source}
+          onClose={onEditClose}
+          onCreate={async (items) => {
+            if (await onReplace(editing.id, items)) onEditClose();
+          }}
+        />
+      )}
+      {editing?.source.kind === "ramrod" && (
+        <RamrodDialog
+          key={editing.id}
+          initial={editing.source}
+          onClose={onEditClose}
+          onCreate={async (item) => {
+            if (await onReplace(editing.id, [item])) onEditClose();
+          }}
+        />
+      )}
     </>
   );
 }
 
 /** Fenêtre de création d'une checklist : un élément par ligne. */
 function ChecklistDialog({
+  initial,
   onClose,
   onCreate,
 }: {
+  /** Modification : contenu actuel */
+  initial?: { title: string; items: string[] };
   onClose: () => void;
-  onCreate: (items: { file: File; name: string }[]) => void;
+  onCreate: (items: CreatedPage[]) => void | Promise<void>;
 }) {
   const t = useT().documents.create;
   const dialog = useRef<HTMLDialogElement>(null);
-  const [title, setTitle] = useState("");
-  const [text, setText] = useState("");
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [text, setText] = useState(initial?.items.join("\n") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
 
@@ -132,7 +175,16 @@ function ChecklistDialog({
     setError(null);
     try {
       const files = await renderChecklist(name, items, t.continued);
-      onCreate(files.map((file) => ({ file, name: file.name.replace(/\.png$/, "") })));
+      // Parties reliées : la modification recrée toute la checklist.
+      const group = uuid();
+      await onCreate(
+        files.map((file, i) => ({
+          file,
+          name: file.name.replace(/\.png$/, ""),
+          source: { kind: "checklist", title: name, items, group, part: i + 1 },
+        })),
+      );
+      setWorking(false);
     } catch {
       setError(t.failed);
       setWorking(false);
@@ -155,7 +207,7 @@ function ChecklistDialog({
       >
         <div className="flex items-center justify-between">
           <h2 id="checklist-title" className="text-lg font-medium">
-            {t.dialogTitle}
+            {initial ? t.editChecklistTitle : t.dialogTitle}
           </h2>
           <button type="button" className="btn-icon -mr-2" aria-label={t.close} onClick={onClose}>
             <X size={18} strokeWidth={1.75} />
@@ -174,13 +226,14 @@ function ChecklistDialog({
           />
         </label>
         <p className="text-xs text-subtle">{t.hint}</p>
+        {initial && <p className="text-xs text-muted">{t.editWarning}</p>}
         {error && <p className="text-sm text-danger">{error}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn-ghost" onClick={onClose}>
             {t.cancel}
           </button>
           <button type="submit" className="btn-primary" disabled={working}>
-            {working ? t.creating : t.submit}
+            {initial ? (working ? t.editSaving : t.editSubmit) : working ? t.creating : t.submit}
           </button>
         </div>
       </form>
@@ -190,17 +243,22 @@ function ChecklistDialog({
 
 /** Fenêtre de création d'une table RAMROD : un caractère sous chaque chiffre de 0 à 9. */
 function RamrodDialog({
+  initial,
   onClose,
   onCreate,
 }: {
+  /** Modification : contenu actuel */
+  initial?: { title: string; chars: string[] };
   onClose: () => void;
-  onCreate: (item: { file: File; name: string }) => void;
+  onCreate: (item: CreatedPage) => void | Promise<void>;
 }) {
   const t = useT().documents.create;
   const dialog = useRef<HTMLDialogElement>(null);
   const inputs = useRef<(HTMLInputElement | null)[]>([]);
-  const [title, setTitle] = useState("");
-  const [chars, setChars] = useState<string[]>(() => Array(RAMROD_SIZE).fill(""));
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [chars, setChars] = useState<string[]>(() =>
+    Array.from({ length: RAMROD_SIZE }, (_, i) => initial?.chars[i] ?? ""),
+  );
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
   const duplicates = ramrodDuplicates(chars);
@@ -233,7 +291,8 @@ function RamrodDialog({
     setWorking(true);
     setError(null);
     try {
-      onCreate({ file: await renderRamrod(name, chars), name });
+      await onCreate({ file: await renderRamrod(name, chars), name, source: { kind: "ramrod", title: name, chars } });
+      setWorking(false);
     } catch {
       setError(t.failed);
       setWorking(false);
@@ -256,7 +315,7 @@ function RamrodDialog({
       >
         <div className="flex items-center justify-between">
           <h2 id="ramrod-title" className="text-lg font-medium">
-            {t.ramrodDialogTitle}
+            {initial ? t.editRamrodTitle : t.ramrodDialogTitle}
           </h2>
           <button type="button" className="btn-icon -mr-2" aria-label={t.close} onClick={onClose}>
             <X size={18} strokeWidth={1.75} />
@@ -322,6 +381,7 @@ function RamrodDialog({
           </div>
         </fieldset>
         <p className="text-xs text-subtle">{t.ramrodHint}</p>
+        {initial && <p className="text-xs text-muted">{t.editWarning}</p>}
         {duplicates.length > 0 && (
           <p className="text-sm text-danger">{fmt(t.ramrodDuplicate, { chars: duplicates.join(", ") })}</p>
         )}
@@ -331,7 +391,7 @@ function RamrodDialog({
             {t.cancel}
           </button>
           <button type="submit" className="btn-primary" disabled={working}>
-            {working ? t.creating : t.ramrodSubmit}
+            {initial ? (working ? t.editSaving : t.editSubmit) : working ? t.creating : t.ramrodSubmit}
           </button>
         </div>
       </form>

@@ -49,6 +49,8 @@ export interface Database {
           sort_order: number;
           folder_id: string | null;
           rotation: Rotation;
+          /** Planche créée dans SkyBoard : contenu d'origine (modifiable) */
+          source: Json | null;
           created_at: string;
         };
         Insert: {
@@ -59,6 +61,7 @@ export interface Database {
           page_count?: number;
           sort_order?: number;
           folder_id?: string | null;
+          source?: Json | null;
         };
         Update: {
           name?: string;

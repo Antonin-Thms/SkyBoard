@@ -6,6 +6,7 @@ import type { Database } from "@/lib/database.types";
 import type { DocumentSummary } from "./server-types";
 import type { FolderSummary } from "./folders";
 import { createClient, getSessionClaims } from "@/lib/supabase/server";
+import { parseGeneratedSource } from "./generated";
 import { STORAGE_BUCKET, THUMBNAIL_URL_TTL } from "./storage";
 
 /**
@@ -58,7 +59,7 @@ export async function listDocumentsWithThumbnails(
   const [{ data: rows, error }, { data: favoriteRows }] = await Promise.all([
     supabase
       .from("documents")
-      .select("id, user_id, name, type, page_count, sort_order, folder_id, rotation, thumbnail_path")
+      .select("id, user_id, name, type, page_count, sort_order, folder_id, rotation, thumbnail_path, source")
       .order("sort_order")
       .order("created_at"),
     supabase.from("document_favorites").select("document_id"),
@@ -83,6 +84,8 @@ export async function listDocumentsWithThumbnails(
       rotation: d.rotation,
       readOnly: d.user_id !== userId,
       favorite: favorites.has(d.id),
+      // Planche modifiable : seulement les miennes.
+      source: d.user_id === userId ? parseGeneratedSource(d.source) : null,
       thumbnailUrl: d.thumbnail_path ? (thumbUrls.get(d.thumbnail_path) ?? null) : null,
     })),
   };

@@ -2,9 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { Check, Upload } from "lucide-react";
-import { useRef, useState, type ReactNode } from "react";
+import { createContext, useContext, useRef, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/ui/page-header";
-import { documentsUploaded } from "@/app/(app)/documents/actions";
+import { deleteDocuments, documentsUploaded, replaceGeneratedDocuments } from "@/app/(app)/documents/actions";
 import { ACCEPT_ATTRIBUTE } from "@/lib/documents/file-type";
 import { isMizFileName } from "@/lib/documents/miz";
 import { extractMizKneeboards, type ExtractedKneeboard } from "@/lib/documents/miz-extract";
@@ -13,7 +13,11 @@ import { createClient } from "@/lib/supabase/client";
 import { uuid } from "@/lib/uuid";
 import { fmt } from "@/lib/i18n/define";
 import { useT } from "@/lib/i18n/client";
-import { CreatePages } from "./create-pages";
+import { CreatePages, type CreatedPage, type EditingPage } from "./create-pages";
+
+/** Ouvre la modification d'une planche (menu ⋯ d'une carte). */
+const EditPageContext = createContext<((page: EditingPage) => void) | null>(null);
+export const useEditPage = () => useContext(EditPageContext);
 import { MizImport } from "./miz-import";
 
 interface UploadEntry {
@@ -53,13 +57,14 @@ export function DocumentUploader({
   const [dragOver, setDragOver] = useState(false);
   const [mission, setMission] = useState<{ fileName: string; entries: ExtractedKneeboard[] } | null>(null);
   const [mizStatus, setMizStatus] = useState<string | null>(null);
+  const [editing, setEditing] = useState<EditingPage | null>(null);
   const busy = entries.some((e) => e.status === "pending" || e.status === "uploading");
 
   const update = (key: string, patch: Partial<UploadEntry>) =>
     setEntries((list) => list.map((e) => (e.key === key ? { ...e, ...patch } : e)));
 
-  /** Envoie des fichiers un par un (nom optionnel), avec suivi par fichier. */
-  async function uploadAll(items: { file: File; name?: string }[]) {
+  /** Envoie des fichiers un par un (nom optionnel), avec suivi par fichier. Renvoie les ids créés. */
+  async function uploadAll(items: (Omit<CreatedPage, "name"> & { name?: string })[]): Promise<string[]> {
     const batch = items.map(({ file, name }) => ({
       key: uuid(),
       name: name ?? file.name,
@@ -71,14 +76,14 @@ export function DocumentUploader({
     sortOrderRef.current = Math.max(sortOrderRef.current, nextSortOrder);
 
     // Séquentiel : évite de saturer la mémoire (rendu pdf.js) et la connexion.
-    let uploaded = 0;
-    for (const [i, { file, name }] of items.entries()) {
+    const created: string[] = [];
+    for (const [i, { file, name, source }] of items.entries()) {
       const { key } = batch[i];
       update(key, { status: "uploading" });
       try {
-        await uploadDocument(supabase, userId, file, sortOrderRef.current++, name, folderId, t.upload);
+        const row = await uploadDocument(supabase, userId, file, sortOrderRef.current++, name, folderId, t.upload, source ?? null);
         update(key, { status: "done" });
-        uploaded++;
+        created.push(row.id);
         router.refresh();
       } catch (err) {
         update(key, {
@@ -88,7 +93,29 @@ export function DocumentUploader({
       }
     }
     // Les viewers ouverts rechargent leur liste de documents.
-    if (uploaded > 0) void documentsUploaded();
+    if (created.length > 0) void documentsUploaded();
+    return created;
+  }
+
+  /**
+   * Modification d'une planche : envoi des nouvelles pages, puis elles
+   * remplacent l'ancienne (même dossier et position). Faux en cas d'échec.
+   */
+  async function replacePage(oldId: string, items: CreatedPage[]): Promise<boolean> {
+    const created = await uploadAll(items);
+    if (created.length !== items.length) {
+      // Envoi incomplet : on retire les pages déjà créées, l'ancienne reste.
+      if (created.length) await deleteDocuments(created).catch(() => {});
+      router.refresh();
+      return false;
+    }
+    const res = await replaceGeneratedDocuments(oldId, created).catch(() => ({ error: t.errors.server }));
+    router.refresh();
+    if (res.error) {
+      setMizStatus(res.error);
+      return false;
+    }
+    return true;
   }
 
   async function handleFiles(fileList: FileList | null) {
@@ -140,7 +167,13 @@ export function DocumentUploader({
         title={t.title}
         actions={
           <>
-            <CreatePages busy={busy} onCreate={(items) => void uploadAll(items)} />
+            <CreatePages
+              busy={busy}
+              onCreate={(items) => void uploadAll(items)}
+              editing={editing}
+              onEditClose={() => setEditing(null)}
+              onReplace={replacePage}
+            />
             <button type="button" className="btn-primary" onClick={() => inputRef.current?.click()} disabled={busy}>
               <Upload size={16} strokeWidth={1.75} />
               {busy ? u.uploading : u.addFiles}
@@ -199,7 +232,7 @@ export function DocumentUploader({
         </ul>
       )}
 
-      {children}
+      <EditPageContext.Provider value={setEditing}>{children}</EditPageContext.Provider>
 
       {dragOver && (
         <div className="pointer-events-none fixed inset-3 z-50 flex items-center justify-center border-2 border-dashed border-accent bg-accent-subtle/80 md:inset-6">

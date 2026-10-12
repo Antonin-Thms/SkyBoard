@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { STORAGE_BUCKET } from "@/lib/documents/storage";
 import { fmt } from "@/lib/i18n/define";
 import { getT } from "@/lib/i18n/server";
-import { createClient } from "@/lib/supabase/server";
+import { parseGeneratedSource } from "@/lib/documents/generated";
+import { createClient, getSessionClaims } from "@/lib/supabase/server";
 import { notifyDocumentsChanged } from "@/lib/sync/notify";
 import type { Rotation } from "@/lib/database.types";
 import { isRotation, rotateBy } from "@/lib/sync/protocol";
@@ -237,6 +238,67 @@ export async function setFavorites(ids: string[], favorite: boolean): Promise<Ac
   revalidatePath("/documents");
   revalidatePath("/remote");
   // La remote ouverte (tablette) recharge sa liste de favoris.
+  notifyDocumentsChanged(supabase);
+  return {};
+}
+
+/**
+ * Modification d'une planche créée dans SkyBoard : les nouvelles pages
+ * (déjà envoyées par le client) prennent la place de l'ancienne planche
+ * (toutes les parties d'une checklist) : même dossier, même position,
+ * favori conservé. L'ancienne est supprimée, avec ses annotations.
+ */
+export async function replaceGeneratedDocuments(oldId: string, newIds: string[]): Promise<ActionResult> {
+  const t = await getT();
+  if (!isUuid(oldId) || !validIds(newIds) || newIds.includes(oldId)) return { error: t.documents.errors.invalidSelection };
+
+  const userId = (await getSessionClaims())?.sub;
+  const supabase = await createClient();
+  const { data: old } = await supabase
+    .from("documents")
+    .select("id, user_id, folder_id, sort_order, source")
+    .eq("id", oldId)
+    .maybeSingle();
+  if (!userId || !old || old.user_id !== userId) return { error: t.documents.errors.replaceFailed };
+
+  const source = parseGeneratedSource(old.source);
+  let oldIds = [oldId];
+  if (source?.kind === "checklist") {
+    const { data: parts } = await supabase
+      .from("documents")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("source->>group", source.group);
+    oldIds = [...new Set([oldId, ...(parts ?? []).map((p) => p.id)])].filter((id) => !newIds.includes(id));
+  }
+
+  const [{ error: placeError }, { data: favorites }] = await Promise.all([
+    supabase
+      .from("documents")
+      .update({ folder_id: old.folder_id, sort_order: old.sort_order })
+      .in("id", newIds)
+      .eq("user_id", userId),
+    supabase.from("document_favorites").select("document_id").in("document_id", oldIds),
+  ]);
+  if (placeError) return { error: t.documents.errors.replaceFailed };
+  if (favorites?.length) {
+    await supabase
+      .from("document_favorites")
+      .upsert(newIds.map((document_id) => ({ document_id })), { onConflict: "user_id,document_id", ignoreDuplicates: true });
+  }
+
+  const { data: removed, error } = await supabase
+    .from("documents")
+    .delete()
+    .in("id", oldIds)
+    .eq("user_id", userId)
+    .select("storage_path, thumbnail_path");
+  if (error) return { error: t.documents.errors.replaceFailed };
+  const paths = (removed ?? []).flatMap((d) => [d.storage_path, d.thumbnail_path]).filter((p): p is string => !!p);
+  if (paths.length) await supabase.storage.from(STORAGE_BUCKET).remove(paths);
+
+  revalidatePath("/documents");
+  revalidatePath("/remote");
   notifyDocumentsChanged(supabase);
   return {};
 }

@@ -30,6 +30,7 @@ import {
 import { rotateBy } from "@/lib/sync/protocol";
 import type { DocumentMimeType, Rotation } from "@/lib/database.types";
 import type { FolderSummary } from "@/lib/documents/folders";
+import type { GeneratedSource } from "@/lib/documents/generated";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Menu } from "@/components/ui/menu";
@@ -55,6 +56,8 @@ export interface DocumentItem {
   rotation: Rotation;
   /** Dans mes favoris (mode vol : swipe vertical) */
   favorite: boolean;
+  /** Planche créée dans SkyBoard : modifiable */
+  source: GeneratedSource | null;
 }
 
 interface DocumentGridProps {
