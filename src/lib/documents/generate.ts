@@ -7,6 +7,7 @@
  */
 
 import { fmt } from "@/lib/i18n/define";
+import type { TacticalData } from "./generated";
 
 /** Format A4 portrait à 150 dpi. */
 const PAGE = { width: 1240, height: 1754 };
@@ -150,21 +151,14 @@ export function ramrodDuplicates(chars: string[]): string[] {
  * Table d'authentification RAMROD : ligne 1 = chiffres 0 à 9, ligne 2 = le
  * caractère associé à chaque chiffre. Cases vides laissées à remplir au crayon.
  */
-export async function renderRamrod(title: string, chars: string[]): Promise<File> {
-  const { canvas, ctx } = newPage();
-  ctx.fillStyle = INK;
-  ctx.font = "600 56px sans-serif";
-  ctx.textBaseline = "alphabetic";
-  ctx.fillText(title, MARGIN, MARGIN + 50);
-  ctx.fillRect(MARGIN, MARGIN + 80, PAGE.width - 2 * MARGIN, 4);
-
-  const top = MARGIN + 170;
+/** Table RAMROD (chiffres 0 à 9 / caractères), haut à `top`. Renvoie sa hauteur. */
+function drawRamrod(ctx: CanvasRenderingContext2D, top: number, chars: string[]): number {
   const cell = (PAGE.width - 2 * MARGIN) / RAMROD_SIZE;
-  const digitsHeight = 110;
-  const charsHeight = 170;
+  const digitsHeight = 80;
+  const charsHeight = 130;
 
   // Ligne des chiffres : fond gris clair, lisible même atténuée (mode nuit).
-  ctx.fillStyle = "#e4e4e4";
+  ctx.fillStyle = HEADER_FILL;
   ctx.fillRect(MARGIN, top, cell * RAMROD_SIZE, digitsHeight);
 
   ctx.textAlign = "center";
@@ -172,16 +166,15 @@ export async function renderRamrod(title: string, chars: string[]): Promise<File
   for (let i = 0; i < RAMROD_SIZE; i++) {
     const cx = MARGIN + cell * i + cell / 2;
     ctx.fillStyle = INK;
-    ctx.font = "600 60px sans-serif";
+    ctx.font = "600 48px sans-serif";
     ctx.fillText(String(i), cx, top + digitsHeight / 2 + 2);
     const ch = chars[i] ?? "";
     if (ch) {
-      ctx.font = "700 100px sans-serif";
+      ctx.font = "700 84px sans-serif";
       ctx.fillText(ch, cx, top + digitsHeight + charsHeight / 2 + 4, cell - 12);
     }
   }
 
-  // Quadrillage
   ctx.strokeStyle = INK;
   ctx.lineWidth = 4;
   ctx.strokeRect(MARGIN, top, cell * RAMROD_SIZE, digitsHeight + charsHeight);
@@ -193,6 +186,159 @@ export async function renderRamrod(title: string, chars: string[]): Promise<File
     ctx.lineTo(MARGIN + cell * i, top + digitsHeight + charsHeight);
   }
   ctx.stroke();
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+  return digitsHeight + charsHeight;
+}
 
-  return toFile(canvas, title);
+const HEADER_FILL = "#e4e4e4";
+
+/** Textes de la fiche tactique (dans la langue de l'interface). */
+export interface TacticalLabels {
+  /** Titre des pages suivantes, gabarit avec {title} */
+  continued: string;
+  ramrod: string;
+  navaids: string;
+  navaidColumns: [name: string, tacan: string, ils: string, freq: string];
+  freqs: string;
+  freqColumns: [name: string, freq: string];
+  codes: string;
+  codeColumns: [name: string, code: string];
+  notes: string;
+}
+
+/**
+ * Fiche tactique : titre puis sections facultatives (RAMROD, navigation,
+ * fréquences, codes laser, notes), en gros caractères lisibles dans le
+ * casque. Continue sur une page suivante si nécessaire.
+ */
+export async function renderTactical(title: string, data: TacticalData, labels: TacticalLabels): Promise<File[]> {
+  const pages: HTMLCanvasElement[] = [];
+  const width = PAGE.width - 2 * MARGIN;
+  // Marge basse réduite : une fiche bien remplie tient sur une page.
+  const bottom = PAGE.height - 50;
+  let page = newPage();
+  let y = 0;
+
+  const header = (continued: boolean) => {
+    const { ctx } = page;
+    ctx.fillStyle = INK;
+    ctx.font = "600 56px sans-serif";
+    ctx.textBaseline = "alphabetic";
+    ctx.textAlign = "left";
+    ctx.fillText(continued ? fmt(labels.continued, { title }) : title, MARGIN, MARGIN + 50, width);
+    ctx.fillRect(MARGIN, MARGIN + 80, width, 4);
+    y = MARGIN + 130;
+  };
+  const newSheet = () => {
+    pages.push(page.canvas);
+    page = newPage();
+    header(true);
+  };
+  /** Réserve `height` px (nouvelle page si besoin). */
+  const ensure = (height: number) => {
+    if (y + height > bottom) newSheet();
+  };
+  const sectionTitle = (text: string) => {
+    const { ctx } = page;
+    ctx.fillStyle = "#555555";
+    ctx.font = "700 34px sans-serif";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(text.toLocaleUpperCase(), MARGIN, y + 34, width);
+    y += 50;
+  };
+
+  /** Tableau : en-tête gris, lignes en gros caractères ; l'en-tête est répété après un saut de page. */
+  const table = (name: string, columns: string[], fractions: number[], rows: string[][]) => {
+    const headerHeight = 54;
+    const rowHeight = 74;
+    const xs = fractions.reduce<number[]>((acc, f, i) => [...acc, acc[i] + f * width], [MARGIN]);
+    const drawHeader = () => {
+      const { ctx } = page;
+      ctx.fillStyle = HEADER_FILL;
+      ctx.fillRect(MARGIN, y, width, headerHeight);
+      ctx.fillStyle = INK;
+      ctx.font = "600 30px sans-serif";
+      ctx.textBaseline = "middle";
+      columns.forEach((c, i) => ctx.fillText(c, xs[i] + 18, y + headerHeight / 2 + 1, xs[i + 1] - xs[i] - 28));
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(MARGIN, y, width, headerHeight);
+      columnLines(headerHeight);
+      y += headerHeight;
+    };
+    const columnLines = (height: number) => {
+      const { ctx } = page;
+      ctx.beginPath();
+      for (let i = 1; i < columns.length; i++) {
+        ctx.moveTo(xs[i], y);
+        ctx.lineTo(xs[i], y + height);
+      }
+      ctx.stroke();
+    };
+    ensure(50 + headerHeight + rowHeight);
+    sectionTitle(name);
+    drawHeader();
+    for (const row of rows) {
+      if (y + rowHeight > bottom) {
+        newSheet();
+        sectionTitle(name);
+        drawHeader();
+      }
+      const { ctx } = page;
+      ctx.fillStyle = INK;
+      ctx.textBaseline = "middle";
+      row.forEach((cell, i) => {
+        // Première colonne (nom) un peu plus légère, valeurs en gras.
+        ctx.font = i === 0 ? "500 40px sans-serif" : "700 44px sans-serif";
+        ctx.fillText(cell, xs[i] + 18, y + rowHeight / 2 + 2, xs[i + 1] - xs[i] - 28);
+      });
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(MARGIN, y, width, rowHeight);
+      columnLines(rowHeight);
+      y += rowHeight;
+    }
+    y += 34;
+  };
+
+  header(false);
+
+  if (data.ramrod.some((c) => c)) {
+    ensure(50 + 210);
+    sectionTitle(labels.ramrod);
+    y += drawRamrod(page.ctx, y, data.ramrod) + 34;
+  }
+  if (data.navaids.length) {
+    table(labels.navaids, labels.navaidColumns, [0.34, 0.2, 0.2, 0.26], data.navaids.map((r) => [r.name, r.tacan, r.ils, r.freq]));
+  }
+  if (data.freqs.length) {
+    table(labels.freqs, labels.freqColumns, [0.6, 0.4], data.freqs.map((r) => [r.name, r.freq]));
+  }
+  if (data.codes.length) {
+    table(labels.codes, labels.codeColumns, [0.6, 0.4], data.codes.map((r) => [r.name, r.code]));
+  }
+  if (data.notes) {
+    const { ctx } = page;
+    ctx.font = "40px sans-serif";
+    const lines = data.notes.split(/\r?\n/).flatMap((line) => (line.trim() ? wrap(ctx, line, width) : [""]));
+    ensure(50 + 48);
+    sectionTitle(labels.notes);
+    for (const line of lines) {
+      if (y + 48 > bottom) {
+        newSheet();
+        sectionTitle(labels.notes);
+      }
+      page.ctx.font = "40px sans-serif";
+      page.ctx.fillStyle = INK;
+      page.ctx.textBaseline = "alphabetic";
+      page.ctx.fillText(line, MARGIN, y + 40);
+      y += 48;
+    }
+  }
+  pages.push(page.canvas);
+
+  return Promise.all(
+    pages.map((canvas, i) => toFile(canvas, pages.length > 1 ? `${title} (${i + 1}-${pages.length})` : title)),
+  );
 }

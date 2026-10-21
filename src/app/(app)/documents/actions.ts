@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { STORAGE_BUCKET } from "@/lib/documents/storage";
 import { fmt } from "@/lib/i18n/define";
 import { getT } from "@/lib/i18n/server";
-import { parseGeneratedSource } from "@/lib/documents/generated";
+import { parseGeneratedSource, sourceGroup } from "@/lib/documents/generated";
 import { createClient, getSessionClaims } from "@/lib/supabase/server";
 import { notifyDocumentsChanged } from "@/lib/sync/notify";
 import type { Rotation } from "@/lib/database.types";
@@ -263,12 +263,13 @@ export async function replaceGeneratedDocuments(oldId: string, newIds: string[])
 
   const source = parseGeneratedSource(old.source);
   let oldIds = [oldId];
-  if (source?.kind === "checklist") {
+  const group = source ? sourceGroup(source) : null;
+  if (group) {
     const { data: parts } = await supabase
       .from("documents")
       .select("id")
       .eq("user_id", userId)
-      .eq("source->>group", source.group);
+      .eq("source->>group", group);
     oldIds = [...new Set([oldId, ...(parts ?? []).map((p) => p.id)])].filter((id) => !newIds.includes(id));
   }
 
