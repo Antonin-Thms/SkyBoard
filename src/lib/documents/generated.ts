@@ -20,6 +20,11 @@ export type FrequencyRow = {
   name: string;
   freq: string;
 };
+/** Passage RTBA : waypoint et temps depuis le slot (T+, ex. « 1:35 ») */
+export type RtbaRow = {
+  wp: string;
+  offset: string;
+};
 /** Code laser attribué (bombe, station) */
 export type LaserCodeRow = {
   name: string;
@@ -31,13 +36,14 @@ export type TacticalData = {
   /** 10 cases, une par chiffre 0 à 9 (vides : rien d'affiché) */
   ramrod: string[];
   navaids: NavaidRow[];
+  rtba: RtbaRow[];
   freqs: FrequencyRow[];
   codes: LaserCodeRow[];
   notes: string;
 };
 
 /** Limites de saisie d'une fiche tactique. */
-export const TACTICAL_LIMITS = { navaids: 12, freqs: 20, codes: 16, field: 40, notes: 2000 } as const;
+export const TACTICAL_LIMITS = { navaids: 12, rtba: 16, freqs: 20, codes: 16, field: 40, notes: 2000 } as const;
 
 const MAX_TITLE = 120;
 const MAX_ITEMS = 300;
@@ -86,9 +92,11 @@ export function parseGeneratedSource(value: unknown): GeneratedSource | null {
     if (typeof v.part !== "number" || !Number.isInteger(v.part) || v.part < 1) return null;
     const ramrod = parseRamrod(v.ramrod);
     const navaids = parseRows(v.navaids, ["name", "tacan", "ils", "freq"] as const, TACTICAL_LIMITS.navaids);
+    // RTBA : absent des fiches créées avant son ajout.
+    const rtba = parseRows(v.rtba ?? [], ["wp", "offset"] as const, TACTICAL_LIMITS.rtba);
     const freqs = parseRows(v.freqs, ["name", "freq"] as const, TACTICAL_LIMITS.freqs);
     const codes = parseRows(v.codes, ["name", "code"] as const, TACTICAL_LIMITS.codes);
-    if (!ramrod || !navaids || !freqs || !codes || !isString(v.notes)) return null;
+    if (!ramrod || !navaids || !rtba || !freqs || !codes || !isString(v.notes)) return null;
     return {
       kind: "tactical",
       title: v.title,
@@ -96,6 +104,7 @@ export function parseGeneratedSource(value: unknown): GeneratedSource | null {
       part: v.part,
       ramrod,
       navaids,
+      rtba,
       freqs,
       codes,
       notes: v.notes.slice(0, TACTICAL_LIMITS.notes),
@@ -122,6 +131,7 @@ export function emptyTactical(ramrod: string[] = []): TacticalData {
   return {
     ramrod: Array.from({ length: 10 }, (_, i) => ramrod[i] ?? ""),
     navaids: [],
+    rtba: [],
     freqs: [],
     codes: [],
     notes: "",
@@ -137,6 +147,7 @@ export function cleanTactical(data: TacticalData): TacticalData {
   return {
     ramrod: data.ramrod.map((c) => c.trim()),
     navaids: filled(data.navaids).slice(0, TACTICAL_LIMITS.navaids),
+    rtba: filled(data.rtba).slice(0, TACTICAL_LIMITS.rtba),
     freqs: filled(data.freqs).slice(0, TACTICAL_LIMITS.freqs),
     codes: filled(data.codes).slice(0, TACTICAL_LIMITS.codes),
     notes: data.notes.trim().slice(0, TACTICAL_LIMITS.notes),

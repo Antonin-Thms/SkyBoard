@@ -198,6 +198,10 @@ export interface TacticalLabels {
   /** Titre des pages suivantes, gabarit avec {title} */
   continued: string;
   ramrod: string;
+  rtba: string;
+  rtbaColumns: [waypoint: string, offset: string, tot: string];
+  /** Case à remplir au crayon : heure du slot attribué */
+  slot: string;
   navaids: string;
   navaidColumns: [name: string, tacan: string, ils: string, freq: string];
   freqs: string;
@@ -249,7 +253,14 @@ export async function renderTactical(title: string, data: TacticalData, labels: 
   };
 
   /** Tableau : en-tête gris, lignes en gros caractères ; l'en-tête est répété après un saut de page. */
-  const table = (name: string, columns: string[], fractions: number[], rows: string[][]) => {
+  const table = (
+    name: string,
+    columns: string[],
+    fractions: number[],
+    rows: string[][],
+    /** Bloc dessiné entre le titre et l'en-tête (case du slot RTBA) */
+    prelude?: { height: number; draw: (ctx: CanvasRenderingContext2D, top: number) => void },
+  ) => {
     const headerHeight = 54;
     const rowHeight = 74;
     const xs = fractions.reduce<number[]>((acc, f, i) => [...acc, acc[i] + f * width], [MARGIN]);
@@ -276,8 +287,12 @@ export async function renderTactical(title: string, data: TacticalData, labels: 
       }
       ctx.stroke();
     };
-    ensure(50 + headerHeight + rowHeight);
+    ensure(50 + (prelude?.height ?? 0) + headerHeight + rowHeight);
     sectionTitle(name);
+    if (prelude) {
+      prelude.draw(page.ctx, y);
+      y += prelude.height;
+    }
     drawHeader();
     for (const row of rows) {
       if (y + rowHeight > bottom) {
@@ -308,6 +323,23 @@ export async function renderTactical(title: string, data: TacticalData, labels: 
     ensure(50 + 210);
     sectionTitle(labels.ramrod);
     y += drawRamrod(page.ctx, y, data.ramrod) + 34;
+  }
+  if (data.rtba.length) {
+    // Case « Slot » : l'heure attribuée par la tour, écrite au crayon en vol.
+    const slotBox = {
+      height: 96,
+      draw: (ctx: CanvasRenderingContext2D, top: number) => {
+        ctx.fillStyle = INK;
+        ctx.font = "700 40px sans-serif";
+        ctx.textBaseline = "middle";
+        ctx.fillText(labels.slot, MARGIN, top + 38);
+        const labelWidth = ctx.measureText(labels.slot).width;
+        ctx.strokeStyle = INK;
+        ctx.lineWidth = 3;
+        ctx.strokeRect(MARGIN + labelWidth + 24, top, 380, 76);
+      },
+    };
+    table(labels.rtba, labels.rtbaColumns, [0.4, 0.28, 0.32], data.rtba.map((r) => [r.wp, r.offset, ""]), slotBox);
   }
   if (data.navaids.length) {
     table(labels.navaids, labels.navaidColumns, [0.34, 0.2, 0.2, 0.26], data.navaids.map((r) => [r.name, r.tacan, r.ils, r.freq]));

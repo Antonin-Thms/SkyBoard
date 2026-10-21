@@ -47,6 +47,13 @@ describe("fiche tactique", () => {
     expect(parsed && "ramrod" in parsed ? parsed.ramrod : []).toHaveLength(10);
   });
 
+  it("RTBA : lu s'il est présent, vide pour une fiche créée avant son ajout", () => {
+    const rtba = [{ wp: "W1", offset: "0:00" }, { wp: "W2", offset: "1:35" }];
+    expect(parseGeneratedSource({ ...base, rtba })).toMatchObject({ rtba });
+    expect(parseGeneratedSource(base)).toMatchObject({ rtba: [] });
+    expect(parseGeneratedSource({ ...base, rtba: [{ wp: 1 }] })).toBeNull();
+  });
+
   it("refuse une forme inattendue", () => {
     expect(parseGeneratedSource({ ...base, navaids: "x" })).toBeNull();
     expect(parseGeneratedSource({ ...base, codes: [{ name: 3 }] })).toBeNull();

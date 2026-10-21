@@ -48,7 +48,14 @@ export function TacticalDialog({
   async function create() {
     const name = title.trim().slice(0, 120) || t.tacticalDefaultTitle;
     const clean = cleanTactical(data);
-    if (!clean.ramrod.some(Boolean) && !clean.navaids.length && !clean.freqs.length && !clean.codes.length && !clean.notes) {
+    if (
+      !clean.ramrod.some(Boolean) &&
+      !clean.rtba.length &&
+      !clean.navaids.length &&
+      !clean.freqs.length &&
+      !clean.codes.length &&
+      !clean.notes
+    ) {
       setError(t.tacticalEmpty);
       return;
     }
@@ -58,6 +65,9 @@ export function TacticalDialog({
       const files = await renderTactical(name, clean, {
         continued: t.continued,
         ramrod: "RAMROD",
+        rtba: "RTBA",
+        rtbaColumns: [t.colWaypoint, "T+", "TOT"],
+        slot: t.slot,
         navaids: t.sectionNavaids,
         navaidColumns: [t.colName, t.colTacan, t.colIls, t.colFreq],
         freqs: t.sectionFreqs,
@@ -117,6 +127,20 @@ export function TacticalDialog({
         <Section title={t.sectionRamrod}>
           <RamrodInputs chars={data.ramrod} onChange={(ramrod) => set("ramrod", ramrod)} />
           <p className="text-xs text-subtle">{t.ramrodHint}</p>
+        </Section>
+
+        <Section title={t.sectionRtba}>
+          <Rows
+            columns={[
+              { key: "wp", label: t.colWaypoint, grow: 3 },
+              { key: "offset", label: "T+", grow: 2, mono: true },
+            ]}
+            rows={data.rtba}
+            max={TACTICAL_LIMITS.rtba}
+            empty={{ wp: "", offset: "" }}
+            onChange={(rows) => set("rtba", rows)}
+          />
+          <p className="text-xs text-subtle">{t.rtbaHint}</p>
         </Section>
 
         <Section title={t.sectionNavaids}>
