@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardPaste, X } from "lucide-react";
+import { BookOpen, ClipboardPaste, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { saveTacticalRefs } from "@/app/(app)/documents/actions";
 import {
@@ -12,6 +12,7 @@ import {
   TACTICAL_LIMITS,
   type TacticalRefs,
 } from "@/lib/documents/tactical";
+import { MANEX_GERMANY } from "@/lib/documents/presets/manex-germany";
 import { useT } from "@/lib/i18n/client";
 import { Rows, Section } from "./tactical-fields";
 
@@ -67,9 +68,22 @@ export function TacticalRefsDialog({
           <h2 id="refs-title" className="text-lg font-medium">
             {t.refsTitle}
           </h2>
-          <button type="button" className="btn-icon -mr-2" aria-label={t.close} onClick={onClose}>
-            <X size={18} strokeWidth={1.75} />
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Listes toutes faites (à enregistrer ensuite) */}
+            <button
+              type="button"
+              className="btn-secondary min-h-9 px-3 text-sm"
+              onClick={() => {
+                if (window.confirm(t.refsPresetConfirm)) setRefs(structuredClone(MANEX_GERMANY));
+              }}
+            >
+              <BookOpen size={16} strokeWidth={1.75} />
+              {t.refsPreset}
+            </button>
+            <button type="button" className="btn-icon -mr-2" aria-label={t.close} onClick={onClose}>
+              <X size={18} strokeWidth={1.75} />
+            </button>
+          </div>
         </div>
 
         <Section title={t.refsAirbases}>
