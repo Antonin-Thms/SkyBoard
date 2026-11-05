@@ -9,7 +9,7 @@
 
 import { fmt } from "@/lib/i18n/define";
 import { drawRamrod, INK, newPage, PAGE, toFile, wrap } from "./generate";
-import type { Airbase, Station, TacticalSheet } from "./tactical";
+import { isBlank, type Airbase, type Station, type TacticalSheet } from "./tactical";
 
 /** Textes de la fiche (abréviations aéro communes + quelques mots traduits). */
 export interface TacticalLabels {
@@ -146,9 +146,10 @@ export async function renderTactical(title: string, s: TacticalSheet, l: Tactica
     y += height + GAP;
   };
 
+  // Une section entièrement vide n'apparaît pas sur la planche.
   // 1. Mission
   const h = s.header;
-  section("Mission", [
+  if (!isBlank(h)) section("Mission", [
     [
       { text: "CALLSIGN", w: 0.3, kind: "head" },
       { text: "PRI", w: 0.17, kind: "head" },
@@ -181,7 +182,7 @@ export async function renderTactical(title: string, s: TacticalSheet, l: Tactica
     { text: a.runway, w: AB[6], fill, align: "center" },
     { text: a.ils, w: AB[7], fill, align: "center" },
   ];
-  section(l.sectionAirbase, [
+  if (!isBlank(s.airbases.dep, s.airbases.arr, s.airbases.alt)) section(l.sectionAirbase, [
     ["", l.base, "TCN", "VHF", "UHF", "ELEV.", l.runway, "ILS"].map((text, i) => ({ text, w: AB[i], kind: "head" as const })),
     airbaseRow(l.roles[0], s.airbases.dep, COLORS.blue),
     airbaseRow(l.roles[1], s.airbases.arr, COLORS.blue),
@@ -190,7 +191,7 @@ export async function renderTactical(title: string, s: TacticalSheet, l: Tactica
 
   // 3. Patrouille
   const FL = [0.05, 0.18, 0.1, 0.08, 0.08, 0.09, 0.12, 0.3];
-  section(l.sectionFlight, [
+  if (!isBlank(...s.flight)) section(l.sectionFlight, [
     ["#", l.pilot, l.helmet, "TCN", "LSR", "STN", "TAIL #", l.notes].map((text, i) => ({ text, w: FL[i], kind: "head" as const })),
     ...s.flight.map((m, i): Cell[] => [
       { text: String(i + 1), w: FL[0], kind: "label" },
@@ -206,7 +207,7 @@ export async function renderTactical(title: string, s: TacticalSheet, l: Tactica
 
   // 4. Emports
   const lo = s.loadout;
-  section(l.sectionLoadout, [
+  if (!isBlank(lo)) section(l.sectionLoadout, [
     [{ text: l.configuration, w: 1, kind: "head" }],
     ...(
       [
@@ -228,7 +229,10 @@ export async function renderTactical(title: string, s: TacticalSheet, l: Tactica
     { text: st.freq, w: CM[1], align: "center" },
     { text: st.name, w: CM[2], align: "center" },
   ];
-  section(l.sectionCom, [
+  // Autant de lignes que la plus longue des deux colonnes.
+  const comRows = Math.max(s.com1.length, s.com2.length);
+  const blankStation: Station = { code: "", name: "", freq: "" };
+  if (!isBlank(...s.com1, ...s.com2)) section(l.sectionCom, [
     [
       { text: l.com1, w: 0.5, kind: "head" },
       { text: l.com2, w: 0.5, kind: "head" },
@@ -238,12 +242,15 @@ export async function renderTactical(title: string, s: TacticalSheet, l: Tactica
       w: CM[i % 3],
       kind: "label" as const,
     })),
-    ...s.com1.map((st, i): Cell[] => [...comCells(st, COLORS.blue), ...comCells(s.com2[i], COLORS.green)]),
+    ...Array.from({ length: comRows }, (_, i): Cell[] => [
+      ...comCells(s.com1[i] ?? blankStation, COLORS.blue),
+      ...comCells(s.com2[i] ?? blankStation, COLORS.green),
+    ]),
   ]);
 
   // 6. Objectifs
   const TG = [0.05, 0.17, 0.36, 0.12, 0.3];
-  section(l.sectionTargets, [
+  if (!isBlank(...s.targets)) section(l.sectionTargets, [
     ["N°", l.type, l.coords, l.alt, l.threats].map((text, i) => ({ text, w: TG[i], kind: "head" as const })),
     ...s.targets.map((t, i): Cell[] => [
       { text: String(i + 1), w: TG[0], kind: "label" },

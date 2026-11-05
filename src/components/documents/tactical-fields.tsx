@@ -15,17 +15,22 @@ export function Field({
   value,
   onChange,
   mono = false,
+  readOnly = false,
   className = "",
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   mono?: boolean;
+  /** Valeur calculée : affichée, non modifiable */
+  readOnly?: boolean;
   className?: string;
 }) {
   return (
     <input
-      className={`input min-w-0 px-2 text-sm ${mono ? "font-mono" : ""} ${className}`}
+      readOnly={readOnly}
+      tabIndex={readOnly ? -1 : undefined}
+      className={`input min-w-0 px-2 text-sm ${mono ? "font-mono" : ""} ${readOnly ? "border-dashed text-muted" : ""} ${className}`}
       aria-label={label}
       value={value}
       maxLength={TACTICAL_LIMITS.field}

@@ -56,9 +56,41 @@ export type TacticalSheet = {
   notes: string;
 };
 
-/** Lignes fixes de la fiche (comme le tableau Excel : lignes vides à remplir au crayon). */
+/**
+ * Lignes de la fiche : 4 par défaut (lignes vides à remplir au crayon) ;
+ * radios et objectifs peuvent en avoir plus (jusqu'à `max`).
+ */
 export const TACTICAL_ROWS = { flight: 4, com: 4, targets: 4 } as const;
-export const TACTICAL_LIMITS = { rtba: 16, field: 40, notes: 2000, refs: 300 } as const;
+export const TACTICAL_LIMITS = { rtba: 16, com: 12, targets: 12, field: 40, notes: 2000, refs: 300 } as const;
+
+/** Casques proposés pour la patrouille. */
+export const HELMETS = ["HMCS", "NVG"] as const;
+
+/**
+ * TACAN air-air des ailiers : canal du leader + 63, même bande
+ * (61Y → 124Y). Au-delà de 63, on retire 63 (70X → 7X). Vide si le canal
+ * du leader n'est pas valide (1 à 126, X ou Y).
+ */
+export function wingmanTacan(leader: string): string {
+  const m = /^\s*(\d{1,3})\s*([XY])\s*$/i.exec(leader);
+  if (!m) return "";
+  const channel = Number(m[1]);
+  if (channel < 1 || channel > 126) return "";
+  return `${channel <= 63 ? channel + 63 : channel - 63}${m[2].toUpperCase()}`;
+}
+
+/** TACAN des ailiers recalculés depuis celui du leader (lignes de patrouille remplies seulement). */
+export function withWingmenTacan(flight: FlightMember[]): FlightMember[] {
+  const tacan = wingmanTacan(flight[0]?.tacan ?? "");
+  return flight.map((m, i) => {
+    if (i === 0) return m;
+    const used = Object.entries(m).some(([k, v]) => k !== "tacan" && v.trim());
+    return { ...m, tacan: used ? tacan : "" };
+  });
+}
+
+/** Une section est vide si aucune de ses cases n'est remplie (elle n'apparaît pas sur la planche). */
+export const isBlank = (...rows: Record<string, string>[]) => rows.every((row) => Object.values(row).every((v) => !v.trim()));
 
 export const AIRBASE_KEYS = ["name", "tacan", "vhf", "uhf", "elev", "runway", "ils"] as const;
 export const STATION_KEYS = ["code", "name", "freq"] as const;
@@ -168,9 +200,9 @@ export function parseTacticalSheet(v: Record<string, unknown>): TacticalSheet | 
   const arr = parseRecord(airbases?.arr, AIRBASE_KEYS);
   const alt = parseRecord(airbases?.alt, AIRBASE_KEYS);
   const flight = parseFixedRows(v.flight, FLIGHT_KEYS, TACTICAL_ROWS.flight);
-  const com1 = parseFixedRows(v.com1, STATION_KEYS, TACTICAL_ROWS.com);
-  const com2 = parseFixedRows(v.com2, STATION_KEYS, TACTICAL_ROWS.com);
-  const targets = parseFixedRows(v.targets, TARGET_KEYS, TACTICAL_ROWS.targets);
+  const com1 = parseRows(v.com1, STATION_KEYS, TACTICAL_LIMITS.com);
+  const com2 = parseRows(v.com2, STATION_KEYS, TACTICAL_LIMITS.com);
+  const targets = parseRows(v.targets, TARGET_KEYS, TACTICAL_LIMITS.targets);
   if (!header || !loadout || !dep || !arr || !alt || !flight || !com1 || !com2 || !targets) return null;
   return { header, airbases: { dep, arr, alt }, flight, loadout, com1, com2, targets, ramrod, rtba, notes };
 }
@@ -182,7 +214,7 @@ export function cleanTacticalSheet(s: TacticalSheet): TacticalSheet {
   return {
     header: trim(s.header),
     airbases: { dep: trim(s.airbases.dep), arr: trim(s.airbases.arr), alt: trim(s.airbases.alt) },
-    flight: s.flight.map(trim),
+    flight: withWingmenTacan(s.flight.map(trim)),
     loadout: trim(s.loadout),
     com1: s.com1.map(trim),
     com2: s.com2.map(trim),

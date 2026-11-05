@@ -1,18 +1,21 @@
 "use client";
 
-import { ListPlus, X } from "lucide-react";
+import { ListPlus, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { getTacticalRefs } from "@/app/(app)/documents/actions";
 import { Select } from "@/components/ui/select";
 import { renderTactical } from "@/lib/documents/render-tactical";
 import {
   cleanTacticalSheet,
+  emptyStation,
   emptyTacticalSheet,
+  HELMETS,
   TACTICAL_LIMITS,
   type Airbase,
   type Station,
   type TacticalRefs,
   type TacticalSheet,
+  withWingmenTacan,
 } from "@/lib/documents/tactical";
 import { useT } from "@/lib/i18n/client";
 import { uuid } from "@/lib/uuid";
@@ -124,6 +127,7 @@ export function TacticalDialog({
 
   const airbaseOptions = (refs?.airbases ?? []).map((a, i) => ({ value: String(i), label: [a.name, a.tacan].filter(Boolean).join(" · ") }));
   const stationOptions = (refs?.stations ?? []).map((s, i) => ({ value: String(i), label: [s.code, s.name].filter(Boolean).join(" · ") }));
+  const wingmen = withWingmenTacan(sheet.flight);
   const noRefs = refs !== null && !refs.airbases.length && !refs.stations.length;
 
   return (
@@ -233,8 +237,20 @@ export function TacticalDialog({
               <div key={i} className="grid items-center gap-1.5" style={{ gridTemplateColumns: FLIGHT_COLS }}>
                 <span className="numeric text-sm font-semibold text-muted">{i + 1}</span>
                 <Field label={`${t.colPilot} ${i + 1}`} value={m.pilot} onChange={(v) => setListRow("flight", i, "pilot", v)} />
-                <Field label={`${t.colHelmet} ${i + 1}`} value={m.helmet} onChange={(v) => setListRow("flight", i, "helmet", v)} />
-                <Field label={`TCN ${i + 1}`} value={m.tacan} onChange={(v) => setListRow("flight", i, "tacan", v)} mono />
+                <Select
+                  label={`${t.colHelmet} ${i + 1}`}
+                  size="sm"
+                  value={m.helmet}
+                  placeholder="—"
+                  options={helmetOptions(m.helmet)}
+                  onChange={(v) => setListRow("flight", i, "helmet", v)}
+                />
+                {i === 0 ? (
+                  <Field label={`TCN ${i + 1}`} value={m.tacan} onChange={(v) => setListRow("flight", i, "tacan", v)} mono />
+                ) : (
+                  // Ailiers : TACAN du leader + 63, calculé.
+                  <Field label={`TCN ${i + 1}`} value={wingmen[i].tacan} onChange={() => {}} mono readOnly />
+                )}
                 <Field label={`LSR ${i + 1}`} value={m.laser} onChange={(v) => setListRow("flight", i, "laser", v)} mono />
                 <Field label={`STN ${i + 1}`} value={m.stn} onChange={(v) => setListRow("flight", i, "stn", v)} mono />
                 <Field label={`${t.colTail} ${i + 1}`} value={m.tail} onChange={(v) => setListRow("flight", i, "tail", v)} mono />
@@ -242,6 +258,7 @@ export function TacticalDialog({
               </div>
             ))}
           </Wide>
+          <p className="text-xs text-subtle">{t.tacanHint}</p>
         </Section>
 
         <Section title={t.sectionLoadout}>
@@ -271,7 +288,7 @@ export function TacticalDialog({
             {(["com1", "com2"] as const).map((com) => (
               <div key={com} className="space-y-1.5">
                 <div className="numeric text-sm font-semibold text-muted">{com === "com1" ? "COM1 (PRI)" : "COM2 (AUX)"}</div>
-                <GridHead cols={COM_COLS} labels={["", t.colChannel, t.colFreq, t.colName]} />
+                <GridHead cols={COM_COLS} labels={["", t.colChannel, t.colFreq, t.colName, ""]} />
                 {sheet[com].map((st, i) => {
                   const set = (key: keyof Station) => (v: string) => setStation(com, i, { ...st, [key]: v });
                   const label = `${com === "com1" ? "COM1" : "COM2"} ${i + 1}`;
@@ -292,9 +309,16 @@ export function TacticalDialog({
                       <Field label={`${t.colChannel} ${label}`} value={st.code} onChange={set("code")} mono />
                       <Field label={`${t.colFreq} ${label}`} value={st.freq} onChange={set("freq")} mono />
                       <Field label={`${t.colName} ${label}`} value={st.name} onChange={set("name")} />
+                      <RemoveRow
+                        label={`${t.removeRow} ${label}`}
+                        onClick={() => update((s) => ({ ...s, [com]: s[com].filter((_, j) => j !== i) }))}
+                      />
                     </div>
                   );
                 })}
+                {sheet[com].length < TACTICAL_LIMITS.com && (
+                  <AddRow label={t.addRow} onClick={() => update((s) => ({ ...s, [com]: [...s[com], emptyStation()] }))} />
+                )}
               </div>
             ))}
           </div>
@@ -302,7 +326,7 @@ export function TacticalDialog({
 
         <Section title={t.sectionTargets}>
           <Wide>
-            <GridHead cols={TARGET_COLS} labels={["N°", t.colType, t.colCoords, t.colAlt, t.colThreats]} />
+            <GridHead cols={TARGET_COLS} labels={["N°", t.colType, t.colCoords, t.colAlt, t.colThreats, ""]} />
             {sheet.targets.map((tg, i) => (
               <div key={i} className="grid items-center gap-1.5" style={{ gridTemplateColumns: TARGET_COLS }}>
                 <span className="numeric text-sm font-semibold text-muted">{i + 1}</span>
@@ -310,9 +334,19 @@ export function TacticalDialog({
                 <Field label={`${t.colCoords} ${i + 1}`} value={tg.coords} onChange={(v) => setListRow("targets", i, "coords", v)} mono />
                 <Field label={`${t.colAlt} ${i + 1}`} value={tg.alt} onChange={(v) => setListRow("targets", i, "alt", v)} mono />
                 <Field label={`${t.colThreats} ${i + 1}`} value={tg.notes} onChange={(v) => setListRow("targets", i, "notes", v)} />
+                <RemoveRow
+                  label={`${t.removeRow} ${i + 1}`}
+                  onClick={() => update((s) => ({ ...s, targets: s.targets.filter((_, j) => j !== i) }))}
+                />
               </div>
             ))}
           </Wide>
+          {sheet.targets.length < TACTICAL_LIMITS.targets && (
+            <AddRow
+              label={t.addRow}
+              onClick={() => update((s) => ({ ...s, targets: [...s.targets, { type: "", coords: "", alt: "", notes: "" }] }))}
+            />
+          )}
         </Section>
 
         <Section title={t.sectionFlightNotes}>
@@ -370,8 +404,32 @@ export function TacticalDialog({
 
 const AIRBASE_COLS = "3rem minmax(9rem,1.6fr) repeat(7,minmax(4.5rem,1fr))";
 const FLIGHT_COLS = "1.5rem minmax(7rem,1.6fr) repeat(5,minmax(4rem,1fr)) minmax(8rem,2fr)";
-const COM_COLS = "minmax(6rem,1.3fr) minmax(3.5rem,0.8fr) minmax(5rem,1fr) minmax(6rem,1.6fr)";
-const TARGET_COLS = "1.5rem minmax(6rem,1.2fr) minmax(9rem,2fr) minmax(4.5rem,0.8fr) minmax(8rem,2fr)";
+const COM_COLS = "minmax(6rem,1.3fr) minmax(3.5rem,0.8fr) minmax(5rem,1fr) minmax(6rem,1.6fr) 2.25rem";
+const TARGET_COLS = "1.5rem minmax(6rem,1.2fr) minmax(9rem,2fr) minmax(4.5rem,0.8fr) minmax(8rem,2fr) 2.25rem";
+
+/** Casques : HMCS, NVG (plus une valeur saisie autrefois, s'il y en a une). */
+function helmetOptions(current: string) {
+  const values: string[] = [...HELMETS];
+  if (current && !values.includes(current)) values.push(current);
+  return [{ value: "", label: "—" }, ...values.map((v) => ({ value: v, label: v }))];
+}
+
+function RemoveRow({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="btn-icon size-9" aria-label={label} onClick={onClick}>
+      <X size={16} strokeWidth={1.75} />
+    </button>
+  );
+}
+
+function AddRow({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="btn-ghost -ml-2 min-h-9 px-2 text-sm" onClick={onClick}>
+      <Plus size={15} strokeWidth={1.75} />
+      {label}
+    </button>
+  );
+}
 
 /** Grille large : défile horizontalement sur petit écran. */
 function Wide({ children }: { children: ReactNode }) {

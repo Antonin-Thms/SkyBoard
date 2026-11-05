@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseGeneratedSource, sourceGroup } from "./generated";
-import { AIRBASE_KEYS, cleanTacticalSheet, emptyTacticalSheet, parsePastedRows } from "./tactical";
+import { AIRBASE_KEYS, cleanTacticalSheet, emptyTacticalSheet, isBlank, parsePastedRows, wingmanTacan, withWingmenTacan } from "./tactical";
 
 const GROUP = "0f8b6a52-3c1d-4e2f-9a7b-1c2d3e4f5a6b";
 
@@ -51,8 +51,9 @@ describe("fiche tactique", () => {
     if (parsed?.kind !== "tactical") throw new Error("type");
     expect(parsed.flight).toHaveLength(4);
     expect(parsed.com1[0]).toEqual(base.com1[0]);
-    expect(parsed.com2).toHaveLength(4);
-    expect(parsed.targets).toHaveLength(4);
+    // Radios et objectifs : autant de lignes que saisies (absentes : aucune).
+    expect(parsed.com2).toHaveLength(0);
+    expect(parsed.targets).toHaveLength(0);
     expect(parsed.airbases.arr.name).toBe("");
     expect(parsed.ramrod).toHaveLength(10);
   });
@@ -103,5 +104,36 @@ describe("fiche tactique", () => {
   it("groupe : checklist et fiche tactique en ont un, pas l'ancienne table RAMROD", () => {
     expect(sourceGroup(parseGeneratedSource(base)!)).toBe(GROUP);
     expect(sourceGroup({ kind: "ramrod", title: "R", chars: [] })).toBeNull();
+  });
+});
+
+describe("TACAN des ailiers", () => {
+  it("leader + 63, même bande ; au-delà de 63 on retire 63", () => {
+    expect(wingmanTacan("61Y")).toBe("124Y");
+    expect(wingmanTacan("1x")).toBe("64X");
+    expect(wingmanTacan("63Y")).toBe("126Y");
+    expect(wingmanTacan("70X")).toBe("7X");
+    expect(wingmanTacan(" 31 y ")).toBe("94Y");
+  });
+
+  it("vide si le canal du leader n'est pas valide", () => {
+    for (const v of ["", "0X", "127Y", "61", "61Z", "abc"]) expect(wingmanTacan(v)).toBe("");
+  });
+
+  it("appliqué aux ailiers dont la ligne est remplie", () => {
+    const s = emptyTacticalSheet();
+    s.flight[0] = { ...s.flight[0], pilot: "Lead", tacan: "61Y" };
+    s.flight[1] = { ...s.flight[1], pilot: "Two", tacan: "12X" };
+    s.flight[2] = { ...s.flight[2], tail: "411" };
+    const flight = withWingmenTacan(s.flight);
+    expect(flight.map((m) => m.tacan)).toEqual(["61Y", "124Y", "124Y", ""]);
+  });
+});
+
+describe("sections vides", () => {
+  it("vides si aucune case n'est remplie (espaces ignorés)", () => {
+    expect(isBlank({ a: "", b: " " }, { c: "" })).toBe(true);
+    expect(isBlank({ a: "" }, { c: "U12" })).toBe(false);
+    expect(isBlank()).toBe(true);
   });
 });
