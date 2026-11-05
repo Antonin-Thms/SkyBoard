@@ -4,7 +4,7 @@ import { ChevronDown, Crosshair, FileText, ListChecks, Plus, X } from "lucide-re
 import { useEffect, useRef, useState } from "react";
 import { Menu } from "@/components/ui/menu";
 import { parseChecklistItems, renderChecklist, renderNotePage } from "@/lib/documents/generate";
-import { emptyTactical } from "@/lib/documents/generated";
+import { emptyTacticalSheet } from "@/lib/documents/tactical";
 import type { GeneratedSource } from "@/lib/documents/generated";
 import { useT } from "@/lib/i18n/client";
 import { uuid } from "@/lib/uuid";
@@ -125,7 +125,7 @@ export function CreatePages({ busy, onCreate, editing, onEditClose, onReplace }:
             editing.source.kind === "tactical"
               ? { title: editing.source.title, data: editing.source }
               : // Ancienne table RAMROD : devient une fiche tactique.
-                { title: editing.source.title, data: emptyTactical(editing.source.chars) }
+                { title: editing.source.title, data: emptyTacticalSheet(editing.source.chars) }
           }
           onClose={onEditClose}
           onCreate={async (items) => {

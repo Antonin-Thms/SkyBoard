@@ -1,23 +1,31 @@
 "use client";
 
-import { Plus, X } from "lucide-react";
+import { ListPlus, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { getTacticalRefs } from "@/app/(app)/documents/actions";
+import { Select } from "@/components/ui/select";
+import { renderTactical } from "@/lib/documents/render-tactical";
 import {
-  normalizeRamrodChar,
-  RAMROD_SIZE,
-  ramrodDuplicates,
-  renderTactical,
-  splitRamrodChars,
-} from "@/lib/documents/generate";
-import { cleanTactical, emptyTactical, TACTICAL_LIMITS, type TacticalData } from "@/lib/documents/generated";
-import { fmt } from "@/lib/i18n/define";
+  cleanTacticalSheet,
+  emptyTacticalSheet,
+  TACTICAL_LIMITS,
+  type Airbase,
+  type Station,
+  type TacticalRefs,
+  type TacticalSheet,
+} from "@/lib/documents/tactical";
 import { useT } from "@/lib/i18n/client";
 import { uuid } from "@/lib/uuid";
 import type { CreatedPage } from "./create-pages";
+import { TacticalRefsDialog } from "./tactical-refs-dialog";
+import { Field, RamrodInputs, Rows, Section } from "./tactical-fields";
+
+type Role = keyof TacticalSheet["airbases"];
 
 /**
- * Fiche tactique : RAMROD, navigation (porte-avions, terrains), fréquences,
- * codes laser et notes. Chaque section est facultative.
+ * Fiche tactique (« mission card ») : mission, terrains, patrouille, emports,
+ * radios, objectifs, notes de vol. Terrains et stations radio se choisissent
+ * dans les listes du pilote (« Gérer mes listes »), puis restent modifiables.
  */
 export function TacticalDialog({
   initial,
@@ -25,14 +33,16 @@ export function TacticalDialog({
   onCreate,
 }: {
   /** Modification : contenu actuel */
-  initial?: { title: string; data: TacticalData };
+  initial?: { title: string; data: TacticalSheet };
   onClose: () => void;
   onCreate: (items: CreatedPage[]) => void | Promise<void>;
 }) {
   const t = useT().documents.create;
   const dialog = useRef<HTMLDialogElement>(null);
   const [title, setTitle] = useState(initial?.title ?? "");
-  const [data, setData] = useState<TacticalData>(() => initial?.data ?? emptyTactical());
+  const [sheet, setSheet] = useState<TacticalSheet>(() => initial?.data ?? emptyTacticalSheet());
+  const [refs, setRefs] = useState<TacticalRefs | null>(null);
+  const [refsOpen, setRefsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
 
@@ -42,39 +52,60 @@ export function TacticalDialog({
     return () => d?.close();
   }, []);
 
-  const set = <K extends keyof TacticalData>(key: K, value: TacticalData[K]) =>
-    setData((prev) => ({ ...prev, [key]: value }));
+  useEffect(() => {
+    let alive = true;
+    getTacticalRefs()
+      .then((r) => alive && setRefs(r))
+      .catch(() => alive && setRefs({ airbases: [], stations: [] }));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const update = (fn: (s: TacticalSheet) => TacticalSheet) => setSheet((prev) => fn(prev));
+  const setHeader = (key: keyof TacticalSheet["header"], value: string) =>
+    update((s) => ({ ...s, header: { ...s.header, [key]: value } }));
+  const setAirbase = (role: Role, value: Airbase) =>
+    update((s) => ({ ...s, airbases: { ...s.airbases, [role]: value } }));
+  const setStation = (com: "com1" | "com2", i: number, value: Station) =>
+    update((s) => ({ ...s, [com]: s[com].map((st, j) => (j === i ? value : st)) }));
+  const setListRow = <L extends "flight" | "targets">(list: L, i: number, key: keyof TacticalSheet[L][number], value: string) =>
+    update((s) => ({ ...s, [list]: s[list].map((r, j) => (j === i ? { ...r, [key]: value } : r)) }));
 
   async function create() {
-    const name = title.trim().slice(0, 120) || t.tacticalDefaultTitle;
-    const clean = cleanTactical(data);
-    if (
-      !clean.ramrod.some(Boolean) &&
-      !clean.rtba.length &&
-      !clean.navaids.length &&
-      !clean.freqs.length &&
-      !clean.codes.length &&
-      !clean.notes
-    ) {
-      setError(t.tacticalEmpty);
-      return;
-    }
+    const name = title.trim().slice(0, 120) || sheet.header.mission.trim() || t.tacticalDefaultTitle;
+    const clean = cleanTacticalSheet(sheet);
     setWorking(true);
     setError(null);
     try {
       const files = await renderTactical(name, clean, {
         continued: t.continued,
-        ramrod: "RAMROD",
-        rtba: "RTBA",
-        rtbaColumns: [t.colWaypoint, "T+", "TOT"],
+        weather: t.weather,
+        time: t.timeZ,
+        sectionAirbase: t.sectionAirbase,
+        base: t.colBase,
+        runway: t.colRunway,
+        roles: ["DEP", "ARR", "ALTN"],
+        sectionFlight: t.sectionFlight,
+        pilot: t.colPilot,
+        helmet: t.colHelmet,
+        notes: t.colNotes,
+        sectionLoadout: t.sectionLoadout,
+        configuration: t.configuration,
+        sectionCom: t.sectionCom,
+        com1: "COM1 (PRI)",
+        com2: "COM2 (AUX)",
+        channel: t.colChannel,
+        freq: t.colFreq,
+        name: t.colName,
+        sectionTargets: t.sectionTargets,
+        type: t.colType,
+        coords: t.colCoords,
+        alt: t.colAlt,
+        threats: t.colThreats,
+        sectionFlightNotes: t.sectionFlightNotes,
         slot: t.slot,
-        navaids: t.sectionNavaids,
-        navaidColumns: [t.colName, t.colTacan, t.colIls, t.colFreq],
-        freqs: t.sectionFreqs,
-        freqColumns: [t.colName, t.colFreq],
-        codes: t.sectionCodes,
-        codeColumns: [t.colWeapon, t.colCode],
-        notes: t.sectionNotes,
+        waypoint: t.colWaypoint,
       });
       const group = uuid();
       await onCreate(
@@ -91,12 +122,16 @@ export function TacticalDialog({
     }
   }
 
+  const airbaseOptions = (refs?.airbases ?? []).map((a, i) => ({ value: String(i), label: [a.name, a.tacan].filter(Boolean).join(" · ") }));
+  const stationOptions = (refs?.stations ?? []).map((s, i) => ({ value: String(i), label: [s.code, s.name].filter(Boolean).join(" · ") }));
+  const noRefs = refs !== null && !refs.airbases.length && !refs.stations.length;
+
   return (
     <dialog
       ref={dialog}
       onClose={onClose}
       aria-labelledby="tactical-title"
-      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(42rem,calc(100vw-2rem))] rounded-[4px] bg-overlay p-0 text-fg shadow-popover backdrop:bg-black/60"
+      className="m-auto max-h-[calc(100dvh-2rem)] w-[min(64rem,calc(100vw-2rem))] rounded-[4px] bg-overlay p-0 text-fg shadow-popover backdrop:bg-black/60"
     >
       <form
         className="space-y-5 p-5"
@@ -105,99 +140,212 @@ export function TacticalDialog({
           void create();
         }}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <h2 id="tactical-title" className="text-lg font-medium">
             {initial ? t.editTacticalTitle : t.tacticalDialogTitle}
           </h2>
-          <button type="button" className="btn-icon -mr-2" aria-label={t.close} onClick={onClose}>
-            <X size={18} strokeWidth={1.75} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              className="btn-secondary min-h-9 px-3 text-sm"
+              disabled={refs === null}
+              onClick={() => setRefsOpen(true)}
+            >
+              <ListPlus size={16} strokeWidth={1.75} />
+              {t.manageLists}
+            </button>
+            <button type="button" className="btn-icon -mr-2" aria-label={t.close} onClick={onClose}>
+              <X size={18} strokeWidth={1.75} />
+            </button>
+          </div>
         </div>
+        <p className="text-xs text-subtle">{t.tacticalHint}</p>
+        {refs === null && <p className="text-xs text-muted">{t.refsLoading}</p>}
+        {noRefs && <p className="text-xs text-muted">{t.refsNone}</p>}
+
         <label className="flex flex-col gap-1.5 text-sm text-muted">
           {t.titleLabel}
-          <input
-            className="input"
-            value={title}
-            maxLength={120}
-            placeholder={t.tacticalDefaultTitle}
-            onChange={(e) => setTitle(e.target.value)}
-          />
+          <input className="input" value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} />
         </label>
 
-        <Section title={t.sectionRamrod}>
-          <RamrodInputs chars={data.ramrod} onChange={(ramrod) => set("ramrod", ramrod)} />
-          <p className="text-xs text-subtle">{t.ramrodHint}</p>
+        <Section title={t.sectionMission}>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-6">
+            <Labeled label="Callsign">
+              <Field label="Callsign" value={sheet.header.callsign} onChange={(v) => setHeader("callsign", v)} />
+            </Labeled>
+            <Labeled label="PRI">
+              <Field label="PRI" value={sheet.header.pri} onChange={(v) => setHeader("pri", v)} />
+            </Labeled>
+            <Labeled label="AUX">
+              <Field label="AUX" value={sheet.header.aux} onChange={(v) => setHeader("aux", v)} />
+            </Labeled>
+            <Labeled label="Mission">
+              <Field label="Mission" value={sheet.header.mission} onChange={(v) => setHeader("mission", v)} />
+            </Labeled>
+            <Labeled label={t.weather}>
+              <Field label={t.weather} value={sheet.header.weather} onChange={(v) => setHeader("weather", v)} />
+            </Labeled>
+            <Labeled label={t.timeZ}>
+              <Field label={t.timeZ} value={sheet.header.time} onChange={(v) => setHeader("time", v)} mono />
+            </Labeled>
+          </div>
         </Section>
 
-        <Section title={t.sectionRtba}>
-          <Rows
-            columns={[
-              { key: "wp", label: t.colWaypoint, grow: 3 },
-              { key: "offset", label: "T+", grow: 2, mono: true },
-            ]}
-            rows={data.rtba}
-            max={TACTICAL_LIMITS.rtba}
-            empty={{ wp: "", offset: "" }}
-            onChange={(rows) => set("rtba", rows)}
-          />
-          <p className="text-xs text-subtle">{t.rtbaHint}</p>
+        <Section title={t.sectionAirbase}>
+          <Wide>
+            <GridHead cols={AIRBASE_COLS} labels={["", t.chooseAirbase, t.colBase, "TCN", "VHF", "UHF", t.colElev, t.colRunway, "ILS"]} />
+            {(["dep", "arr", "alt"] as const).map((role) => {
+              const a = sheet.airbases[role];
+              const set = (key: keyof Airbase) => (v: string) => setAirbase(role, { ...a, [key]: v });
+              const label = role === "dep" ? "DEP" : role === "arr" ? "ARR" : "ALTN";
+              return (
+                <div key={role} className="grid items-center gap-1.5" style={{ gridTemplateColumns: AIRBASE_COLS }}>
+                  <span className="numeric text-sm font-semibold text-muted">{label}</span>
+                  <Select
+                    label={`${t.chooseAirbase} ${label}`}
+                    size="sm"
+                    value=""
+                    placeholder={t.chooseAirbase}
+                    options={airbaseOptions}
+                    disabled={!airbaseOptions.length}
+                    onChange={(v) => {
+                      const picked = refs?.airbases[Number(v)];
+                      if (picked) setAirbase(role, { ...picked });
+                    }}
+                  />
+                  <Field label={`${t.colBase} ${label}`} value={a.name} onChange={set("name")} />
+                  <Field label={`TCN ${label}`} value={a.tacan} onChange={set("tacan")} mono />
+                  <Field label={`VHF ${label}`} value={a.vhf} onChange={set("vhf")} mono />
+                  <Field label={`UHF ${label}`} value={a.uhf} onChange={set("uhf")} mono />
+                  <Field label={`${t.colElev} ${label}`} value={a.elev} onChange={set("elev")} mono />
+                  <Field label={`${t.colRunway} ${label}`} value={a.runway} onChange={set("runway")} mono />
+                  <Field label={`ILS ${label}`} value={a.ils} onChange={set("ils")} mono />
+                </div>
+              );
+            })}
+          </Wide>
         </Section>
 
-        <Section title={t.sectionNavaids}>
-          <Rows
-            columns={[
-              { key: "name", label: t.colName, grow: 3 },
-              { key: "tacan", label: t.colTacan, grow: 2 },
-              { key: "ils", label: t.colIls, grow: 2 },
-              { key: "freq", label: t.colFreq, grow: 2 },
-            ]}
-            rows={data.navaids}
-            max={TACTICAL_LIMITS.navaids}
-            empty={{ name: "", tacan: "", ils: "", freq: "" }}
-            onChange={(rows) => set("navaids", rows)}
-          />
+        <Section title={t.sectionFlight}>
+          <Wide>
+            <GridHead cols={FLIGHT_COLS} labels={["#", t.colPilot, t.colHelmet, "TCN", "LSR", "STN", t.colTail, t.colNotes]} />
+            {sheet.flight.map((m, i) => (
+              <div key={i} className="grid items-center gap-1.5" style={{ gridTemplateColumns: FLIGHT_COLS }}>
+                <span className="numeric text-sm font-semibold text-muted">{i + 1}</span>
+                <Field label={`${t.colPilot} ${i + 1}`} value={m.pilot} onChange={(v) => setListRow("flight", i, "pilot", v)} />
+                <Field label={`${t.colHelmet} ${i + 1}`} value={m.helmet} onChange={(v) => setListRow("flight", i, "helmet", v)} />
+                <Field label={`TCN ${i + 1}`} value={m.tacan} onChange={(v) => setListRow("flight", i, "tacan", v)} mono />
+                <Field label={`LSR ${i + 1}`} value={m.laser} onChange={(v) => setListRow("flight", i, "laser", v)} mono />
+                <Field label={`STN ${i + 1}`} value={m.stn} onChange={(v) => setListRow("flight", i, "stn", v)} mono />
+                <Field label={`${t.colTail} ${i + 1}`} value={m.tail} onChange={(v) => setListRow("flight", i, "tail", v)} mono />
+                <Field label={`${t.colNotes} ${i + 1}`} value={m.notes} onChange={(v) => setListRow("flight", i, "notes", v)} />
+              </div>
+            ))}
+          </Wide>
         </Section>
 
-        <Section title={t.sectionFreqs}>
-          <Rows
-            columns={[
-              { key: "name", label: t.colName, grow: 3 },
-              { key: "freq", label: t.colFreq, grow: 2 },
-            ]}
-            rows={data.freqs}
-            max={TACTICAL_LIMITS.freqs}
-            empty={{ name: "", freq: "" }}
-            onChange={(rows) => set("freqs", rows)}
-          />
+        <Section title={t.sectionLoadout}>
+          <div className="grid gap-1.5 sm:grid-cols-2">
+            {(
+              [
+                ["aa", "A/A"],
+                ["ag", "A/G"],
+                ["pod", "POD"],
+                ["tanks", "TANKS"],
+              ] as const
+            ).map(([key, label]) => (
+              <div key={key} className="grid grid-cols-[4rem_minmax(0,1fr)] items-center gap-1.5">
+                <span className="numeric text-sm font-semibold text-muted">{label}</span>
+                <Field
+                  label={label}
+                  value={sheet.loadout[key]}
+                  onChange={(v) => update((s) => ({ ...s, loadout: { ...s.loadout, [key]: v } }))}
+                />
+              </div>
+            ))}
+          </div>
         </Section>
 
-        <Section title={t.sectionCodes}>
-          <Rows
-            columns={[
-              { key: "name", label: t.colWeapon, grow: 3 },
-              { key: "code", label: t.colCode, grow: 2, mono: true },
-            ]}
-            rows={data.codes}
-            max={TACTICAL_LIMITS.codes}
-            empty={{ name: "", code: "" }}
-            onChange={(rows) => set("codes", rows)}
-          />
+        <Section title={t.sectionCom}>
+          <div className="grid gap-4 lg:grid-cols-2">
+            {(["com1", "com2"] as const).map((com) => (
+              <div key={com} className="space-y-1.5">
+                <div className="numeric text-sm font-semibold text-muted">{com === "com1" ? "COM1 (PRI)" : "COM2 (AUX)"}</div>
+                <GridHead cols={COM_COLS} labels={["", t.colChannel, t.colFreq, t.colName]} />
+                {sheet[com].map((st, i) => {
+                  const set = (key: keyof Station) => (v: string) => setStation(com, i, { ...st, [key]: v });
+                  const label = `${com === "com1" ? "COM1" : "COM2"} ${i + 1}`;
+                  return (
+                    <div key={i} className="grid items-center gap-1.5" style={{ gridTemplateColumns: COM_COLS }}>
+                      <Select
+                        label={`${t.chooseStation} ${label}`}
+                        size="sm"
+                        value=""
+                        placeholder={t.chooseStation}
+                        options={stationOptions}
+                        disabled={!stationOptions.length}
+                        onChange={(v) => {
+                          const picked = refs?.stations[Number(v)];
+                          if (picked) setStation(com, i, { ...picked });
+                        }}
+                      />
+                      <Field label={`${t.colChannel} ${label}`} value={st.code} onChange={set("code")} mono />
+                      <Field label={`${t.colFreq} ${label}`} value={st.freq} onChange={set("freq")} mono />
+                      <Field label={`${t.colName} ${label}`} value={st.name} onChange={set("name")} />
+                    </div>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
         </Section>
 
-        <Section title={t.sectionNotes}>
+        <Section title={t.sectionTargets}>
+          <Wide>
+            <GridHead cols={TARGET_COLS} labels={["N°", t.colType, t.colCoords, t.colAlt, t.colThreats]} />
+            {sheet.targets.map((tg, i) => (
+              <div key={i} className="grid items-center gap-1.5" style={{ gridTemplateColumns: TARGET_COLS }}>
+                <span className="numeric text-sm font-semibold text-muted">{i + 1}</span>
+                <Field label={`${t.colType} ${i + 1}`} value={tg.type} onChange={(v) => setListRow("targets", i, "type", v)} />
+                <Field label={`${t.colCoords} ${i + 1}`} value={tg.coords} onChange={(v) => setListRow("targets", i, "coords", v)} mono />
+                <Field label={`${t.colAlt} ${i + 1}`} value={tg.alt} onChange={(v) => setListRow("targets", i, "alt", v)} mono />
+                <Field label={`${t.colThreats} ${i + 1}`} value={tg.notes} onChange={(v) => setListRow("targets", i, "notes", v)} />
+              </div>
+            ))}
+          </Wide>
+        </Section>
+
+        <Section title={t.sectionFlightNotes}>
+          <div className="space-y-2">
+            <div className="text-xs text-subtle">{t.sectionRamrod}</div>
+            <RamrodInputs chars={sheet.ramrod} onChange={(ramrod) => update((s) => ({ ...s, ramrod }))} />
+          </div>
+          <div className="space-y-2 pt-2">
+            <div className="text-xs text-subtle">{t.sectionRtba}</div>
+            <Rows
+              columns={[
+                { key: "wp", label: t.colWaypoint, grow: 3 },
+                { key: "offset", label: "T+", grow: 2, mono: true },
+              ]}
+              rows={sheet.rtba}
+              max={TACTICAL_LIMITS.rtba}
+              empty={{ wp: "", offset: "" }}
+              onChange={(rtba) => update((s) => ({ ...s, rtba }))}
+            />
+            <p className="text-xs text-subtle">{t.rtbaHint}</p>
+          </div>
           <textarea
-            className="input min-h-24 text-sm"
+            className="input mt-2 min-h-24 text-sm"
             aria-label={t.sectionNotes}
-            value={data.notes}
+            value={sheet.notes}
             maxLength={TACTICAL_LIMITS.notes}
-            onChange={(e) => set("notes", e.target.value)}
+            onChange={(e) => update((s) => ({ ...s, notes: e.target.value }))}
           />
         </Section>
 
-        <p className="text-xs text-subtle">{t.tacticalHint}</p>
         {initial && <p className="text-xs text-muted">{t.editWarning}</p>}
         {error && <p className="text-sm text-danger">{error}</p>}
-        <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-2 bg-overlay px-5 py-4">
+        <div className="sticky bottom-0 z-10 -mx-5 -mb-5 flex justify-end gap-2 border-t border-line bg-overlay px-5 py-4">
           <button type="button" className="btn-ghost" onClick={onClose}>
             {t.cancel}
           </button>
@@ -206,151 +354,51 @@ export function TacticalDialog({
           </button>
         </div>
       </form>
+      {refsOpen && refs && (
+        <TacticalRefsDialog
+          initial={refs}
+          onClose={() => setRefsOpen(false)}
+          onSaved={(saved) => {
+            setRefs(saved);
+            setRefsOpen(false);
+          }}
+        />
+      )}
     </dialog>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <fieldset className="space-y-2 border-t border-line pt-4">
-      <legend className="label-caps float-left mb-2 w-full">{title}</legend>
-      <div className="clear-both space-y-2">{children}</div>
-    </fieldset>
-  );
-}
+const AIRBASE_COLS = "3rem minmax(9rem,1.6fr) repeat(7,minmax(4.5rem,1fr))";
+const FLIGHT_COLS = "1.5rem minmax(7rem,1.6fr) repeat(5,minmax(4rem,1fr)) minmax(8rem,2fr)";
+const COM_COLS = "minmax(6rem,1.3fr) minmax(3.5rem,0.8fr) minmax(5rem,1fr) minmax(6rem,1.6fr)";
+const TARGET_COLS = "1.5rem minmax(6rem,1.2fr) minmax(9rem,2fr) minmax(4.5rem,0.8fr) minmax(8rem,2fr)";
 
-/** Lignes d'un tableau à remplir (nom, valeurs) : ajout / retrait de lignes. */
-function Rows<K extends string>({
-  columns,
-  rows,
-  max,
-  empty,
-  onChange,
-}: {
-  columns: { key: K; label: string; grow: number; mono?: boolean }[];
-  rows: Record<K, string>[];
-  max: number;
-  empty: Record<K, string>;
-  onChange: (rows: Record<K, string>[]) => void;
-}) {
-  const t = useT().documents.create;
-  const template = `${columns.map((c) => `minmax(0,${c.grow}fr)`).join(" ")} 2.25rem`;
+/** Grille large : défile horizontalement sur petit écran. */
+function Wide({ children }: { children: ReactNode }) {
   return (
-    <div className="space-y-1.5">
-      {rows.length > 0 && (
-        <div className="grid gap-1.5 text-xs text-subtle" style={{ gridTemplateColumns: template }}>
-          {columns.map((c) => (
-            <span key={c.key} className="truncate">
-              {c.label}
-            </span>
-          ))}
-        </div>
-      )}
-      {rows.map((row, i) => (
-        <div key={i} className="grid items-center gap-1.5" style={{ gridTemplateColumns: template }}>
-          {columns.map((c) => (
-            <input
-              key={c.key}
-              className={`input min-w-0 px-2 ${c.mono ? "font-mono" : ""}`}
-              aria-label={`${c.label} ${i + 1}`}
-              value={row[c.key]}
-              maxLength={TACTICAL_LIMITS.field}
-              autoComplete="off"
-              onChange={(e) => onChange(rows.map((r, j) => (j === i ? { ...r, [c.key]: e.target.value } : r)))}
-            />
-          ))}
-          <button
-            type="button"
-            className="btn-icon size-9"
-            aria-label={`${t.removeRow} ${i + 1}`}
-            onClick={() => onChange(rows.filter((_, j) => j !== i))}
-          >
-            <X size={16} strokeWidth={1.75} />
-          </button>
-        </div>
-      ))}
-      {rows.length < max && (
-        <button type="button" className="btn-ghost -ml-2 min-h-9 px-2 text-sm" onClick={() => onChange([...rows, { ...empty }])}>
-          <Plus size={15} strokeWidth={1.75} />
-          {t.addRow}
-        </button>
-      )}
+    <div className="-mx-1 overflow-x-auto px-1 pb-1">
+      <div className="min-w-[48rem] space-y-1.5">{children}</div>
     </div>
   );
 }
 
-/** 10 cases sous les chiffres 0 à 9 : saisie case par case ou mot collé. */
-function RamrodInputs({ chars, onChange }: { chars: string[]; onChange: (chars: string[]) => void }) {
-  const t = useT().documents.create;
-  const inputs = useRef<(HTMLInputElement | null)[]>([]);
-  const duplicates = ramrodDuplicates(chars);
-
-  const focus = (i: number) => {
-    const el = inputs.current[Math.min(Math.max(i, 0), RAMROD_SIZE - 1)];
-    el?.focus();
-    el?.select();
-  };
-
-  /** Remplit à partir de la case `from` (saisie d'un caractère ou texte collé). */
-  const fill = (from: number, values: string[]) => {
-    const next = [...chars];
-    values.forEach((v, k) => {
-      if (from + k >= 0 && from + k < RAMROD_SIZE) next[from + k] = v;
-    });
-    onChange(next);
-  };
-
+function GridHead({ cols, labels }: { cols: string; labels: string[] }) {
   return (
-    <>
-      <div className="grid grid-cols-10 overflow-hidden rounded-[2px] border border-line-strong">
-        {chars.map((ch, i) => (
-          <label key={i} className="flex flex-col border-line-strong [&:not(:first-child)]:border-l">
-            <span className="numeric bg-sunken py-1 text-center text-sm text-muted">{i}</span>
-            <input
-              ref={(el) => {
-                inputs.current[i] = el;
-              }}
-              aria-label={fmt(t.ramrodCharLabel, { n: i })}
-              value={ch}
-              autoComplete="off"
-              autoCapitalize="characters"
-              spellCheck={false}
-              className={`h-12 w-full min-w-0 border-t border-line-strong bg-raised text-center font-mono text-xl uppercase outline-none focus:bg-accent-subtle ${
-                ch && duplicates.includes(ch) ? "text-danger" : "text-fg"
-              }`}
-              onFocus={(e) => e.currentTarget.select()}
-              onChange={(e) => {
-                const value = normalizeRamrodChar(e.target.value);
-                fill(i, [value]);
-                if (value) focus(i + 1);
-              }}
-              onPaste={(e) => {
-                const values = splitRamrodChars(e.clipboardData.getData("text"));
-                if (values.length < 2) return;
-                e.preventDefault();
-                fill(i, values);
-                focus(i + values.length);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Backspace" && !ch) {
-                  e.preventDefault();
-                  fill(i - 1, [""]);
-                  focus(i - 1);
-                } else if (e.key === "ArrowLeft") {
-                  e.preventDefault();
-                  focus(i - 1);
-                } else if (e.key === "ArrowRight") {
-                  e.preventDefault();
-                  focus(i + 1);
-                }
-              }}
-            />
-          </label>
-        ))}
-      </div>
-      {duplicates.length > 0 && (
-        <p className="text-sm text-danger">{fmt(t.ramrodDuplicate, { chars: duplicates.join(", ") })}</p>
-      )}
-    </>
+    <div className="grid gap-1.5 text-xs text-subtle" style={{ gridTemplateColumns: cols }}>
+      {labels.map((label, i) => (
+        <span key={i} className="truncate">
+          {label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function Labeled({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex min-w-0 flex-col gap-1 text-xs text-subtle">
+      {label}
+      {children}
+    </label>
   );
 }

@@ -127,6 +127,25 @@ export interface Database {
         Update: never;
         Relationships: [];
       };
+      tactical_refs: {
+        Row: {
+          user_id: string;
+          airbases: Json;
+          stations: Json;
+          updated_at: string;
+        };
+        Insert: {
+          airbases?: Json;
+          stations?: Json;
+          updated_at?: string;
+        };
+        Update: {
+          airbases?: Json;
+          stations?: Json;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       document_favorites: {
         Row: {
           user_id: string;
