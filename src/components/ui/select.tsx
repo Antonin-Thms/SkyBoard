@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronsUpDown } from "lucide-react";
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useT } from "@/lib/i18n/client";
 
 export interface SelectOption {
@@ -55,14 +55,45 @@ export function Select({
   const id = useId();
   const selected = options.find((o) => o.value === value);
 
+  // Liste en position fixe (calculée à l'ouverture) : jamais coupée par un
+  // conteneur qui défile (grille large, fenêtre de dialogue…).
+  const [place, setPlace] = useState<CSSProperties>({});
+  const openList = () => {
+    const rect = root.current?.getBoundingClientRect();
+    if (rect) {
+      const below = window.innerHeight - rect.bottom;
+      const up = below < 220 && rect.top > below;
+      setPlace({
+        position: "fixed",
+        minWidth: rect.width,
+        maxHeight: Math.max(120, Math.min(320, (up ? rect.top : below) - 12)),
+        ...(up ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+        ...(align === "end" ? { right: window.innerWidth - rect.right } : { left: rect.left }),
+      });
+    }
+    setActive(Math.max(0, options.findIndex((o) => o.value === value)));
+    setOpen(true);
+  };
+
   useEffect(() => {
     if (!open) return;
     const onDown = (e: PointerEvent) => {
       if (!root.current?.contains(e.target as Node)) setOpen(false);
     };
+    // Position fixe : on ferme si la page (ou un conteneur) défile, ou si la fenêtre change de taille.
+    const onScroll = (e: Event) => {
+      if (!list.current?.contains(e.target as Node)) setOpen(false);
+    };
+    const onResize = () => setOpen(false);
     document.addEventListener("pointerdown", onDown);
-    list.current?.focus();
-    return () => document.removeEventListener("pointerdown", onDown);
+    document.addEventListener("scroll", onScroll, true);
+    window.addEventListener("resize", onResize);
+    list.current?.focus({ preventScroll: true });
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("scroll", onScroll, true);
+      window.removeEventListener("resize", onResize);
+    };
   }, [open]);
 
   useEffect(() => {
@@ -90,10 +121,7 @@ export function Select({
         aria-expanded={open}
         aria-controls={open ? id : undefined}
         disabled={disabled}
-        onClick={() => {
-          setActive(Math.max(0, options.findIndex((o) => o.value === value)));
-          setOpen((o) => !o);
-        }}
+        onClick={() => (open ? setOpen(false) : openList())}
         className={`flex min-w-0 items-center rounded-[2px] border text-left transition duration-[120ms] disabled:cursor-not-allowed disabled:opacity-40 ${look}`}
       >
         {(selected?.icon ?? icon) && <span className="flex shrink-0 text-muted">{selected?.icon ?? icon}</span>}
@@ -108,9 +136,8 @@ export function Select({
           tabIndex={-1}
           aria-label={label}
           aria-activedescendant={`${id}-${active}`}
-          className={`absolute top-full z-40 mt-1 max-h-80 min-w-full w-max max-w-80 overflow-y-auto rounded-[4px] bg-overlay p-1.5 shadow-popover outline-none ${
-            align === "end" ? "right-0" : "left-0"
-          }`}
+          style={place}
+          className="z-50 w-max max-w-80 overflow-y-auto rounded-[4px] bg-overlay p-1.5 shadow-popover outline-none"
           onKeyDown={(e) => {
             if (e.key === "ArrowDown") {
               e.preventDefault();
