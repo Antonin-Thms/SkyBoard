@@ -159,30 +159,39 @@ export function drawRamrod(
   width = PAGE.width - 2 * MARGIN,
   digitsHeight = 80,
   charsHeight = 130,
+  /** « dark » : fond sombre, chiffres blancs, lettres rouges (style des fiches d'escadron) */
+  theme: "light" | "dark" = "light",
 ): number {
+  const dark = theme === "dark";
   const MARGIN_X = left;
   const cell = width / RAMROD_SIZE;
 
   // Ligne des chiffres : fond gris clair, lisible même atténuée (mode nuit).
-  ctx.fillStyle = "#e4e4e4";
-  ctx.fillRect(MARGIN_X, top, cell * RAMROD_SIZE, digitsHeight);
+  if (dark) {
+    ctx.fillStyle = "#1c2028";
+    ctx.fillRect(MARGIN_X, top, cell * RAMROD_SIZE, digitsHeight + charsHeight);
+  } else {
+    ctx.fillStyle = "#e4e4e4";
+    ctx.fillRect(MARGIN_X, top, cell * RAMROD_SIZE, digitsHeight);
+  }
 
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   for (let i = 0; i < RAMROD_SIZE; i++) {
     const cx = MARGIN_X + cell * i + cell / 2;
-    ctx.fillStyle = INK;
+    ctx.fillStyle = dark ? "#ffffff" : INK;
     ctx.font = `600 ${Math.round(digitsHeight * 0.6)}px sans-serif`;
     ctx.fillText(String(i), cx, top + digitsHeight / 2 + 2);
     const ch = chars[i] ?? "";
     if (ch) {
+      if (dark) ctx.fillStyle = "#ff3b30";
       ctx.font = `700 ${Math.round(charsHeight * 0.65)}px sans-serif`;
       ctx.fillText(ch, cx, top + digitsHeight + charsHeight / 2 + 4, cell - 12);
     }
   }
 
-  ctx.strokeStyle = INK;
-  ctx.lineWidth = 4;
+  ctx.strokeStyle = dark ? "#9aa0aa" : INK;
+  ctx.lineWidth = dark ? 3 : 4;
   ctx.strokeRect(MARGIN_X, top, cell * RAMROD_SIZE, digitsHeight + charsHeight);
   ctx.beginPath();
   ctx.moveTo(MARGIN_X, top + digitsHeight);

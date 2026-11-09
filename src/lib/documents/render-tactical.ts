@@ -40,7 +40,6 @@ export interface TacticalLabels {
   role: string;
   acType: string;
   sectionFlightNotes: string;
-  slot: string;
   waypoint: string;
 }
 
@@ -61,11 +60,30 @@ const COLORS = {
   band: "#3b3b3b",
   head: "#4a4a4a",
   label: "#d9d9d9",
-  blue: "#dbe7f4",
-  purple: "#e6dcf2",
-  green: "#dcefd6",
+  blue: "#cfe0f3",
+  purple: "#e2d6f2",
+  green: "#d3ebc8",
+  amber: "#f6d58e",
   line: "#2a2a2a",
 };
+
+/**
+ * Couleur d'une station radio, d'après son nom (comme le COMPLAN du MANEX) :
+ * garde, contrôle, ravitailleurs / AWACS, porte-avions, GCI, JTAC,
+ * fréquences d'escadron ; les autres (TACTICAL…) restent blanches.
+ */
+const STATION_COLORS: [RegExp, string][] = [
+  [/garde|guard/i, "#ecc5e6"],
+  [/jtac/i, "#f2b3a6"],
+  [/particuli|escadron|squadron/i, "#fbe3a0"],
+  [/nanny|airboss|marshall|lso|cvn/i, "#d9cdf0"],
+  [/loneship|crc|gci/i, "#c6e5b8"],
+  [/twr|tower|radar|app|gnd|atis/i, "#bcd5ee"],
+  [/shell|texaco|arco|magic|awacs|darkstar|wizard|overlord/i, "#d6e6f7"],
+];
+export function stationColor(name: string): string | undefined {
+  return STATION_COLORS.find(([re]) => re.test(name))?.[1];
+}
 
 interface Cell {
   text?: string;
@@ -238,11 +256,15 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, l: TacticalLabe
   // 5. Radios : COM1 (PRI) et COM2 (AUX) côte à côte, lignes remplies
   const CM = [0.08, 0.16, 0.26];
   const blankStation: Station = { code: "", name: "", freq: "" };
-  const comCells = (st: Station, fill: string): Cell[] => [
-    { text: st.code, w: CM[0], kind: "label", fill },
-    { text: st.freq, w: CM[1], align: "center" },
-    { text: st.name, w: CM[2], align: "center" },
-  ];
+  // Ligne colorée selon la station ; canal toujours teinté (bleu COM1, vert COM2).
+  const comCells = (st: Station, base: string): Cell[] => {
+    const fill = stationColor(st.name);
+    return [
+      { text: st.code, w: CM[0], kind: "label", fill: fill ?? base },
+      { text: st.freq, w: CM[1], align: "center", fill },
+      { text: st.name, w: CM[2], align: "center", fill },
+    ];
+  };
   const com1 = s.com1.filter(filled);
   const com2 = s.com2.filter(filled);
   const comRows = Math.max(com1.length, com2.length);
@@ -286,11 +308,11 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, l: TacticalLabe
         { text: u.role, w: SP[0], kind: "label", fill: COLORS.purple },
         { text: u.type, w: SP[1], fill: COLORS.purple, align: "center" },
         { text: u.callsign, w: SP[2], fill: COLORS.purple, align: "center" },
-        { text: u.uhf, w: SP[3], align: "center" },
-        { text: u.vhf, w: SP[4], align: "center" },
-        { text: u.tacan, w: SP[5], align: "center" },
-        { text: u.alt, w: SP[6], align: "center" },
-        { text: u.notes, w: SP[7], kind: "name" },
+        { text: u.uhf, w: SP[3], align: "center", fill: "#f1ebf9" },
+        { text: u.vhf, w: SP[4], align: "center", fill: "#f1ebf9" },
+        { text: u.tacan, w: SP[5], align: "center", fill: "#f1ebf9" },
+        { text: u.alt, w: SP[6], align: "center", fill: "#f1ebf9" },
+        { text: u.notes, w: SP[7], kind: "name", fill: "#f1ebf9" },
       ]),
     ]);
   }
@@ -305,7 +327,7 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, l: TacticalLabe
     ? s.notes.split(/\r?\n/).flatMap((line) => (line.trim() ? wrap(ctx, line, notesWidth - 24) : [""]))
     : [];
   const lineHeight = 34 * k;
-  const rtbaHeight = s.rtba.length ? (s.rtba.length + 2) * ROW * k : 0;
+  const rtbaHeight = s.rtba.length ? (s.rtba.length + 1) * ROW * k : 0;
   const notesHeight = lines.length ? lines.length * lineHeight + 16 * k : 0;
   const topHeight = Math.max(rtbaHeight, notesHeight);
   if (topHeight) {
@@ -315,15 +337,14 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, l: TacticalLabe
       draw: (c, top) => {
         if (s.rtba.length) {
           const width = lines.length ? half : WIDTH;
-          row(c, top, [{ text: l.slot, w: 0.4, kind: "label" }, { text: "", w: 0.6 }], k, X0, width);
-          row(c, top + ROW * k, ["RTBA · " + l.waypoint, "T+", "TOT"].map((text, i) => ({ text, w: RT[i], kind: "head" as const })), k, X0, width);
+          row(c, top, ["RTBA · " + l.waypoint, "T+", "TOT"].map((text, i) => ({ text, w: RT[i], kind: "head" as const })), k, X0, width);
           s.rtba.forEach((r, i) =>
             row(
               c,
-              top + (i + 2) * ROW * k,
+              top + (i + 1) * ROW * k,
               [
-                { text: r.wp, w: RT[0] },
-                { text: r.offset, w: RT[1], align: "center" },
+                { text: r.wp, w: RT[0], fill: "#fdf1d6" },
+                { text: r.offset, w: RT[1], align: "center", fill: "#fdf1d6" },
                 { text: "", w: RT[2] },
               ],
               k,
@@ -349,7 +370,7 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, l: TacticalLabe
     blocks.push({
       name: l.sectionFlightNotes,
       height: (60 + 96) * k,
-      draw: (c, top) => void drawRamrod(c, top, s.ramrod, X0, WIDTH, 60 * k, 96 * k),
+      draw: (c, top) => void drawRamrod(c, top, s.ramrod, X0, WIDTH, 60 * k, 96 * k, "dark"),
     });
   }
   return blocks;

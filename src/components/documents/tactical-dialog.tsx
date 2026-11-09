@@ -111,7 +111,6 @@ export function TacticalDialog({
         role: t.colRole,
         acType: t.colAcType,
         sectionFlightNotes: t.sectionFlightNotes,
-        slot: t.slot,
         waypoint: t.colWaypoint,
       });
       const group = uuid();
