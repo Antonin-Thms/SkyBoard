@@ -9,11 +9,14 @@ import { createRateLimiter } from "@/lib/rate-limit";
 import { parseViewState } from "@/lib/sync/protocol";
 import type { ViewerDocument, ViewerPayload } from "@/lib/viewer/types";
 import { parseGeneratedSource } from "@/lib/documents/generated";
+import { flightRtba } from "@/lib/rtba/link";
 
-/** Planche RTBA : ses waypoints, pour que le viewer y écrive les heures de passage. */
-function rtbaRows(source: unknown): Pick<ViewerDocument, "rtba"> {
+type RtbaRows = NonNullable<ViewerDocument["rtba"]>;
+
+/** Planche RTBA : waypoints de la fiche tactique du vol, sinon les siens. */
+function rtbaRows(source: unknown, linked: RtbaRows | null): Pick<ViewerDocument, "rtba"> {
   const parsed = parseGeneratedSource(source);
-  return parsed?.kind === "rtba" ? { rtba: parsed.rows } : {};
+  return parsed?.kind === "rtba" ? { rtba: linked ?? parsed.rows } : {};
 }
 
 const NO_STORE = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
@@ -77,7 +80,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/viewer/[toke
   }
   const docsQuery = admin
     .from("documents")
-    .select("id, name, type, page_count, rotation, storage_path, source")
+    .select("id, name, type, page_count, rotation, storage_path, source, created_at")
     // Avec un dossier actif : communs du pilote + documents du dossier (éventuellement d'un coéquipier).
     .or(
       folderId
@@ -93,6 +96,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/viewer/[toke
   }
 
   const docs = rows ?? [];
+  const linkedRtba = flightRtba(docs);
   const expiresAt = Date.now() + VIEWER_URL_TTL * 1000;
   const urls = new Map<string, string>();
   const annotations: Record<string, Stroke[]> = {};
@@ -138,7 +142,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/viewer/[toke
             pageCount: d.page_count,
             rotation: d.rotation,
             url,
-            ...rtbaRows(d.source),
+            ...rtbaRows(d.source, linkedRtba),
           },
         ]
       : [];

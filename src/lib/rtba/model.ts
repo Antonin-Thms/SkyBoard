@@ -46,18 +46,34 @@ export function slotSeconds(digits: number[]): number | null {
 }
 
 /**
- * Temps de branche (T+) en secondes : « 1:35 », « 01:35 », « 1:02:30 »,
- * « +1:35 » ou un nombre de secondes. null si illisible.
+ * Temps de branche (T+) en secondes. Formats acceptés :
+ * « 1:35 », « 1:02:30 », « 05'40'' », « 5'40" », « 5' », « 5min40 »,
+ * « 5m40s », « 40s », « +1:35 », ou un nombre de secondes. null si illisible.
  */
 export function parseLeg(text: string): number | null {
-  const t = text.trim().replace(/^\+/, "");
+  const t = text
+    .trim()
+    .replace(/^\+/, "")
+    .toLowerCase()
+    .replace(/[’′‘`´]/g, "'")
+    .replace(/''|[”″"“]/g, '"')
+    .replace(/\s+/g, "");
   if (!t) return null;
   if (/^\d+$/.test(t)) return Number(t);
-  const m = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(t);
-  if (!m) return null;
-  const [, h, min, s] = m;
-  if (Number(s) > 59 || (h !== undefined && Number(min) > 59)) return null;
-  return (Number(h ?? 0) * 60 + Number(min)) * 60 + Number(s);
+  const colon = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(t);
+  if (colon) {
+    const [, h, min, s] = colon;
+    if (Number(s) > 59 || (h !== undefined && Number(min) > 59)) return null;
+    return (Number(h ?? 0) * 60 + Number(min)) * 60 + Number(s);
+  }
+  // Minutes (' m min mn) et secondes facultatives (" s sec)
+  const ms = /^(\d+)(?:'|min|mn|m)(?:(\d{1,2})(?:"|sec|s)?)?$/.exec(t);
+  if (ms) {
+    const sec = Number(ms[2] ?? 0);
+    return sec > 59 ? null : Number(ms[1]) * 60 + sec;
+  }
+  const secOnly = /^(\d+)(?:"|sec|s)$/.exec(t);
+  return secOnly ? Number(secOnly[1]) : null;
 }
 
 /** « HH:MM:SS » (boucle sur 24 h). */

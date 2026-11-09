@@ -27,6 +27,15 @@ describe("temps de passage", () => {
     expect(parseLeg("+01:35")).toBe(95);
     expect(parseLeg("1:02:30")).toBe(3750);
     expect(parseLeg("90")).toBe(90);
+    expect(parseLeg("05'40''")).toBe(340);
+    expect(parseLeg("05’40”")).toBe(340);
+    expect(parseLeg("5'40\"")).toBe(340);
+    expect(parseLeg("10'00''")).toBe(600);
+    expect(parseLeg("5'")).toBe(300);
+    expect(parseLeg("5 min 40")).toBe(340);
+    expect(parseLeg("5m40s")).toBe(340);
+    expect(parseLeg("40s")).toBe(40);
+    expect(parseLeg("5'75''")).toBeNull();
     expect(parseLeg("1:75")).toBeNull();
     expect(parseLeg("abc")).toBeNull();
   });
@@ -34,6 +43,17 @@ describe("temps de passage", () => {
   it("WP0 = T0 + T+0, puis cumul des branches", () => {
     const slot = slotSeconds([1, 2, 3, 5, 0, 0]);
     expect(passTimes(slot, ["0:00", "1:35", "1:10"])).toEqual(["12:35:00", "12:36:35", "12:37:45"]);
+  });
+
+  it("exemple de vol : T+ en minutes / secondes (05'40'')", () => {
+    const slot = slotSeconds([1, 0, 5, 0, 5, 0]);
+    expect(passTimes(slot, ["0", "05'40''", "08'10''", "10'00''", "09'50''"])).toEqual([
+      "10:50:50",
+      "10:56:30",
+      "11:04:40",
+      "11:14:40",
+      "11:24:30",
+    ]);
   });
 
   it("slot incomplet ou T+ illisible : cases vides", () => {

@@ -87,6 +87,7 @@ export function PageView({
   neighbors,
 }: PageViewProps) {
   const errorTexts = useT().viewer.errors;
+  const rtbaWaypoint = useT().documents.create.colWaypoint;
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const detailRef = useRef<HTMLCanvasElement>(null);
@@ -279,7 +280,9 @@ export function PageView({
         {/* Annotations : seulement une fois la page affichée (même taille, même repère). */}
         {displaySize && shownKey === pageKey && (
           <>
-            {doc.rtba && <RtbaLayer rows={doc.rtba} slot={slot} rotation={rotation} size={displaySize} />}
+            {doc.rtba && (
+              <RtbaLayer rows={doc.rtba} waypointLabel={rtbaWaypoint} slot={slot} rotation={rotation} size={displaySize} />
+            )}
             <InkLayer strokes={strokes} rotation={rotation} size={displaySize} />
           </>
         )}

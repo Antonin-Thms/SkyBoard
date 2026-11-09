@@ -8,6 +8,8 @@ import type { Size } from "@/lib/viewer/fit";
 
 interface RtbaLayerProps {
   rows: { wp: string; offset: string }[];
+  /** En-tête de la première colonne (langue de l'interface) */
+  waypointLabel: string;
   /** Slot réglé depuis la remote (null : jamais réglé) */
   slot: RtbaSlot | null;
   rotation: Rotation;
@@ -17,10 +19,12 @@ interface RtbaLayerProps {
 
 /**
  * Calque de la planche RTBA : chiffres du slot dans leurs cases (case en
- * cours de réglage surlignée) et heures de passage dans la colonne TOT.
+ * cours de réglage surlignée) et tableau des waypoints redessiné avec les
+ * valeurs à jour (fiche tactique du vol), heures de passage comprises. Il
+ * recouvre le tableau de l'image, figé à la création de la planche.
  * Dessiné dans le repère de la page, tourné comme elle.
  */
-export const RtbaLayer = memo(function RtbaLayer({ rows, slot, rotation, size }: RtbaLayerProps) {
+export const RtbaLayer = memo(function RtbaLayer({ rows, waypointLabel, slot, rotation, size }: RtbaLayerProps) {
   if (size.width <= 0 || size.height <= 0) return null;
   const g = rtbaLayout(rows.length);
   const digits = slot?.digits ?? [];
@@ -31,7 +35,9 @@ export const RtbaLayer = memo(function RtbaLayer({ rows, slot, rotation, size }:
   const height = turned ? size.width : size.height;
   const t = g.table;
   const tot = t.cols[2];
-  const font = Math.round(Math.min(52, t.rowH * 0.58));
+  const font = Math.round(Math.min(48, t.rowH * 0.55));
+  const bottom = t.y + t.headH + rows.length * t.rowH;
+  const mid = (i: number) => t.y + t.headH + i * t.rowH + t.rowH / 2 + 2;
 
   return (
     <svg
@@ -69,12 +75,59 @@ export const RtbaLayer = memo(function RtbaLayer({ rows, slot, rotation, size }:
           )}
         </g>
       ))}
+      {/* Tableau à jour par-dessus celui de l'image */}
+      <rect x={t.x - 4} y={t.y - 4} width={t.w + 8} height={RTBA_PAGE.height - 40 - t.y} fill="#ffffff" />
+      <rect x={t.x} y={t.y} width={t.w} height={t.headH} fill="#4a4a4a" />
+      {[waypointLabel, "T+", "TOT"].map((text, i) => (
+        <text
+          key={text}
+          x={t.cols[i].x + t.cols[i].w / 2}
+          y={t.y + t.headH / 2 + 2}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontFamily="sans-serif"
+          fontWeight={700}
+          fontSize={32}
+          fill="#ffffff"
+        >
+          {text}
+        </text>
+      ))}
+      {rows.map((r, i) => (
+        <g key={i}>
+          <rect x={t.cols[0].x} y={mid(i) - 2 - t.rowH / 2} width={t.cols[0].w + t.cols[1].w} height={t.rowH} fill="#fdf1d6" />
+          <text x={t.cols[0].x + 18} y={mid(i)} dominantBaseline="middle" fontFamily="sans-serif" fontWeight={600} fontSize={font} fill="#111111">
+            {r.wp}
+          </text>
+          <text
+            x={t.cols[1].x + t.cols[1].w / 2}
+            y={mid(i)}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontFamily="sans-serif"
+            fontWeight={700}
+            fontSize={font}
+            fill="#111111"
+          >
+            {r.offset}
+          </text>
+        </g>
+      ))}
+      <g stroke="#2a2a2a" strokeWidth={3} fill="none">
+        <rect x={t.x} y={t.y} width={t.w} height={bottom - t.y} />
+        {rows.map((_, i) => (
+          <line key={i} x1={t.x} x2={t.x + t.w} y1={t.y + t.headH + i * t.rowH} y2={t.y + t.headH + i * t.rowH} />
+        ))}
+        {t.cols.slice(1).map((c) => (
+          <line key={c.x} x1={c.x} x2={c.x} y1={t.y} y2={bottom} />
+        ))}
+      </g>
       {times.map((time, i) =>
         time ? (
           <text
             key={i}
             x={tot.x + tot.w / 2}
-            y={t.y + t.headH + i * t.rowH + t.rowH / 2 + 2}
+            y={mid(i)}
             textAnchor="middle"
             dominantBaseline="middle"
             fontFamily="sans-serif"
