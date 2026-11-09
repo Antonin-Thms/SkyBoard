@@ -9,6 +9,7 @@ import { fmt } from "@/lib/i18n/define";
 import { useLocale, useT } from "@/lib/i18n/client";
 import type { LinkStatus } from "@/lib/sync/cockpit-link";
 import { LogOut, Moon, MousePointer2, PenLine, Star } from "lucide-react";
+import { EMPTY, type RtbaSlot } from "@/lib/rtba/model";
 import { HoldButton } from "@/components/hold-button";
 import { StatusDot, type StatusTone } from "@/components/ui/status-dot";
 
@@ -31,7 +32,11 @@ interface FlightModeProps {
     zoom: number;
     /** Position dans les favoris (index 0 : le document affiché n'est pas favori) */
     favorites: { index: number; count: number };
+    /** Planche RTBA affichée : slot T0 (et chiffre en cours de réglage) */
+    slot: RtbaSlot | null;
   };
+  /** Appui long : crayon, ou réglage du slot sur une planche RTBA */
+  holdMode: "pen" | "action";
 }
 
 const STATUS_TONE: Record<LinkStatus, StatusTone> = {
@@ -60,6 +65,7 @@ export function FlightMode({
   onToggleNight,
   pen,
   info,
+  holdMode,
 }: FlightModeProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const config = { ...GESTURE_CONFIG, ...DEVICE_GESTURE_OVERRIDES[device] };
@@ -100,6 +106,14 @@ export function FlightMode({
     };
   }, []);
 
+  // Effet de l'appui long selon le document affiché (planche RTBA : réglage du slot).
+  const recognizerRef = useRef<GestureRecognizer | null>(null);
+  const holdModeRef = useRef(holdMode);
+  useEffect(() => {
+    holdModeRef.current = holdMode;
+    recognizerRef.current?.setHoldMode(holdMode);
+  }, [holdMode]);
+
   // Gestes : Pointer Events natifs, multi-touch.
   useEffect(() => {
     const el = surfaceRef.current;
@@ -110,6 +124,8 @@ export function FlightMode({
       () => getViewRef.current(),
       DEVICE_GESTURE_OVERRIDES[device],
     );
+    recognizer.setHoldMode(holdModeRef.current);
+    recognizerRef.current = recognizer;
     // Position de la surface mémorisée (pas de getBoundingClientRect, qui
     // force une mise en page, à chaque événement tactile).
     let origin = el.getBoundingClientRect();
@@ -232,6 +248,17 @@ export function FlightMode({
               {fmt(t.pageInfo, { page: info.page, count: info.pageCount, zoom: info.zoom.toFixed(1) })}
             </p>
           )}
+          {/* Planche RTBA : slot T0, chiffre en cours de réglage souligné */}
+          {info.slot && (
+            <p className={`numeric mt-2 text-3xl tracking-[0.15em] ${info.slot.edit !== null ? "text-accent" : "text-slate-300"}`}>
+              {info.slot.digits.map((d, i) => (
+                <span key={i}>
+                  <span className={info.slot?.edit === i ? "border-b-4 border-accent" : ""}>{d === EMPTY ? "_" : d}</span>
+                  {i === 1 || i === 3 ? ":" : ""}
+                </span>
+              ))}
+            </p>
+          )}
           {/* Favoris : position quand le document en est un, sinon leur nombre */}
           <p className={`numeric flex items-center gap-1.5 text-sm tracking-wider ${info.favorites.index ? "text-accent" : "text-subtle"}`}>
             {info.favorites.count > 0 && <Star size={13} strokeWidth={2} className={info.favorites.index ? "fill-accent" : ""} />}
@@ -246,7 +273,11 @@ export function FlightMode({
         <p
           className="pointer-events-none absolute inset-x-0 bottom-3 px-6 text-center text-xs leading-relaxed text-subtle"
         >
-          {pen
+          {info.slot?.edit !== null && info.slot
+            ? t.hintSlotEdit
+            : info.slot && !pen
+              ? fmt(t.hintSlot, { s: holdSeconds })
+              : pen
             ? fmt(t.hintPen, { s: holdSeconds })
             : compact
               ? t.hintCompact

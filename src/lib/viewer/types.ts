@@ -11,6 +11,8 @@ export interface ViewerDocument {
   rotation: Rotation;
   /** URL signée à durée limitée (voir expiresAt) */
   url: string;
+  /** Planche RTBA : waypoints et T+ (le viewer y écrit slot et heures de passage) */
+  rtba?: { wp: string; offset: string }[];
 }
 
 /** Réponse de GET /api/viewer/[token]. */

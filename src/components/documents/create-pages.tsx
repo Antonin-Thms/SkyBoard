@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Crosshair, FileText, ListChecks, Plus, X } from "lucide-react";
+import { ChevronDown, Crosshair, FileText, ListChecks, Plus, Timer, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Menu } from "@/components/ui/menu";
 import { parseChecklistItems, renderChecklist, renderNotePage } from "@/lib/documents/generate";
@@ -8,6 +8,7 @@ import { emptyTacticalSheet } from "@/lib/documents/tactical";
 import type { GeneratedSource } from "@/lib/documents/generated";
 import { useT } from "@/lib/i18n/client";
 import { uuid } from "@/lib/uuid";
+import { RtbaDialog, type RtbaSourceCard } from "./rtba-dialog";
 import { TacticalDialog } from "./tactical-dialog";
 
 /** Page à envoyer (avec son contenu d'origine si c'est une planche modifiable). */
@@ -32,13 +33,16 @@ interface CreatePagesProps {
   onEditClose: () => void;
   /** Remplace la planche modifiée par les nouvelles pages (résolu une fois terminé) */
   onReplace: (oldId: string, items: CreatedPage[]) => Promise<boolean>;
+  /** Fiches tactiques avec une section RTBA (reprise des waypoints) */
+  rtbaCards: RtbaSourceCard[];
 }
 
 /** Bouton « Créer » : page de notes vierge, checklist à cocher au doigt, fiche tactique. */
-export function CreatePages({ busy, onCreate, editing, onEditClose, onReplace }: CreatePagesProps) {
+export function CreatePages({ busy, onCreate, editing, onEditClose, onReplace, rtbaCards }: CreatePagesProps) {
   const t = useT().documents.create;
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [tacticalOpen, setTacticalOpen] = useState(false);
+  const [rtbaOpen, setRtbaOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
 
@@ -87,6 +91,12 @@ export function CreatePages({ busy, onCreate, editing, onEditClose, onReplace }:
             disabled: busy || working,
             onSelect: () => setTacticalOpen(true),
           },
+          {
+            label: t.rtba,
+            icon: <Timer size={16} strokeWidth={1.75} />,
+            disabled: busy || working,
+            onSelect: () => setRtbaOpen(true),
+          },
         ]}
       />
       {error && <p className="w-full text-sm text-danger">{error}</p>}
@@ -105,6 +115,27 @@ export function CreatePages({ busy, onCreate, editing, onEditClose, onReplace }:
           onCreate={(items) => {
             onCreate(items);
             setTacticalOpen(false);
+          }}
+        />
+      )}
+      {rtbaOpen && (
+        <RtbaDialog
+          cards={rtbaCards}
+          onClose={() => setRtbaOpen(false)}
+          onCreate={(item) => {
+            onCreate([item]);
+            setRtbaOpen(false);
+          }}
+        />
+      )}
+      {editing?.source.kind === "rtba" && (
+        <RtbaDialog
+          key={editing.id}
+          initial={editing.source}
+          cards={rtbaCards}
+          onClose={onEditClose}
+          onCreate={async (item) => {
+            if (await onReplace(editing.id, [item])) onEditClose();
           }}
         />
       )}

@@ -3,13 +3,15 @@
  * conservé pour pouvoir les modifier. Une checklist de plusieurs pages =
  * plusieurs documents reliés par `group`.
  */
-import { parseTacticalSheet, type TacticalSheet } from "./tactical";
+import { parseRows, parseTacticalSheet, TACTICAL_LIMITS, type RtbaRow, type TacticalSheet } from "./tactical";
 
 export type GeneratedSource =
   /** Ancienne table RAMROD seule : modifiée, elle devient une fiche tactique */
   | { kind: "ramrod"; title: string; chars: string[] }
   | { kind: "checklist"; title: string; items: string[]; group: string; part: number }
-  | ({ kind: "tactical"; title: string; group: string; part: number } & TacticalSheet);
+  | ({ kind: "tactical"; title: string; group: string; part: number } & TacticalSheet)
+  /** Planche RTBA : slot T0 réglé en vol, heures de passage calculées par le viewer */
+  | { kind: "rtba"; title: string; rows: RtbaRow[] };
 
 export type { TacticalSheet } from "./tactical";
 
@@ -43,6 +45,11 @@ export function parseGeneratedSource(value: unknown): GeneratedSource | null {
     if (typeof v.part !== "number" || !Number.isInteger(v.part) || v.part < 1) return null;
     const sheet = parseTacticalSheet(v);
     return sheet ? { kind: "tactical", title: v.title, group: v.group, part: v.part, ...sheet } : null;
+  }
+
+  if (v.kind === "rtba") {
+    const rows = parseRows(v.rows, ["wp", "offset"] as const, TACTICAL_LIMITS.rtba);
+    return rows ? { kind: "rtba", title: v.title, rows } : null;
   }
 
   if (v.kind === "checklist") {

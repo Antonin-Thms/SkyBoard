@@ -45,7 +45,7 @@ export default async function RemotePage({ searchParams }: PageProps<"/remote">)
     activeFolderId: c.active_folder_id,
   }));
   const documents: RemoteDocument[] = docs.map(
-    ({ id, name, type, pageCount, thumbnailUrl, folderId, rotation, readOnly, favorite }) => ({
+    ({ id, name, type, pageCount, thumbnailUrl, folderId, rotation, readOnly, favorite, source }) => ({
       id,
       name,
       type,
@@ -55,6 +55,7 @@ export default async function RemotePage({ searchParams }: PageProps<"/remote">)
       rotation,
       readOnly,
       favorite,
+      rtba: source?.kind === "rtba",
     }),
   );
 

@@ -86,6 +86,8 @@ export default defineMessages({
       hintPen:
         "1 doigt : viser · S'arrêter : poser la pointe, puis écrire · Tap 2 doigts : annuler le dernier trait · Pincer : zoom · Appui long {s} s : arrêter le crayon",
       hintCompact: "Pincer : zoom · Swipe ← → : document · Double tap : reset · Swipe ↕ : favoris · Appui long : crayon",
+      hintSlot: "Planche RTBA · Appui long {s} s : régler le slot T0",
+      hintSlotEdit: "Réglage du slot · Swipe ↑ ↓ : chiffre · Swipe ← : chiffre suivant · → : précédent · Appui long : terminer",
       favoriteInfo: "FAVORI {index}/{count}",
       favoriteCount: "{count} FAVORIS",
       noFavorites: "Aucun favori : ajoute-en depuis la page Documents",
@@ -210,6 +212,8 @@ export default defineMessages({
       hintPen:
         "1 finger: aim · Pause: set the pen down, then draw · 2-finger tap: undo last stroke · Pinch: zoom · Long press {s} s: stop pen",
       hintCompact: "Pinch: zoom · Swipe ← →: document · Double tap: reset · Swipe ↕: favorites · Long press: pen",
+      hintSlot: "RTBA board · Long press {s} s: set the T0 slot",
+      hintSlotEdit: "Setting the slot · Swipe ↑ ↓: digit · Swipe ←: next digit · →: previous · Long press: done",
       favoriteInfo: "FAVORITE {index}/{count}",
       favoriteCount: "{count} FAVORITES",
       noFavorites: "No favorites: add some from the Documents page",
@@ -334,6 +338,8 @@ export default defineMessages({
       hintPen:
         "1 Finger: zielen · Anhalten: Stift aufsetzen, dann zeichnen · Tippen mit 2 Fingern: letzten Strich rückgängig · Auseinanderziehen: Zoom · Lang drücken {s} s: Stift aus",
       hintCompact: "Auseinanderziehen: Zoom · Wischen ← →: Dokument · Doppeltippen: Reset · Wischen ↕: Favoriten · Lang drücken: Stift",
+      hintSlot: "RTBA-Karte · Lang drücken {s} s: T0-Slot einstellen",
+      hintSlotEdit: "Slot einstellen · Wischen ↑ ↓: Ziffer · Wischen ←: nächste Ziffer · →: vorherige · Lang drücken: fertig",
       favoriteInfo: "FAVORIT {index}/{count}",
       favoriteCount: "{count} FAVORITEN",
       noFavorites: "Keine Favoriten: füge welche auf der Seite Dokumente hinzu",
@@ -458,6 +464,8 @@ export default defineMessages({
       hintPen:
         "1 dedo: apuntar · Detenerse: apoyar el lápiz y escribir · Toque con 2 dedos: deshacer el último trazo · Pellizcar: zoom · Pulsación larga {s} s: detener el lápiz",
       hintCompact: "Pellizcar: zoom · Deslizar ← →: documento · Doble toque: reset · Deslizar ↕: favoritos · Pulsación larga: lápiz",
+      hintSlot: "Plancha RTBA · Pulsación larga {s} s: ajustar el slot T0",
+      hintSlotEdit: "Ajuste del slot · Deslizar ↑ ↓: cifra · Deslizar ←: cifra siguiente · →: anterior · Pulsación larga: terminar",
       favoriteInfo: "FAVORITO {index}/{count}",
       favoriteCount: "{count} FAVORITOS",
       noFavorites: "Sin favoritos: añádelos desde la página Documentos",

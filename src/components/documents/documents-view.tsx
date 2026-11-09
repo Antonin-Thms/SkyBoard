@@ -51,6 +51,12 @@ export function DocumentsView({ userId, documents, folders, squadrons, nextSortO
       favorite,
       source,
     }));
+  // Fiches tactiques avec une section RTBA : source des waypoints d'une planche RTBA.
+  const rtbaCards = documents.flatMap((d) =>
+    d.source?.kind === "tactical" && d.source.rtba.length && d.source.part === 1
+      ? [{ id: d.id, title: d.name, rows: d.source.rtba }]
+      : [],
+  );
   const currentFolder = filter.kind === "folder" ? folders.find((f) => f.id === filter.id) : undefined;
   const contextLabel =
     filter.kind === "all"
@@ -99,6 +105,7 @@ export function DocumentsView({ userId, documents, folders, squadrons, nextSortO
       folderId={currentFolder?.id ?? null}
       folderName={currentFolder?.name ?? null}
       eyebrow={contextLabel}
+      rtbaCards={rtbaCards}
     >
       {folderBar}
       <DocumentGrid key={gridKey} initialItems={items} folders={folders.filter((f) => !f.readOnly)} />

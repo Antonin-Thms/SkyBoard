@@ -23,4 +23,6 @@ export interface RemoteDocument {
   readOnly: boolean;
   /** Favori : parcouru en mode vol par swipe vertical */
   favorite: boolean;
+  /** Planche RTBA : l'appui long règle le slot T0 (au lieu du crayon) */
+  rtba: boolean;
 }

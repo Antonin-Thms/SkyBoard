@@ -18,6 +18,8 @@ export type GestureAction =
   | { type: "ink"; phase: "end" | "cancel" }
   /** Crayon : pointe posée (le casque montre où le trait va partir) ou relevée */
   | { type: "inkArmed"; armed: boolean }
+  /** Appui long en mode « action » (planche RTBA : réglage du slot) au lieu du crayon */
+  | { type: "hold" }
   /** Crayon : annuler le dernier trait (tap à deux doigts) */
   | { type: "undo" }
   /** Fin de geste (tous les doigts levés) : envoi final garanti */
@@ -85,6 +87,8 @@ export class GestureRecognizer {
   private holdConsumed = false;
   /** Point où la pointe est posée (mode ink-armed) */
   private armed: { x: number; y: number } | null = null;
+  /** Appui long : crayon (défaut) ou action propre au document affiché */
+  private holdMode: "pen" | "action" = "pen";
 
   constructor(
     private surface: Size,
@@ -104,6 +108,14 @@ export class GestureRecognizer {
 
   get pen(): boolean {
     return this.penOn;
+  }
+
+  /**
+   * Effet de l'appui long : « pen » bascule le crayon, « action » émet `hold`
+   * (planche RTBA). Crayon déjà actif : l'appui long le désactive toujours.
+   */
+  setHoldMode(mode: "pen" | "action") {
+    this.holdMode = mode;
   }
 
   /** Force l'état du crayon (ex. sortie du mode vol). */
@@ -207,10 +219,11 @@ export class GestureRecognizer {
     const [p] = this.pointers.values();
     if (p.maxMove <= this.config.penHoldSlopPx && t - p.startT >= this.config.penHoldMs) {
       const actions = this.disarm();
-      this.penOn = !this.penOn;
       this.mode = "settling";
       this.holdConsumed = true;
       this.lastTap = null;
+      if (this.holdMode === "action" && !this.penOn) return [...actions, { type: "hold" }];
+      this.penOn = !this.penOn;
       return [...actions, { type: "pen", on: this.penOn }];
     }
     if (this.mode === "ink-aim" && t - p.stillT >= this.config.inkArmMs) {

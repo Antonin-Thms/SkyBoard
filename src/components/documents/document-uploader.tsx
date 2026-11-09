@@ -14,6 +14,7 @@ import { uuid } from "@/lib/uuid";
 import { fmt } from "@/lib/i18n/define";
 import { useT } from "@/lib/i18n/client";
 import { CreatePages, type CreatedPage, type EditingPage } from "./create-pages";
+import type { RtbaSourceCard } from "./rtba-dialog";
 
 /** Ouvre la modification d'une planche (menu ⋯ d'une carte). */
 const EditPageContext = createContext<((page: EditingPage) => void) | null>(null);
@@ -37,6 +38,8 @@ interface DocumentUploaderProps {
   eyebrow: ReactNode;
   /** Contenu de la page : dépôt de fichiers possible partout dessus */
   children: ReactNode;
+  /** Fiches tactiques avec une section RTBA (création d'une planche RTBA) */
+  rtbaCards: RtbaSourceCard[];
 }
 
 export function DocumentUploader({
@@ -44,6 +47,7 @@ export function DocumentUploader({
   nextSortOrder,
   folderId,
   folderName,
+  rtbaCards,
   eyebrow,
   children,
 }: DocumentUploaderProps) {
@@ -173,6 +177,7 @@ export function DocumentUploader({
               editing={editing}
               onEditClose={() => setEditing(null)}
               onReplace={replacePage}
+              rtbaCards={rtbaCards}
             />
             <button type="button" className="btn-primary" onClick={() => inputRef.current?.click()} disabled={busy}>
               <Upload size={16} strokeWidth={1.75} />

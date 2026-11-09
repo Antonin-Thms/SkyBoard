@@ -267,6 +267,7 @@ export function ViewerApp({ token, channel, options }: ViewerAppProps) {
           cursorMode={view?.pen ? (view.inkArmed ? "ink" : "aim") : "default"}
           dim={view?.night === true}
           strokes={pageStrokes}
+          slot={view?.slot?.docId === current.doc.id ? view.slot : null}
           onError={handleRenderError}
           neighbors={neighbors}
         />

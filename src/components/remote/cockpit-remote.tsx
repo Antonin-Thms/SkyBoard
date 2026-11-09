@@ -15,6 +15,7 @@ import { readPageMemory, rememberPage } from "@/lib/remote/page-memory";
 import type { RemoteCockpit, RemoteDocument } from "@/lib/remote/types";
 import type { ViewState } from "@/lib/sync/protocol";
 import { selectDocument, stepDocument, stepFavorite, stepPage } from "@/lib/sync/state";
+import { EMPTY, emptyDigits, SLOT_DIGITS, stepDigit } from "@/lib/rtba/model";
 import { FlightMode } from "./flight-mode";
 import { InkEditor } from "./ink-editor";
 import { PrepMode } from "./prep-mode";
@@ -171,8 +172,29 @@ export function CockpitRemote({
           if (target) ink.undo(target.docId, target.page);
           break;
         }
+        case "hold": {
+          // Planche RTBA : appui long = entrer / sortir du réglage du slot T0.
+          if (!current?.rtba || next.docId !== current.id) break;
+          const slot = next.slot?.docId === current.id ? next.slot : { docId: current.id, digits: emptyDigits(), edit: null };
+          const firstEmpty = slot.digits.findIndex((d) => d === EMPTY);
+          next = { ...next, slot: { ...slot, edit: slot.edit === null ? Math.max(0, firstEmpty) : null } };
+          changed = immediate = true;
+          break;
+        }
         case "favorite":
         case "document": {
+          // Réglage du slot : ↕ change le chiffre, ↔ passe au suivant / précédent (fin : réglage terminé).
+          const slot = next.slot;
+          if (slot && slot.edit !== null && slot.docId === next.docId) {
+            if (action.type === "favorite") {
+              next = { ...next, slot: { ...slot, digits: stepDigit(slot.digits, slot.edit, action.delta) } };
+            } else {
+              const edit = slot.edit + action.delta;
+              next = { ...next, slot: { ...slot, edit: edit >= SLOT_DIGITS ? null : Math.max(0, edit) } };
+            }
+            changed = immediate = true;
+            break;
+          }
           const stepped =
             action.type === "favorite"
               ? stepFavorite(next, documents, action.delta, pageMemory())
@@ -216,7 +238,9 @@ export function CockpitRemote({
           pageCount: current?.pageCount ?? 1,
           zoom: state.zoom,
           favorites: favoriteInfo,
+          slot: current?.rtba ? (state.slot?.docId === current.id ? state.slot : { docId: current.id, digits: emptyDigits(), edit: null }) : null,
         }}
+        holdMode={current?.rtba ? "action" : "pen"}
       />
     );
   }

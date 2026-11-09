@@ -13,6 +13,7 @@ export interface NormalizedPoint {
 }
 
 import type { Rotation } from "@/lib/database.types";
+import { parseSlot, type RtbaSlot } from "@/lib/rtba/model";
 
 export interface ViewState {
   /** Document affiché (null : aucun) */
@@ -37,6 +38,8 @@ export interface ViewState {
   pen?: boolean;
   /** Crayon : pointe posée, le prochain mouvement écrit (curseur plein dans le casque) */
   inkArmed?: boolean;
+  /** Planche RTBA : slot T0 réglé en vol (et chiffre en cours de réglage) */
+  slot?: RtbaSlot;
 }
 
 export const INITIAL_VIEW_STATE: ViewState = {
@@ -102,6 +105,7 @@ export function parseViewState(value: unknown, now: number = Date.now()): ViewSt
     ...(v.night === true ? { night: true } : {}),
     ...(v.pen === true ? { pen: true } : {}),
     ...(v.pen === true && v.inkArmed === true ? { inkArmed: true } : {}),
+    ...(parseSlot(v.slot) ? { slot: parseSlot(v.slot)! } : {}),
   };
 }
 

@@ -24,6 +24,8 @@ import { fmt } from "@/lib/i18n/define";
 import { useT } from "@/lib/i18n/client";
 import type { Stroke } from "@/lib/annotations/model";
 import { InkLayer } from "./ink-layer";
+import { RtbaLayer } from "./rtba-layer";
+import type { RtbaSlot } from "@/lib/rtba/model";
 import type { ViewerDocument } from "@/lib/viewer/types";
 
 interface PageViewProps {
@@ -45,6 +47,8 @@ interface PageViewProps {
   dim?: boolean;
   /** Annotations de la page (repère du document) */
   strokes?: Stroke[];
+  /** Planche RTBA : slot réglé depuis la remote (null : aucun) */
+  slot?: RtbaSlot | null;
   /** Pages probablement affichées ensuite (documents voisins) : pré-rendues en arrière-plan */
   neighbors?: PageRef[];
 }
@@ -78,6 +82,7 @@ export function PageView({
   cursorMode = "default",
   dim = false,
   strokes = NO_STROKES,
+  slot = null,
   onError,
   neighbors,
 }: PageViewProps) {
@@ -273,7 +278,10 @@ export function PageView({
         <canvas ref={detailRef} className="absolute" style={{ display: "none" }} />
         {/* Annotations : seulement une fois la page affichée (même taille, même repère). */}
         {displaySize && shownKey === pageKey && (
-          <InkLayer strokes={strokes} rotation={rotation} size={displaySize} />
+          <>
+            {doc.rtba && <RtbaLayer rows={doc.rtba} slot={slot} rotation={rotation} size={displaySize} />}
+            <InkLayer strokes={strokes} rotation={rotation} size={displaySize} />
+          </>
         )}
       </div>
       {/* Curseur : position du doigt sur la remote (centré sur la fenêtre puis décalé) */}

@@ -8,6 +8,13 @@ import { logError } from "@/lib/log";
 import { createRateLimiter } from "@/lib/rate-limit";
 import { parseViewState } from "@/lib/sync/protocol";
 import type { ViewerDocument, ViewerPayload } from "@/lib/viewer/types";
+import { parseGeneratedSource } from "@/lib/documents/generated";
+
+/** Planche RTBA : ses waypoints, pour que le viewer y écrive les heures de passage. */
+function rtbaRows(source: unknown): Pick<ViewerDocument, "rtba"> {
+  const parsed = parseGeneratedSource(source);
+  return parsed?.kind === "rtba" ? { rtba: parsed.rows } : {};
+}
 
 const NO_STORE = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex" };
 
@@ -70,7 +77,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/viewer/[toke
   }
   const docsQuery = admin
     .from("documents")
-    .select("id, name, type, page_count, rotation, storage_path")
+    .select("id, name, type, page_count, rotation, storage_path, source")
     // Avec un dossier actif : communs du pilote + documents du dossier (éventuellement d'un coéquipier).
     .or(
       folderId
@@ -123,7 +130,17 @@ export async function GET(req: NextRequest, ctx: RouteContext<"/api/viewer/[toke
   const documents: ViewerDocument[] = docs.flatMap((d) => {
     const url = urls.get(d.storage_path);
     return url
-      ? [{ id: d.id, name: d.name, type: d.type, pageCount: d.page_count, rotation: d.rotation, url }]
+      ? [
+          {
+            id: d.id,
+            name: d.name,
+            type: d.type,
+            pageCount: d.page_count,
+            rotation: d.rotation,
+            url,
+            ...rtbaRows(d.source),
+          },
+        ]
       : [];
   });
 

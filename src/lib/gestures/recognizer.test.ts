@@ -379,3 +379,21 @@ describe("crayon", () => {
     expect(ink(g).map((a) => (a.type === "ink" ? a.phase : a.type))).toEqual(["start", "move", "cancel"]);
   });
 });
+
+describe("appui long en mode action (planche RTBA)", () => {
+  it("émet hold sans activer le crayon ; les swipes restent disponibles", () => {
+    const g = setup();
+    g.r.setHoldMode("action");
+    g.down(1, 500, 400);
+    for (let k = 0; k < GESTURE_CONFIG.penHoldMs + 100; k += 50) {
+      g.tick(50);
+      g.poll();
+    }
+    g.up(1, 500, 400);
+    expect(g.r.pen).toBe(false);
+    expect(g.commands().filter((c) => c.type === "hold" || c.type === "pen")).toEqual([{ type: "hold" }]);
+    g.tick(500);
+    g.drag(1, [500, 600], [505, 300]);
+    expect(g.commands().filter((c) => c.type === "favorite")).toEqual([{ type: "favorite", delta: 1 }]);
+  });
+});
