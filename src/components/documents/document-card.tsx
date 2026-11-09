@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { FilePenLine, GripVertical, Pencil, RotateCcw, RotateCw, Star, StarOff, Trash2 } from "lucide-react";
+import { Download, FilePenLine, GripVertical, Pencil, RotateCcw, RotateCw, Star, StarOff, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { moveDocument, renameDocument } from "@/app/(app)/documents/actions";
 import { CachedThumbnail } from "@/components/cached-thumbnail";
@@ -15,6 +15,7 @@ import { fmt } from "@/lib/i18n/define";
 import { useT } from "@/lib/i18n/client";
 import type { DocumentItem } from "./document-grid";
 import { useEditPage } from "./document-uploader";
+import { downloadKneeboard } from "./download";
 
 const TYPE_LABEL: Record<DocumentItem["type"], string> = {
   "application/pdf": "PDF",
@@ -59,6 +60,7 @@ export function DocumentCard({
   const [draft, setDraft] = useState(item.name);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [downloading, setDownloading] = useState(false);
   const isPdf = item.type === "application/pdf";
   const editPage = useEditPage();
   const source = item.source;
@@ -197,6 +199,18 @@ export function DocumentCard({
               ...(source && editPage
                 ? [{ label: t.grid.edit, icon: <FilePenLine size={16} strokeWidth={1.75} />, onSelect: () => editPage({ id: item.id, source }) }]
                 : []),
+              {
+                label: t.grid.download,
+                icon: <Download size={16} strokeWidth={1.75} />,
+                onSelect: () => {
+                  setError(null);
+                  setDownloading(true);
+                  void downloadKneeboard(item, t).then((err) => {
+                    setDownloading(false);
+                    setError(err);
+                  });
+                },
+              },
               item.favorite
                 ? { label: t.grid.favoriteRemove, icon: <StarOff size={16} strokeWidth={1.75} />, onSelect: () => onFavorite(false) }
                 : { label: t.grid.favoriteAdd, icon: <Star size={16} strokeWidth={1.75} />, onSelect: () => onFavorite(true) },
@@ -214,6 +228,7 @@ export function DocumentCard({
             ]}
           />
         </div>
+        {downloading && <p className="text-xs text-muted">{t.grid.downloading}</p>}
         {error && <p className="text-xs text-danger">{error}</p>}
       </div>
     </li>

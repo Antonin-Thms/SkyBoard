@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { STORAGE_BUCKET } from "@/lib/documents/storage";
 import { fmt } from "@/lib/i18n/define";
 import { getT } from "@/lib/i18n/server";
+import { fileName } from "@/lib/documents/file-name";
 import { parseGeneratedSource, sourceGroup } from "@/lib/documents/generated";
 import { AIRBASE_KEYS, parseRows, STATION_KEYS, SUPPORT_KEYS, TACTICAL_LIMITS, type TacticalRefs } from "@/lib/documents/tactical";
 import { createClient, getSessionClaims } from "@/lib/supabase/server";
@@ -332,4 +333,24 @@ export async function saveTacticalRefs(refs: TacticalRefs): Promise<ActionResult
     .upsert({ airbases, stations, support, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
   if (error) return { error: t.documents.errors.saveRefsFailed };
   return {};
+}
+
+/**
+ * Lien de téléchargement du fichier d'origine (qualité intégrale), valable
+ * une minute. RLS : mes documents et ceux partagés avec mes escadrons.
+ */
+export async function getDownloadUrl(id: string): Promise<{ url?: string; error?: string }> {
+  const t = await getT();
+  if (!isUuid(id)) return { error: t.documents.errors.invalidSelection };
+
+  const supabase = await createClient();
+  const { data: doc } = await supabase.from("documents").select("name, type, storage_path").eq("id", id).maybeSingle();
+  if (!doc) return { error: t.documents.errors.downloadFailed };
+
+  const ext = doc.type === "application/pdf" ? "pdf" : doc.type === "image/jpeg" ? "jpg" : "png";
+  const { data, error } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .createSignedUrl(doc.storage_path, 60, { download: fileName(doc.name, ext) });
+  if (error || !data?.signedUrl) return { error: t.documents.errors.downloadFailed };
+  return { url: data.signedUrl };
 }

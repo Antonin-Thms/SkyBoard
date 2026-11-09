@@ -13,12 +13,18 @@ export const PAGE = { width: 1240, height: 1754 };
 const MARGIN = 90;
 export const INK = "#111111";
 
-export function newPage(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+/**
+ * Nouvelle page blanche. `scale` : résolution (1 = 150 dpi, 2 = 300 dpi pour
+ * un téléchargement haute qualité) ; le dessin se fait toujours en unités
+ * de PAGE, la mise à l'échelle est appliquée au contexte.
+ */
+export function newPage(scale = 1): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
   const canvas = document.createElement("canvas");
-  canvas.width = PAGE.width;
-  canvas.height = PAGE.height;
+  canvas.width = Math.round(PAGE.width * scale);
+  canvas.height = Math.round(PAGE.height * scale);
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas indisponible.");
+  ctx.scale(scale, scale);
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, PAGE.width, PAGE.height);
   return { canvas, ctx };
@@ -75,6 +81,8 @@ export async function renderChecklist(
   items: string[],
   /** Titre des pages suivantes, gabarit avec {title} (ex. « {title} (suite) ») */
   continuedTitle: string,
+  /** Résolution (1 = 150 dpi, 2 = 300 dpi) */
+  scale = 1,
 ): Promise<File[]> {
   const pages: HTMLCanvasElement[] = [];
   const box = 38;
@@ -83,7 +91,7 @@ export async function renderChecklist(
   const lineHeight = 52;
   const itemGap = 26;
 
-  let page = newPage();
+  let page = newPage(scale);
   let y = 0;
   const header = (ctx: CanvasRenderingContext2D, continued: boolean) => {
     ctx.fillStyle = INK;
@@ -102,7 +110,7 @@ export async function renderChecklist(
     const height = lines.length * lineHeight;
     if (y + height > PAGE.height - MARGIN) {
       pages.push(page.canvas);
-      page = newPage();
+      page = newPage(scale);
       y = header(page.ctx, true);
       page.ctx.font = "40px sans-serif";
     }

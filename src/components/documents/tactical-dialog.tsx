@@ -4,7 +4,7 @@ import { ListPlus, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { getTacticalRefs } from "@/app/(app)/documents/actions";
 import { Select } from "@/components/ui/select";
-import { renderTactical } from "@/lib/documents/render-tactical";
+import { renderTactical, tacticalLabels } from "@/lib/documents/render-tactical";
 import {
   cleanTacticalSheet,
   emptyStation,
@@ -83,36 +83,7 @@ export function TacticalDialog({
     setWorking(true);
     setError(null);
     try {
-      const files = await renderTactical(name, clean, {
-        weather: t.weather,
-        time: t.timeZ,
-        sectionAirbase: t.sectionAirbase,
-        base: t.colBase,
-        runway: t.colRunway,
-        roles: ["DEP", "ARR", "ALTN"],
-        sectionFlight: t.sectionFlight,
-        pilot: t.colPilot,
-        helmet: t.colHelmet,
-        notes: t.colNotes,
-        sectionLoadout: t.sectionLoadout,
-        configuration: t.configuration,
-        sectionCom: t.sectionCom,
-        com1: "COM1 (PRI)",
-        com2: "COM2 (AUX)",
-        channel: t.colChannel,
-        freq: t.colFreq,
-        name: t.colName,
-        sectionTargets: t.sectionTargets,
-        type: t.colType,
-        coords: t.colCoords,
-        alt: t.colAlt,
-        threats: t.colThreats,
-        sectionSupport: t.sectionSupport,
-        role: t.colRole,
-        acType: t.colAcType,
-        sectionFlightNotes: t.sectionFlightNotes,
-        waypoint: t.colWaypoint,
-      });
+      const files = await renderTactical(name, clean, tacticalLabels(t));
       const group = uuid();
       await onCreate(
         files.map((file, i) => ({

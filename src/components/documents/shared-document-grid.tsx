@@ -1,9 +1,10 @@
 "use client";
 
-import { Star } from "lucide-react";
+import { Download, Star } from "lucide-react";
 import { useState, useTransition } from "react";
 import { setFavorites } from "@/app/(app)/documents/actions";
 import { CachedThumbnail } from "@/components/cached-thumbnail";
+import { downloadKneeboard } from "./download";
 import { EmptyState } from "@/components/ui/empty-state";
 import type { DocumentSummary } from "@/lib/documents/server-types";
 import { fmt } from "@/lib/i18n/define";
@@ -66,6 +67,18 @@ export function SharedDocumentGrid({ documents }: { documents: DocumentSummary[]
             <p className="min-w-0 flex-1 truncate text-[15px] font-medium" title={d.name}>
               {d.name}
             </p>
+            <button
+              type="button"
+              className="btn-icon size-8"
+              aria-label={t.grid.download}
+              title={t.grid.download}
+              onClick={() => {
+                setError(null);
+                void downloadKneeboard({ id: d.id, name: d.name, source: null }, t).then(setError);
+              }}
+            >
+              <Download size={16} strokeWidth={1.75} />
+            </button>
             <button
               type="button"
               className="btn-icon -mr-2 size-8"

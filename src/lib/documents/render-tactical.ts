@@ -8,6 +8,7 @@
  * contenu est long, un peu agrandi s'il est court, pour la lecture en VR).
  */
 
+import type { Dictionary } from "@/lib/i18n/dictionary";
 import { drawRamrod, INK, newPage, PAGE, toFile, wrap } from "./generate";
 import { isBlank, type Airbase, type Station, type TacticalSheet } from "./tactical";
 
@@ -41,6 +42,40 @@ export interface TacticalLabels {
   acType: string;
   sectionFlightNotes: string;
   waypoint: string;
+}
+
+/** Textes de la fiche, depuis le dictionnaire de la langue de l'interface. */
+export function tacticalLabels(t: Dictionary["documents"]["create"]): TacticalLabels {
+  return {
+    weather: t.weather,
+    time: t.timeZ,
+    sectionAirbase: t.sectionAirbase,
+    base: t.colBase,
+    runway: t.colRunway,
+    roles: ["DEP", "ARR", "ALTN"],
+    sectionFlight: t.sectionFlight,
+    pilot: t.colPilot,
+    helmet: t.colHelmet,
+    notes: t.colNotes,
+    sectionLoadout: t.sectionLoadout,
+    configuration: t.configuration,
+    sectionCom: t.sectionCom,
+    com1: "COM1 (PRI)",
+    com2: "COM2 (AUX)",
+    channel: t.colChannel,
+    freq: t.colFreq,
+    name: t.colName,
+    sectionTargets: t.sectionTargets,
+    type: t.colType,
+    coords: t.colCoords,
+    alt: t.colAlt,
+    threats: t.colThreats,
+    sectionSupport: t.sectionSupport,
+    role: t.colRole,
+    acType: t.colAcType,
+    sectionFlightNotes: t.sectionFlightNotes,
+    waypoint: t.colWaypoint,
+  };
 }
 
 const SIDE = 34;
@@ -378,8 +413,14 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, l: TacticalLabe
 
 const totalHeight = (blocks: Block[]) => blocks.reduce((sum, b) => sum + b.height, 0) + GAP * Math.max(0, blocks.length - 1);
 
-export async function renderTactical(title: string, s: TacticalSheet, l: TacticalLabels): Promise<File[]> {
-  const { canvas, ctx } = newPage();
+export async function renderTactical(
+  title: string,
+  s: TacticalSheet,
+  l: TacticalLabels,
+  /** Résolution (1 = 150 dpi, 2 = 300 dpi) */
+  scale = 1,
+): Promise<File[]> {
+  const { canvas, ctx } = newPage(scale);
   const available = BOTTOM - TOP;
 
   // Échelle : la plus grande (≤ MAX_SCALE) qui fait tout tenir sur la page.
