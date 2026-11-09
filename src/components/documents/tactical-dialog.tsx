@@ -84,7 +84,6 @@ export function TacticalDialog({
     setError(null);
     try {
       const files = await renderTactical(name, clean, {
-        continued: t.continued,
         weather: t.weather,
         time: t.timeZ,
         sectionAirbase: t.sectionAirbase,
