@@ -57,7 +57,7 @@ export function parseLeg(text: string): number | null {
     .toLowerCase()
     .replace(/[’′‘`´]/g, "'")
     .replace(/''|[”″"“]/g, '"')
-    .replace(/\s+/g, "");
+    .replace(/[\s\u00a0\u202f\u2007]+/g, "");
   if (!t) return null;
   if (/^\d+$/.test(t)) return Number(t);
   const colon = /^(?:(\d+):)?(\d{1,2}):(\d{2})$/.exec(t);
@@ -73,7 +73,12 @@ export function parseLeg(text: string): number | null {
     return sec > 59 ? null : Number(ms[1]) * 60 + sec;
   }
   const secOnly = /^(\d+)(?:"|sec|s)$/.exec(t);
-  return secOnly ? Number(secOnly[1]) : null;
+  if (secOnly) return Number(secOnly[1]);
+  // Repli : deux nombres séparés par n'importe quel signe (apostrophes
+  // typographiques, primes, espaces insécables…) = minutes et secondes.
+  const loose = /^(\d+)[^\da-z]+(\d{1,2})[^\da-z]*$/.exec(t);
+  if (loose && Number(loose[2]) <= 59) return Number(loose[1]) * 60 + Number(loose[2]);
+  return null;
 }
 
 /** « HH:MM:SS » (boucle sur 24 h). */

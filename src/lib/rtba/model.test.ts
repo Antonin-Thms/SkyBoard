@@ -36,6 +36,11 @@ describe("temps de passage", () => {
     expect(parseLeg("5m40s")).toBe(340);
     expect(parseLeg("40s")).toBe(40);
     expect(parseLeg("5'75''")).toBeNull();
+    // Caractères « exotiques » insérés par certains claviers / correcteurs
+    expect(parseLeg("05ʼ40ʼʼ")).toBe(340);
+    expect(parseLeg("05\u203240\u2033")).toBe(340);
+    expect(parseLeg("05\u00a0'\u00a040\u00a0''")).toBe(340);
+    expect(parseLeg("05′′40")).toBe(340);
     expect(parseLeg("1:75")).toBeNull();
     expect(parseLeg("abc")).toBeNull();
   });
