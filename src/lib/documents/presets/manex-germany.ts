@@ -2,8 +2,9 @@ import type { TacticalRefs } from "../tactical";
 
 /**
  * Listes « MANEX Germany » du Digital Joint Squadron (MANEX Germany V2.0) :
- * terrains (pages Home Bases), COMPLAN Blue (COM 1 / COM 2) et ravitailleurs
- * (pages AAR Tracks). UHF des terrains : canal puis fréquence.
+ * terrains (pages Home Bases), COMPLAN Blue (COM 1 / COM 2) et support :
+ * ravitailleurs (pages AAR Tracks), AWACS et CRC (Air Traffic Control).
+ * UHF des terrains : canal puis fréquence.
  */
 export const MANEX_GERMANY: TacticalRefs = {
   airbases: [
@@ -53,11 +54,18 @@ export const MANEX_GERMANY: TacticalRefs = {
     { code: "U/V18", name: "Particulière Escadron", freq: "240.450" },
     { code: "V19", name: "TACTICAL", freq: "119.450" },
     { code: "V20", name: "TACTICAL", freq: "135.850" },
-    // Ravitailleurs hors COMPLAN (pages AAR Tracks) : TACAN dans le nom.
-    { code: "", name: "SHELL 61 VIRGIN 61X", freq: "261.000" },
-    { code: "", name: "SHELL 21 SAXON 21X", freq: "241.500" },
-    { code: "", name: "TEXACO 91 ROSY 91X", freq: "291.000" },
-    { code: "", name: "TEXACO 81 MAGGIE 81X", freq: "281.000" },
-    { code: "", name: "NANNY recovery 75Y", freq: "275.200" },
+  ],
+  support: [
+    { role: "TKR", type: "A330 MRTT (MPRS)", callsign: "TEXACO 31", uhf: "231.0 / U3", vhf: "", tacan: "31X", alt: "FL260", notes: "VIRGIN (R205)" },
+    { role: "TKR", type: "A330 MRTT (Boom)", callsign: "SHELL 61", uhf: "261.0", vhf: "", tacan: "61X", alt: "FL280", notes: "VIRGIN (R205)" },
+    { role: "TKR", type: "KC135 (Boom)", callsign: "SHELL 21", uhf: "241.5", vhf: "", tacan: "21X", alt: "FL190", notes: "SAXON (R208)" },
+    { role: "TKR", type: "KC135 (MPRS)", callsign: "TEXACO 41", uhf: "241.0", vhf: "", tacan: "41X", alt: "FL230", notes: "SAXON (R208)" },
+    { role: "TKR", type: "A330 MRTT (Boom)", callsign: "SHELL 51", uhf: "251.0 / U15", vhf: "", tacan: "51X", alt: "FL220", notes: "ROSY (R202)" },
+    { role: "TKR", type: "A330 MRTT (MPRS)", callsign: "TEXACO 91", uhf: "291.0", vhf: "", tacan: "91X", alt: "FL240", notes: "ROSY (R202)" },
+    { role: "TKR", type: "A330 MRTT (Boom)", callsign: "SHELL 71", uhf: "271.0 / U20", vhf: "", tacan: "71X", alt: "FL120", notes: "MAGGIE (R166)" },
+    { role: "TKR", type: "A330 MRTT (MPRS)", callsign: "TEXACO 81", uhf: "281.0", vhf: "", tacan: "81X", alt: "FL240", notes: "MAGGIE (R166)" },
+    { role: "TKR", type: "Recovery", callsign: "NANNY", uhf: "275.2 / U9", vhf: "", tacan: "75Y", alt: "8000 ft", notes: "CVN-75" },
+    { role: "AWACS", type: "E-3A", callsign: "MAGIC", uhf: "280.0 / U2", vhf: "", tacan: "", alt: "FL305", notes: "Over CRC" },
+    { role: "GCI", type: "CRC", callsign: "LONESHIP", uhf: "339.725 / U19", vhf: "", tacan: "", alt: "", notes: "Erndtebrück" },
   ],
 };

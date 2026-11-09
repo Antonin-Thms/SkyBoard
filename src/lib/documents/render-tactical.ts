@@ -38,6 +38,9 @@ export interface TacticalLabels {
   coords: string;
   alt: string;
   threats: string;
+  sectionSupport: string;
+  role: string;
+  acType: string;
   sectionFlightNotes: string;
   slot: string;
   waypoint: string;
@@ -57,6 +60,7 @@ const COLORS = {
   head: "#4a4a4a",
   label: "#d9d9d9",
   blue: "#dbe7f4",
+  purple: "#e6dcf2",
   green: "#dcefd6",
   line: "#2a2a2a",
 };
@@ -261,7 +265,23 @@ export async function renderTactical(title: string, s: TacticalSheet, l: Tactica
     ]),
   ]);
 
-  // 7. Notes de vol : RTBA et notes côte à côte, puis RAMROD (chaque bloc seulement s'il est rempli).
+  // 7. Support : ravitailleurs, AWACS, GCI…
+  const SP = [0.07, 0.15, 0.15, 0.13, 0.1, 0.08, 0.1, 0.22];
+  if (!isBlank(...s.support)) section(l.sectionSupport, [
+    [l.role, l.acType, "CALLSIGN", "UHF", "VHF", "TCN", "ALT", l.notes].map((text, i) => ({ text, w: SP[i], kind: "head" as const })),
+    ...s.support.map((u): Cell[] => [
+      { text: u.role, w: SP[0], kind: "label", fill: COLORS.purple },
+      { text: u.type, w: SP[1], fill: COLORS.purple, align: "center" },
+      { text: u.callsign, w: SP[2], fill: COLORS.purple, align: "center" },
+      { text: u.uhf, w: SP[3], align: "center" },
+      { text: u.vhf, w: SP[4], align: "center" },
+      { text: u.tacan, w: SP[5], align: "center" },
+      { text: u.alt, w: SP[6], align: "center" },
+      { text: u.notes, w: SP[7], kind: "name" },
+    ]),
+  ]);
+
+  // 8. Notes de vol : RTBA et notes côte à côte, puis RAMROD (chaque bloc seulement s'il est rempli).
   const half = (WIDTH - GAP) / 2;
   const RT = [0.4, 0.26, 0.34];
   const rtbaHeight = s.rtba.length ? (s.rtba.length + 2) * ROW : 0;

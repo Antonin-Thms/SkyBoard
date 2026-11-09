@@ -132,16 +132,19 @@ export interface Database {
           user_id: string;
           airbases: Json;
           stations: Json;
+          support: Json;
           updated_at: string;
         };
         Insert: {
           airbases?: Json;
           stations?: Json;
+          support?: Json;
           updated_at?: string;
         };
         Update: {
           airbases?: Json;
           stations?: Json;
+          support?: Json;
           updated_at?: string;
         };
         Relationships: [];

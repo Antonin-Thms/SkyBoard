@@ -21,6 +21,17 @@ export type Station = {
   name: string;
   freq: string;
 };
+/** Appareil de soutien : ravitailleur, AWACS, GCI… */
+export type SupportUnit = {
+  role: string;
+  type: string;
+  callsign: string;
+  uhf: string;
+  vhf: string;
+  tacan: string;
+  alt: string;
+  notes: string;
+};
 export type FlightMember = {
   pilot: string;
   helmet: string;
@@ -50,6 +61,7 @@ export type TacticalSheet = {
   com1: Station[];
   com2: Station[];
   targets: Target[];
+  support: SupportUnit[];
   /** 10 cases, une par chiffre 0 à 9 */
   ramrod: string[];
   rtba: RtbaRow[];
@@ -60,8 +72,8 @@ export type TacticalSheet = {
  * Lignes de la fiche : 4 par défaut (lignes vides à remplir au crayon) ;
  * radios et objectifs peuvent en avoir plus (jusqu'à `max`).
  */
-export const TACTICAL_ROWS = { flight: 4, com: 4, targets: 4 } as const;
-export const TACTICAL_LIMITS = { rtba: 16, com: 12, targets: 12, field: 40, notes: 2000, refs: 300 } as const;
+export const TACTICAL_ROWS = { flight: 4, com: 4, targets: 4, support: 2 } as const;
+export const TACTICAL_LIMITS = { rtba: 16, com: 12, targets: 12, support: 12, field: 40, notes: 2000, refs: 300 } as const;
 
 /** Casques proposés pour la patrouille. */
 export const HELMETS = ["HMCS", "NVG"] as const;
@@ -94,6 +106,7 @@ export const isBlank = (...rows: Record<string, string>[]) => rows.every((row) =
 
 export const AIRBASE_KEYS = ["name", "tacan", "vhf", "uhf", "elev", "runway", "ils"] as const;
 export const STATION_KEYS = ["code", "name", "freq"] as const;
+export const SUPPORT_KEYS = ["role", "type", "callsign", "uhf", "vhf", "tacan", "alt", "notes"] as const;
 const FLIGHT_KEYS = ["pilot", "helmet", "tacan", "laser", "stn", "tail", "notes"] as const;
 const TARGET_KEYS = ["type", "coords", "alt", "notes"] as const;
 const HEADER_KEYS = ["callsign", "pri", "aux", "mission", "weather", "time"] as const;
@@ -104,6 +117,7 @@ const blank = <K extends string>(keys: readonly K[]) => Object.fromEntries(keys.
 
 export const emptyAirbase = (): Airbase => blank(AIRBASE_KEYS);
 export const emptyStation = (): Station => blank(STATION_KEYS);
+export const emptySupport = (): SupportUnit => blank(SUPPORT_KEYS);
 
 export function emptyTacticalSheet(ramrod: string[] = []): TacticalSheet {
   return {
@@ -114,6 +128,7 @@ export function emptyTacticalSheet(ramrod: string[] = []): TacticalSheet {
     com1: Array.from({ length: TACTICAL_ROWS.com }, emptyStation),
     com2: Array.from({ length: TACTICAL_ROWS.com }, emptyStation),
     targets: Array.from({ length: TACTICAL_ROWS.targets }, () => blank(TARGET_KEYS)),
+    support: Array.from({ length: TACTICAL_ROWS.support }, emptySupport),
     ramrod: Array.from({ length: 10 }, (_, i) => ramrod[i] ?? ""),
     rtba: [],
     notes: "",
@@ -203,8 +218,10 @@ export function parseTacticalSheet(v: Record<string, unknown>): TacticalSheet | 
   const com1 = parseRows(v.com1, STATION_KEYS, TACTICAL_LIMITS.com);
   const com2 = parseRows(v.com2, STATION_KEYS, TACTICAL_LIMITS.com);
   const targets = parseRows(v.targets, TARGET_KEYS, TACTICAL_LIMITS.targets);
-  if (!header || !loadout || !dep || !arr || !alt || !flight || !com1 || !com2 || !targets) return null;
-  return { header, airbases: { dep, arr, alt }, flight, loadout, com1, com2, targets, ramrod, rtba, notes };
+  // Support : absent des fiches créées avant son ajout.
+  const support = parseRows(v.support, SUPPORT_KEYS, TACTICAL_LIMITS.support);
+  if (!header || !loadout || !dep || !arr || !alt || !flight || !com1 || !com2 || !targets || !support) return null;
+  return { header, airbases: { dep, arr, alt }, flight, loadout, com1, com2, targets, support, ramrod, rtba, notes };
 }
 
 /** Espaces superflus retirés, lignes RTBA vides supprimées (avant rendu / enregistrement). */
@@ -219,6 +236,7 @@ export function cleanTacticalSheet(s: TacticalSheet): TacticalSheet {
     com1: s.com1.map(trim),
     com2: s.com2.map(trim),
     targets: s.targets.map(trim),
+    support: s.support.map(trim),
     ramrod: s.ramrod.map((c) => c.trim()),
     rtba: s.rtba.map(trim).filter((r) => r.wp || r.offset),
     notes: s.notes.trim(),
@@ -226,7 +244,7 @@ export function cleanTacticalSheet(s: TacticalSheet): TacticalSheet {
 }
 
 /** Listes enregistrées : terrains et stations radio de l'escadron. */
-export type TacticalRefs = { airbases: Airbase[]; stations: Station[] };
+export type TacticalRefs = { airbases: Airbase[]; stations: Station[]; support: SupportUnit[] };
 
 /**
  * Lignes collées depuis Excel (tabulations), ou séparées par « ; ».

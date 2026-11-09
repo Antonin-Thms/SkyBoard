@@ -8,11 +8,13 @@ import { renderTactical } from "@/lib/documents/render-tactical";
 import {
   cleanTacticalSheet,
   emptyStation,
+  emptySupport,
   emptyTacticalSheet,
   HELMETS,
   TACTICAL_LIMITS,
   type Airbase,
   type Station,
+  type SupportUnit,
   type TacticalRefs,
   type TacticalSheet,
   withWingmenTacan,
@@ -59,7 +61,7 @@ export function TacticalDialog({
     let alive = true;
     getTacticalRefs()
       .then((r) => alive && setRefs(r))
-      .catch(() => alive && setRefs({ airbases: [], stations: [] }));
+      .catch(() => alive && setRefs({ airbases: [], stations: [], support: [] }));
     return () => {
       alive = false;
     };
@@ -106,6 +108,9 @@ export function TacticalDialog({
         coords: t.colCoords,
         alt: t.colAlt,
         threats: t.colThreats,
+        sectionSupport: t.sectionSupport,
+        role: t.colRole,
+        acType: t.colAcType,
         sectionFlightNotes: t.sectionFlightNotes,
         slot: t.slot,
         waypoint: t.colWaypoint,
@@ -126,6 +131,12 @@ export function TacticalDialog({
   }
 
   const airbaseOptions = (refs?.airbases ?? []).map((a, i) => ({ value: String(i), label: [a.name, a.tacan].filter(Boolean).join(" · ") }));
+  const supportOptions = (refs?.support ?? []).map((u, i) => ({
+    value: String(i),
+    label: [u.callsign, u.type, u.notes].filter(Boolean).join(" · "),
+  }));
+  const setSupport = (i: number, value: SupportUnit) =>
+    update((s) => ({ ...s, support: s.support.map((u, j) => (j === i ? value : u)) }));
   const stationOptions = (refs?.stations ?? []).map((s, i) => ({ value: String(i), label: [s.code, s.name].filter(Boolean).join(" · ") }));
   const wingmen = withWingmenTacan(sheet.flight);
   const noRefs = refs !== null && !refs.airbases.length && !refs.stations.length;
@@ -349,6 +360,50 @@ export function TacticalDialog({
           )}
         </Section>
 
+        <Section title={t.sectionSupport}>
+          <Wide>
+            <GridHead
+              cols={SUPPORT_COLS}
+              labels={["", t.colRole, t.colAcType, "Callsign", "UHF", "VHF", "TCN", t.colAlt, t.colNotes, ""]}
+            />
+            {sheet.support.map((u, i) => {
+              const set = (key: keyof SupportUnit) => (v: string) => setSupport(i, { ...u, [key]: v });
+              const label = `${t.sectionSupport} ${i + 1}`;
+              return (
+                <div key={i} className="grid items-center gap-1.5" style={{ gridTemplateColumns: SUPPORT_COLS }}>
+                  <Select
+                    label={`${t.chooseSupport} ${label}`}
+                    size="sm"
+                    value=""
+                    placeholder={t.chooseSupport}
+                    options={supportOptions}
+                    disabled={!supportOptions.length}
+                    onChange={(v) => {
+                      const picked = refs?.support[Number(v)];
+                      if (picked) setSupport(i, { ...picked });
+                    }}
+                  />
+                  <Field label={`${t.colRole} ${i + 1}`} value={u.role} onChange={set("role")} mono />
+                  <Field label={`${t.colAcType} ${i + 1}`} value={u.type} onChange={set("type")} />
+                  <Field label={`Callsign ${i + 1}`} value={u.callsign} onChange={set("callsign")} />
+                  <Field label={`UHF ${label}`} value={u.uhf} onChange={set("uhf")} mono />
+                  <Field label={`VHF ${label}`} value={u.vhf} onChange={set("vhf")} mono />
+                  <Field label={`TCN ${label}`} value={u.tacan} onChange={set("tacan")} mono />
+                  <Field label={`${t.colAlt} ${label}`} value={u.alt} onChange={set("alt")} mono />
+                  <Field label={`${t.colNotes} ${label}`} value={u.notes} onChange={set("notes")} />
+                  <RemoveRow
+                    label={`${t.removeRow} ${label}`}
+                    onClick={() => update((s) => ({ ...s, support: s.support.filter((_, j) => j !== i) }))}
+                  />
+                </div>
+              );
+            })}
+          </Wide>
+          {sheet.support.length < TACTICAL_LIMITS.support && (
+            <AddRow label={t.addRow} onClick={() => update((s) => ({ ...s, support: [...s.support, emptySupport()] }))} />
+          )}
+        </Section>
+
         <Section title={t.sectionFlightNotes}>
           <div className="space-y-2">
             <div className="text-xs text-subtle">{t.sectionRamrod}</div>
@@ -405,6 +460,8 @@ export function TacticalDialog({
 const AIRBASE_COLS = "3rem minmax(9rem,1.6fr) repeat(7,minmax(4.5rem,1fr))";
 const FLIGHT_COLS = "1.5rem minmax(7rem,1.6fr) repeat(5,minmax(4rem,1fr)) minmax(8rem,2fr)";
 const COM_COLS = "minmax(6rem,1.3fr) minmax(3.5rem,0.8fr) minmax(5rem,1fr) minmax(6rem,1.6fr) 2.25rem";
+const SUPPORT_COLS =
+  "minmax(6rem,1.2fr) minmax(3.5rem,0.6fr) minmax(6rem,1.2fr) minmax(6rem,1.1fr) repeat(4,minmax(4rem,0.8fr)) minmax(6rem,1.3fr) 2.25rem";
 const TARGET_COLS = "1.5rem minmax(6rem,1.2fr) minmax(9rem,2fr) minmax(4.5rem,0.8fr) minmax(8rem,2fr) 2.25rem";
 
 /** Casques : HMCS, NVG (plus une valeur saisie autrefois, s'il y en a une). */

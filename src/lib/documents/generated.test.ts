@@ -78,6 +78,14 @@ describe("fiche tactique", () => {
     expect(parsed.rtba).toEqual(v1.rtba);
   });
 
+  it("support : lu s'il est présent, vide pour une fiche créée avant son ajout", () => {
+    const support = [{ role: "TKR", type: "KC135", callsign: "SHELL 21", uhf: "241.5", vhf: "", tacan: "21X", alt: "FL190", notes: "" }];
+    const parsed = parseGeneratedSource({ ...base, support });
+    expect(parsed).toMatchObject({ support });
+    expect(parseGeneratedSource(base)).toMatchObject({ support: [] });
+    expect(parseGeneratedSource({ ...base, support: [{ role: 1 }] })).toBeNull();
+  });
+
   it("refuse une forme inattendue", () => {
     expect(parseGeneratedSource({ ...base, flight: "x" })).toBeNull();
     expect(parseGeneratedSource({ ...base, flight: Array(5).fill({}) })).toBeNull();

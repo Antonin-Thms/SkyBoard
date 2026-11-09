@@ -5,7 +5,7 @@ import { STORAGE_BUCKET } from "@/lib/documents/storage";
 import { fmt } from "@/lib/i18n/define";
 import { getT } from "@/lib/i18n/server";
 import { parseGeneratedSource, sourceGroup } from "@/lib/documents/generated";
-import { AIRBASE_KEYS, parseRows, STATION_KEYS, TACTICAL_LIMITS, type TacticalRefs } from "@/lib/documents/tactical";
+import { AIRBASE_KEYS, parseRows, STATION_KEYS, SUPPORT_KEYS, TACTICAL_LIMITS, type TacticalRefs } from "@/lib/documents/tactical";
 import { createClient, getSessionClaims } from "@/lib/supabase/server";
 import { notifyDocumentsChanged } from "@/lib/sync/notify";
 import type { Rotation } from "@/lib/database.types";
@@ -308,10 +308,12 @@ export async function replaceGeneratedDocuments(oldId: string, newIds: string[])
 /** Listes de la fiche tactique (terrains, stations radio) du pilote connecté. */
 export async function getTacticalRefs(): Promise<TacticalRefs> {
   const supabase = await createClient();
-  const { data } = await supabase.from("tactical_refs").select("airbases, stations").maybeSingle();
+  // « * » : la colonne support peut manquer tant que sa migration n'est pas passée.
+  const { data } = await supabase.from("tactical_refs").select("*").maybeSingle();
   return {
     airbases: parseRows(data?.airbases ?? [], AIRBASE_KEYS, TACTICAL_LIMITS.refs) ?? [],
     stations: parseRows(data?.stations ?? [], STATION_KEYS, TACTICAL_LIMITS.refs) ?? [],
+    support: parseRows(data?.support ?? [], SUPPORT_KEYS, TACTICAL_LIMITS.refs) ?? [],
   };
 }
 
@@ -320,13 +322,14 @@ export async function saveTacticalRefs(refs: TacticalRefs): Promise<ActionResult
   const t = await getT();
   const airbases = parseRows(refs?.airbases, AIRBASE_KEYS, TACTICAL_LIMITS.refs);
   const stations = parseRows(refs?.stations, STATION_KEYS, TACTICAL_LIMITS.refs);
+  const support = parseRows(refs?.support, SUPPORT_KEYS, TACTICAL_LIMITS.refs);
   const userId = (await getSessionClaims())?.sub;
-  if (!airbases || !stations || !userId) return { error: t.documents.errors.invalidSelection };
+  if (!airbases || !stations || !support || !userId) return { error: t.documents.errors.invalidSelection };
 
   const supabase = await createClient();
   const { error } = await supabase
     .from("tactical_refs")
-    .upsert({ airbases, stations, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+    .upsert({ airbases, stations, support, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
   if (error) return { error: t.documents.errors.saveRefsFailed };
   return {};
 }

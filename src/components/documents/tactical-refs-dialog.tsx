@@ -7,8 +7,10 @@ import {
   AIRBASE_KEYS,
   emptyAirbase,
   emptyStation,
+  emptySupport,
   parsePastedRows,
   STATION_KEYS,
+  SUPPORT_KEYS,
   TACTICAL_LIMITS,
   type TacticalRefs,
 } from "@/lib/documents/tactical";
@@ -49,6 +51,7 @@ export function TacticalRefsDialog({
     const clean: TacticalRefs = {
       airbases: refs.airbases.filter((a) => Object.values(a).some((v) => v.trim())),
       stations: refs.stations.filter((s) => Object.values(s).some((v) => v.trim())),
+      support: refs.support.filter((s) => Object.values(s).some((v) => v.trim())),
     };
     const res = await saveTacticalRefs(clean).catch(() => ({ error: tErrors.server }));
     setSaving(false);
@@ -135,6 +138,38 @@ export function TacticalRefsDialog({
               setRefs((r) => ({
                 ...r,
                 stations: [...r.stations, ...parsePastedRows(text, STATION_KEYS)].slice(0, TACTICAL_LIMITS.refs),
+              }))
+            }
+          />
+        </Section>
+
+        <Section title={t.refsSupport}>
+          <div className="-mx-1 overflow-x-auto px-1 pb-1">
+            <div className="min-w-[48rem]">
+              <Rows
+                columns={[
+                  { key: "role", label: t.colRole, grow: 2, mono: true },
+                  { key: "type", label: t.colAcType, grow: 3 },
+                  { key: "callsign", label: "Callsign", grow: 3 },
+                  { key: "uhf", label: "UHF", grow: 3, mono: true },
+                  { key: "vhf", label: "VHF", grow: 2, mono: true },
+                  { key: "tacan", label: "TCN", grow: 2, mono: true },
+                  { key: "alt", label: t.colAlt, grow: 2, mono: true },
+                  { key: "notes", label: t.colNotes, grow: 3 },
+                ]}
+                rows={refs.support}
+                max={TACTICAL_LIMITS.refs}
+                empty={emptySupport()}
+                onChange={(support) => setRefs((r) => ({ ...r, support }))}
+              />
+            </div>
+          </div>
+          <PasteBox
+            hint={t.refsSupportPasteHint}
+            onImport={(text) =>
+              setRefs((r) => ({
+                ...r,
+                support: [...r.support, ...parsePastedRows(text, SUPPORT_KEYS)].slice(0, TACTICAL_LIMITS.refs),
               }))
             }
           />
