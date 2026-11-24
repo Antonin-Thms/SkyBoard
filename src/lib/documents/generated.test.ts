@@ -56,7 +56,10 @@ describe("fiche tactique", () => {
     expect(parsed.airfields.dep).toMatchObject({ name: "ETAD", tacan: "32X", freq: "U12", elev: "984", runway: "05/23", ils: "109.15" });
     expect(parsed.flight[0]).toMatchObject({ crew: "Kepyyy", helmet: "HMCS", tacan: "31Y", laser: "1688", serial: "90-0816" });
     expect(parsed.flight).toHaveLength(4);
-    expect(parsed.loadout).toMatchObject({ aa: "AIM-120C", pods: "TGP", tanks: "2xFT" });
+    // Emport commun recopié sur l'avion renseigné (un seul pilote ici)
+    expect(parsed.loadout).toHaveLength(4);
+    expect(parsed.loadout[0]).toMatchObject({ aa: "AIM-120C", pods: "TGP", tanks: "2xFT" });
+    expect(parsed.loadout[1].aa).toBe("");
     expect(parsed.uhf[0]).toEqual(v2.com1[0]);
     expect(parsed.comNotes).toBe("PRI U12\nAUX V9");
     expect(parsed.waypoints[0]).toMatchObject({ n: "1", name: "SA-6", coords: "N34", alt: "1278" });
@@ -76,6 +79,16 @@ describe("fiche tactique", () => {
     const source = { kind: "tactical", title: "F", group: GROUP, part: 1, ...sheet };
     const parsed = parseGeneratedSource(JSON.parse(JSON.stringify(source)));
     expect(parsed).toEqual(source);
+  });
+
+  it("emport commun d'une fiche récente : recopié sur chaque avion renseigné", () => {
+    const sheet = emptyTacticalSheet();
+    sheet.flight[0].crew = "Shadow";
+    sheet.flight[1].crew = "Shoka";
+    const source = { kind: "tactical", title: "F", group: GROUP, part: 1, ...sheet, loadout: { aa: "301+", tanks: "2", ecm: "NO", ag: "", pods: "", chfl: "", notes: "" } };
+    const parsed = parseGeneratedSource(source);
+    if (parsed?.kind !== "tactical") throw new Error("type");
+    expect(parsed.loadout.map((l) => l.aa)).toEqual(["301+", "301+", "", ""]);
   });
 
   it("convertit une fiche de la première version : navigation, fréquences et codes passent dans le gameplan", () => {

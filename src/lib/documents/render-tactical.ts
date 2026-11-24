@@ -212,47 +212,60 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
     ]);
   }
 
-  // LOADOUT : configuration, carburant, spec côte à côte
-  const lo = s.loadout;
+  // LOADOUT : configuration par avion (numéro coloré comme FLIGHT), puis carburant et spec
+  const loads = s.loadout.map((l, i) => ({ l, i })).filter(({ l }) => filled(l));
   const fu = s.fuel;
   const sp = s.spec;
-  if (filled(lo) || filled(fu) || filled(sp)) {
+  if (loads.length || filled(fu) || filled(sp)) {
+    const rows: Cell[][] = [];
+    if (loads.length) {
+      const LW = [0.04, 0.11, 0.11, 0.06, 0.07, 0.22, 0.13, 0.12, 0.14];
+      rows.push(head(["#", "CREW", "A/A", "TANKS", "ECM POD", "A/G", "PODS", "CH/FL", "NOTES"], LW));
+      loads.forEach(({ l, i }, r) =>
+        rows.push([
+          { text: String(i + 1), w: LW[0], kind: "label", fill: C.flight[i] },
+          { text: s.flight[i]?.crew, w: LW[1], fill: zebra(r) },
+          ...[l.aa, l.tanks, l.ecm, l.ag, l.pods, l.chfl, l.notes].map((text, j) => ({
+            text,
+            w: LW[j + 2],
+            fill: zebra(r),
+            kind: j === 6 ? ("name" as const) : ("value" as const),
+          })),
+        ]),
+      );
+    }
+    // Carburant et spec : une rangée chacun (titre de rangée à gauche), si remplis.
     const L = (text: string, w: number): Cell => ({ text, w, kind: "label" });
     const V = (text: string, w: number, fill?: string): Cell => ({ text, w, fill });
-    const lines: { used: boolean; cells: Cell[] }[] = [
-      {
-        used: !!(lo.aa || lo.tanks || lo.ecm || fu.total || sp.rotSpd),
-        cells: [
-          L("A/A", 0.08),
-          V(lo.aa, 0.17),
-          L("Tanks", 0.08),
-          V(lo.tanks, 0.06),
-          L("ECM POD", 0.09),
-          V(lo.ecm, 0.07),
-          L("TOTAL", 0.11),
-          V(fu.total, 0.14, C.fuelTotal),
-          L("ROT SPD", 0.11),
-          V(sp.rotSpd, 0.09),
-        ],
-      },
-      {
-        used: !!(lo.ag || fu.target || sp.alow),
-        cells: [L("A/G", 0.08), V(lo.ag, 0.47), L("TARGET", 0.11), V(fu.target, 0.14, C.fuelTarget), L("ALOW", 0.11), V(sp.alow, 0.09)],
-      },
-      {
-        used: !!(lo.pods || fu.joker || sp.msl),
-        cells: [L("PODS", 0.08), V(lo.pods, 0.47), L("JOKER", 0.11), V(fu.joker, 0.14, C.joker), L("MSL", 0.11), V(sp.msl, 0.09)],
-      },
-      {
-        used: !!(lo.chfl || fu.bingo || sp.stn),
-        cells: [L("CH/FL", 0.08), V(lo.chfl, 0.47), L("BINGO", 0.11), V(fu.bingo, 0.14, C.bingo), L("STN", 0.11), V(sp.stn, 0.09)],
-      },
-      {
-        used: !!(lo.notes || fu.altn),
-        cells: [L("NOTES", 0.08), V(lo.notes, 0.47), L("ALTN FUEL", 0.11), V(fu.altn, 0.14), V("", 0.2)],
-      },
-    ];
-    grid("Loadout", [head(["CONFIGURATION", "FUEL", "SPEC"], [0.55, 0.25, 0.2]), ...lines.filter((l) => l.used).map((l) => l.cells)]);
+    if (filled(fu)) {
+      rows.push([
+        { text: "FUEL", w: 0.1, kind: "head" },
+        L("TOTAL", 0.08),
+        V(fu.total, 0.1, C.fuelTotal),
+        L("TARGET", 0.08),
+        V(fu.target, 0.1, C.fuelTarget),
+        L("JOKER", 0.08),
+        V(fu.joker, 0.1, C.joker),
+        L("BINGO", 0.08),
+        V(fu.bingo, 0.1, C.bingo),
+        L("ALTN FUEL", 0.1),
+        V(fu.altn, 0.08),
+      ]);
+    }
+    if (filled(sp)) {
+      rows.push([
+        { text: "SPEC", w: 0.1, kind: "head" },
+        L("ROT SPD", 0.1),
+        V(sp.rotSpd, 0.125),
+        L("ALOW", 0.1),
+        V(sp.alow, 0.125),
+        L("MSL", 0.1),
+        V(sp.msl, 0.125),
+        L("STN", 0.1),
+        V(sp.stn, 0.125),
+      ]);
+    }
+    grid("Loadout", rows);
   }
 
   // RADIO : UHF, VHF, COM NOTES, SPIN

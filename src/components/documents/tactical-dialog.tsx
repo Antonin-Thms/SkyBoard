@@ -1,6 +1,6 @@
 "use client";
 
-import { ListPlus, Plus, X } from "lucide-react";
+import { Copy, ListPlus, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { getTacticalRefs } from "@/app/(app)/documents/actions";
 import { Select, type SelectOption } from "@/components/ui/select";
@@ -18,6 +18,7 @@ import {
   TACTICAL_LIMITS,
   withWingmenTacan,
   type Airfield,
+  type Loadout,
   type TacticalRefs,
   type TacticalSheet,
 } from "@/lib/documents/tactical";
@@ -29,7 +30,7 @@ import { Field, RamrodInputs, Rows, Section } from "./tactical-fields";
 
 type Role = keyof TacticalSheet["airfields"];
 /** Listes de lignes modifiables de la fiche. */
-type ListKey = "flight" | "uhf" | "vhf" | "waypoints" | "package" | "support";
+type ListKey = "flight" | "loadout" | "uhf" | "vhf" | "waypoints" | "package" | "support";
 type Column<K extends string> = { key: K; label: string; w: string; mono?: boolean };
 
 /**
@@ -76,7 +77,7 @@ export function TacticalDialog({
   const update = (fn: (s: TacticalSheet) => TacticalSheet) => setSheet((prev) => fn(prev));
   /** Champ d'un groupe (data, loadout, fuel, spec, bullseye). */
   const setIn =
-    <G extends "data" | "loadout" | "fuel" | "spec" | "bullseye">(group: G, key: keyof TacticalSheet[G]) =>
+    <G extends "data" | "fuel" | "spec" | "bullseye">(group: G, key: keyof TacticalSheet[G]) =>
     (value: string) =>
       update((s) => ({ ...s, [group]: { ...s[group], [key]: value } }));
   const setText = (key: "comNotes" | "spin" | "wptNotes" | "threatNotes" | "gameplan") => (value: string) =>
@@ -113,7 +114,6 @@ export function TacticalDialog({
   const wingmen = withWingmenTacan(sheet.flight);
   const noRefs = refs !== null && !refs.airbases.length && !refs.stations.length;
   const d = sheet.data;
-  const lo = sheet.loadout;
   const fu = sheet.fuel;
   const sp = sheet.spec;
   const be = sheet.bullseye;
@@ -245,18 +245,34 @@ export function TacticalDialog({
         </Section>
 
         <Section title="Loadout">
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,2.2fr)_minmax(0,1fr)_minmax(0,1fr)]">
-            <Group title="Configuration">
-              <div className="grid grid-cols-3 gap-1.5">
-                <Pair label="A/A" value={lo.aa} onChange={setIn("loadout", "aa")} />
-                <Pair label="Tanks" value={lo.tanks} onChange={setIn("loadout", "tanks")} />
-                <Pair label="ECM POD" value={lo.ecm} onChange={setIn("loadout", "ecm")} />
-              </div>
-              <Pair label="A/G" value={lo.ag} onChange={setIn("loadout", "ag")} />
-              <Pair label="PODS" value={lo.pods} onChange={setIn("loadout", "pods")} />
-              <Pair label="CH/FL" value={lo.chfl} onChange={setIn("loadout", "chfl")} />
-              <Pair label="Notes" value={lo.notes} onChange={setIn("loadout", "notes")} />
-            </Group>
+          {/* Configuration : une ligne par avion de la patrouille */}
+          <Group title="Configuration">
+            <Wide>
+              <GridHead cols={LOADOUT_COLS} labels={["#", "Crew", "A/A", "Tanks", "ECM POD", "A/G", "PODS", "CH/FL", "Notes"]} />
+              {sheet.loadout.map((l, i) => {
+                const set = (key: keyof Loadout) => (v: string) =>
+                  setList("loadout", sheet.loadout.map((x, j) => (j === i ? { ...x, [key]: v } : x)));
+                return (
+                  <div key={i} className="grid items-center gap-1.5" style={{ gridTemplateColumns: LOADOUT_COLS }}>
+                    <span className="numeric text-sm font-semibold text-muted">{i + 1}</span>
+                    <span className="truncate text-sm text-muted">{sheet.flight[i]?.crew || "—"}</span>
+                    {(["aa", "tanks", "ecm", "ag", "pods", "chfl", "notes"] as const).map((key) => (
+                      <Field key={key} label={`${key} ${i + 1}`} value={l[key]} onChange={set(key)} mono={key === "tanks" || key === "ecm"} />
+                    ))}
+                  </div>
+                );
+              })}
+            </Wide>
+            <button
+              type="button"
+              className="btn-ghost -ml-2 min-h-9 px-2 text-sm"
+              onClick={() => setList("loadout", sheet.loadout.map(() => ({ ...sheet.loadout[0] })))}
+            >
+              <Copy size={15} strokeWidth={1.75} />
+              {t.loadoutCopy}
+            </button>
+          </Group>
+          <div className="grid gap-4 sm:grid-cols-2">
             <Group title="Fuel">
               <Pair label="Total" value={fu.total} onChange={setIn("fuel", "total")} />
               <Pair label="Target" value={fu.target} onChange={setIn("fuel", "target")} />
@@ -421,6 +437,8 @@ export function TacticalDialog({
 
 const AIRFIELD_COLS = "2.5rem minmax(8rem,1.4fr) minmax(5rem,1fr) repeat(5,minmax(4rem,0.8fr)) minmax(6rem,1.3fr) minmax(5rem,1fr)";
 const FLIGHT_COLS = "1.5rem minmax(6rem,1.4fr) minmax(3.5rem,0.7fr) minmax(5rem,0.9fr) repeat(5,minmax(3.5rem,0.8fr)) minmax(5rem,1fr)";
+const LOADOUT_COLS =
+  "1.5rem minmax(5rem,0.9fr) minmax(4.5rem,0.9fr) minmax(3rem,0.5fr) minmax(3.5rem,0.6fr) minmax(8rem,1.8fr) minmax(5rem,1fr) minmax(5rem,1fr) minmax(5rem,1fr)";
 const STATION_COLS: Column<"code" | "freq" | "name">[] = [
   { key: "code", label: "CH", w: "minmax(3rem,0.6fr)", mono: true },
   { key: "freq", label: "Freq", w: "minmax(4.5rem,0.9fr)", mono: true },

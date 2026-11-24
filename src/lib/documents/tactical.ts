@@ -88,6 +88,16 @@ export type SupportRow = {
   alt: string;
   notes: string;
 };
+/** Configuration d'un avion de la patrouille. */
+export type Loadout = {
+  aa: string;
+  tanks: string;
+  ecm: string;
+  ag: string;
+  pods: string;
+  chfl: string;
+  notes: string;
+};
 /** Passage RTBA : waypoint et temps depuis le waypoint précédent (T+) */
 export type RtbaRow = {
   wp: string;
@@ -99,7 +109,8 @@ export type TacticalSheet = {
   data: { callsign: string; task: string; date: string; time: string; area: string; server: string; package: string; weather: string };
   airfields: { dep: Airfield; arr: Airfield; alt: Airfield };
   flight: FlightMember[];
-  loadout: { aa: string; tanks: string; ecm: string; ag: string; pods: string; chfl: string; notes: string };
+  /** Configuration de chaque avion (même ordre que `flight`) */
+  loadout: Loadout[];
   fuel: { total: string; target: string; joker: string; bingo: string; altn: string };
   spec: { rotSpd: string; alow: string; msl: string; stn: string };
   uhf: Station[];
@@ -170,7 +181,7 @@ export const WAYPOINT_KEYS = ["n", "name", "coords", "alt"] as const;
 export const PACKAGE_KEYS = ["callsign", "type", "com", "leader", "stn", "tacan", "alt", "task"] as const;
 export const SUPPORT_ROW_KEYS = ["role", "type", "callsign", "com", "wpt", "tacan", "alt", "notes"] as const;
 const DATA_KEYS = ["callsign", "task", "date", "time", "area", "server", "package", "weather"] as const;
-const LOADOUT_KEYS = ["aa", "tanks", "ecm", "ag", "pods", "chfl", "notes"] as const;
+export const LOADOUT_KEYS = ["aa", "tanks", "ecm", "ag", "pods", "chfl", "notes"] as const;
 const FUEL_KEYS = ["total", "target", "joker", "bingo", "altn"] as const;
 const SPEC_KEYS = ["rotSpd", "alow", "msl", "stn"] as const;
 const BULLSEYE_KEYS = ["name", "lat", "lon", "wpt"] as const;
@@ -202,7 +213,7 @@ export function emptyTacticalSheet(ramrod: string[] = []): TacticalSheet {
     data: blank(DATA_KEYS),
     airfields: { dep: emptyAirfield(), arr: emptyAirfield(), alt: emptyAirfield() },
     flight: Array.from({ length: TACTICAL_ROWS.flight }, () => blank(FLIGHT_KEYS)),
-    loadout: blank(LOADOUT_KEYS),
+    loadout: Array.from({ length: TACTICAL_ROWS.flight }, () => blank(LOADOUT_KEYS)),
     fuel: blank(FUEL_KEYS),
     spec: blank(SPEC_KEYS),
     uhf: Array.from({ length: TACTICAL_ROWS.com }, emptyStation),
@@ -281,7 +292,10 @@ function parseV3(v: Record<string, unknown>, ramrod: string[], rtba: RtbaRow[]):
     arr: parseRecord(airfields?.arr, AIRFIELD_KEYS),
     alt: parseRecord(airfields?.alt, AIRFIELD_KEYS),
     flight: parseRows(v.flight, FLIGHT_KEYS, TACTICAL_ROWS.flight),
-    loadout: parseRecord(v.loadout, LOADOUT_KEYS),
+    loadout: Array.isArray(v.loadout)
+      ? parseRows(v.loadout, LOADOUT_KEYS, TACTICAL_ROWS.flight)
+      : // Emport commun (avant le passage à un emport par avion)
+        parseRecord(v.loadout, LOADOUT_KEYS),
     fuel: parseRecord(v.fuel, FUEL_KEYS),
     spec: parseRecord(v.spec, SPEC_KEYS),
     uhf: parseRows(v.uhf, STATION_KEYS, TACTICAL_LIMITS.com),
@@ -300,12 +314,14 @@ function parseV3(v: Record<string, unknown>, ramrod: string[], rtba: RtbaRow[]):
   const p = parts as { [K in keyof typeof parts]: NonNullable<(typeof parts)[K]> };
   const flight = [...p.flight];
   while (flight.length < TACTICAL_ROWS.flight) flight.push(blank(FLIGHT_KEYS));
+  const loadout = Array.isArray(p.loadout) ? [...p.loadout] : sharedLoadout(p.loadout, flight);
+  while (loadout.length < TACTICAL_ROWS.flight) loadout.push(blank(LOADOUT_KEYS));
   return {
     version: 3,
     data: p.data,
     airfields: { dep: p.dep, arr: p.arr, alt: p.alt },
     flight,
-    loadout: p.loadout,
+    loadout,
     fuel: p.fuel,
     spec: p.spec,
     uhf: p.uhf,
@@ -322,6 +338,16 @@ function parseV3(v: Record<string, unknown>, ramrod: string[], rtba: RtbaRow[]):
     rtba,
     gameplan: p.gameplan,
   };
+}
+
+/**
+ * Ancien emport commun à la patrouille : recopié sur chaque avion renseigné
+ * (sur le n°1 si la patrouille est vide).
+ */
+function sharedLoadout(common: Loadout, flight: FlightMember[]): Loadout[] {
+  const used = flight.map((m) => !isBlank(m));
+  if (!used.some(Boolean)) used[0] = true;
+  return Array.from({ length: TACTICAL_ROWS.flight }, (_, i) => (used[i] ? { ...common } : blank(LOADOUT_KEYS)));
 }
 
 /** Fiches des versions 1 (navigation / fréquences / codes) et 2 (mission card simple). */
@@ -362,7 +388,7 @@ function parseLegacy(v: Record<string, unknown>, ramrod: string[], rtba: RtbaRow
   sheet.airfields = { dep: airfieldFromRef(dep), arr: airfieldFromRef(arr), alt: airfieldFromRef(alt) };
   sheet.flight = flight.map((m) => ({ ...blank(FLIGHT_KEYS), crew: m.pilot, helmet: m.helmet, tacan: m.tacan, laser: m.laser, serial: m.tail }));
   while (sheet.flight.length < TACTICAL_ROWS.flight) sheet.flight.push(blank(FLIGHT_KEYS));
-  sheet.loadout = { ...sheet.loadout, aa: loadout.aa, ag: loadout.ag, pods: loadout.pod, tanks: loadout.tanks };
+  sheet.loadout = sharedLoadout({ ...blank(LOADOUT_KEYS), aa: loadout.aa, ag: loadout.ag, pods: loadout.pod, tanks: loadout.tanks }, sheet.flight);
   sheet.uhf = com1;
   sheet.vhf = com2;
   sheet.comNotes = joinLines(header.pri && `PRI ${header.pri}`, header.aux && `AUX ${header.aux}`);
@@ -382,7 +408,7 @@ export function cleanTacticalSheet(s: TacticalSheet): TacticalSheet {
     data: trim(s.data),
     airfields: { dep: trim(s.airfields.dep), arr: trim(s.airfields.arr), alt: trim(s.airfields.alt) },
     flight: withWingmenTacan(s.flight.map(trim)),
-    loadout: trim(s.loadout),
+    loadout: s.loadout.map(trim),
     fuel: trim(s.fuel),
     spec: trim(s.spec),
     uhf: s.uhf.map(trim),
