@@ -1,179 +1,141 @@
 "use client";
 
 /**
- * Rendu de la fiche tactique (A4 portrait), dans le style des « mission
- * cards » d'escadron : bandeaux de section à gauche, en-têtes sombres,
- * grille serrée. Seules les lignes remplies sont affichées, et la fiche tient
- * toujours sur une seule page : tout est mis à l'échelle (réduit si le
- * contenu est long, un peu agrandi s'il est court, pour la lecture en VR).
+ * Rendu de la fiche tactique (A4 portrait), au format de la fiche Excel de
+ * l'escadron : bandeaux de section à gauche, en-têtes gris foncé, lignes
+ * colorées (DEP bleu, ARR rose, ALT vert, numéros de patrouille, carburant,
+ * THREAT NOTES rouge…). Seules les sections et lignes remplies sont
+ * affichées, et la fiche tient toujours sur une seule page : tout est mis à
+ * l'échelle (réduit si le contenu est long, agrandi s'il est court).
  */
 
-import type { Dictionary } from "@/lib/i18n/dictionary";
-import { drawRamrod, INK, newPage, PAGE, toFile, wrap } from "./generate";
-import { isBlank, type Airbase, type Station, type TacticalSheet } from "./tactical";
+import { INK, newPage, PAGE, toFile, wrap } from "./generate";
+import { isBlank, type Airfield, type Station, type TacticalSheet } from "./tactical";
 
-/** Textes de la fiche (abréviations aéro communes + quelques mots traduits). */
-export interface TacticalLabels {
-  weather: string;
-  time: string;
-  sectionAirbase: string;
-  base: string;
-  runway: string;
-  roles: [dep: string, arr: string, alt: string];
-  sectionFlight: string;
-  pilot: string;
-  helmet: string;
-  notes: string;
-  sectionLoadout: string;
-  configuration: string;
-  sectionCom: string;
-  com1: string;
-  com2: string;
-  channel: string;
-  freq: string;
-  name: string;
-  sectionTargets: string;
-  type: string;
-  coords: string;
-  alt: string;
-  threats: string;
-  sectionSupport: string;
-  role: string;
-  acType: string;
-  sectionFlightNotes: string;
-  waypoint: string;
-}
-
-/** Textes de la fiche, depuis le dictionnaire de la langue de l'interface. */
-export function tacticalLabels(t: Dictionary["documents"]["create"]): TacticalLabels {
-  return {
-    weather: t.weather,
-    time: t.timeZ,
-    sectionAirbase: t.sectionAirbase,
-    base: t.colBase,
-    runway: t.colRunway,
-    roles: ["DEP", "ARR", "ALTN"],
-    sectionFlight: t.sectionFlight,
-    pilot: t.colPilot,
-    helmet: t.colHelmet,
-    notes: t.colNotes,
-    sectionLoadout: t.sectionLoadout,
-    configuration: t.configuration,
-    sectionCom: t.sectionCom,
-    com1: "COM1 (PRI)",
-    com2: "COM2 (AUX)",
-    channel: t.colChannel,
-    freq: t.colFreq,
-    name: t.colName,
-    sectionTargets: t.sectionTargets,
-    type: t.colType,
-    coords: t.colCoords,
-    alt: t.colAlt,
-    threats: t.colThreats,
-    sectionSupport: t.sectionSupport,
-    role: t.colRole,
-    acType: t.colAcType,
-    sectionFlightNotes: t.sectionFlightNotes,
-    waypoint: t.colWaypoint,
-  };
-}
-
-const SIDE = 34;
-const TOP = 34;
-const BAND = 46;
+const SIDE = 30;
+const TOP = 30;
+const BAND = 44;
 const X0 = SIDE + BAND;
 const WIDTH = PAGE.width - SIDE - X0;
-const BOTTOM = PAGE.height - 34;
+const BOTTOM = PAGE.height - 30;
 /** Hauteur d'une ligne et écart entre sections, à l'échelle 1. */
-const ROW = 42;
-const GAP = 10;
+const ROW = 40;
+const GAP = 8;
 /** Échelle maximale (fiche courte) et minimale (au-delà, le texte devient illisible). */
 const MAX_SCALE = 1.3;
 const MIN_SCALE = 0.45;
 
-const COLORS = {
-  band: "#3b3b3b",
-  head: "#4a4a4a",
+/** Couleurs de la fiche Excel de l'escadron. */
+const C = {
+  band: "#404040",
+  head: "#404040",
   label: "#d9d9d9",
-  blue: "#cfe0f3",
-  purple: "#e2d6f2",
-  green: "#d3ebc8",
-  amber: "#f6d58e",
-  line: "#2a2a2a",
+  zebra: "#efefef",
+  line: "#262626",
+  dep: "#dce6f1",
+  arr: "#f2dcdb",
+  alt: "#d8e4bc",
+  fuelTotal: "#d8e4bc",
+  fuelTarget: "#fff2cc",
+  joker: "#fcd5b4",
+  bingo: "#f2c4c4",
+  threat: "#ff0000",
+  red: "#c00000",
+  blue: "#0070c0",
+  flight: ["#92d050", "#ffc000", "#00b0f0", "#b1a0c7"],
 };
-
-/**
- * Couleur d'une station radio, d'après son nom (comme le COMPLAN du MANEX) :
- * garde, contrôle, ravitailleurs / AWACS, porte-avions, GCI, JTAC,
- * fréquences d'escadron ; les autres (TACTICAL…) restent blanches.
- */
-const STATION_COLORS: [RegExp, string][] = [
-  [/garde|guard/i, "#ecc5e6"],
-  [/jtac/i, "#f2b3a6"],
-  [/particuli|escadron|squadron/i, "#fbe3a0"],
-  [/nanny|airboss|marshall|lso|cvn/i, "#d9cdf0"],
-  [/loneship|crc|gci/i, "#c6e5b8"],
-  [/twr|tower|radar|app|gnd|atis/i, "#bcd5ee"],
-  [/shell|texaco|arco|magic|awacs|darkstar|wizard|overlord/i, "#d6e6f7"],
-];
-export function stationColor(name: string): string | undefined {
-  return STATION_COLORS.find(([re]) => re.test(name))?.[1];
-}
 
 interface Cell {
   text?: string;
   /** Largeur, en fraction de la grille */
   w: number;
   fill?: string;
+  /** Couleur du texte */
+  color?: string;
   kind?: "head" | "label" | "value" | "name";
   align?: "left" | "center";
 }
 
 /** Une ligne de cellules (texte ajusté à la largeur), haut à `y` ; `left` / `span` : partie de la grille. */
-function row(ctx: CanvasRenderingContext2D, y: number, cells: Cell[], k: number, left = X0, span = WIDTH) {
-  const height = ROW * k;
+function row(ctx: CanvasRenderingContext2D, y: number, cells: Cell[], k: number, left = X0, span = WIDTH, rows = 1) {
+  const height = ROW * k * rows;
   let x = left;
   for (const cell of cells) {
     const w = cell.w * span;
     const kind = cell.kind ?? "value";
-    const fill = cell.fill ?? (kind === "head" ? COLORS.head : kind === "label" ? COLORS.label : "#ffffff");
-    ctx.fillStyle = fill;
+    ctx.fillStyle = cell.fill ?? (kind === "head" ? C.head : kind === "label" ? C.label : "#ffffff");
     ctx.fillRect(x, y, w, height);
-    ctx.strokeStyle = COLORS.line;
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = C.line;
+    ctx.lineWidth = 1.5;
     ctx.strokeRect(x, y, w, height);
     if (cell.text) {
-      ctx.fillStyle = kind === "head" ? "#ffffff" : INK;
+      ctx.fillStyle = cell.color ?? (kind === "head" ? "#ffffff" : INK);
       const [weight, size] =
-        kind === "head" ? [700, 20] : kind === "label" ? [700, 22] : kind === "name" ? [500, 24] : [700, 26];
+        kind === "head" ? [700, 19] : kind === "label" ? [700, 20] : kind === "name" ? [500, 22] : [700, 23];
       ctx.font = `${weight} ${Math.round(size * k)}px sans-serif`;
       ctx.textBaseline = "middle";
-      const align = cell.align ?? (kind === "head" || kind === "label" ? "center" : "left");
+      const align = cell.align ?? "center";
       ctx.textAlign = align;
-      const tx = align === "center" ? x + w / 2 : x + 10;
-      ctx.fillText(cell.text, tx, y + height / 2 + 1, w - 16);
+      const tx = align === "center" ? x + w / 2 : x + 8 * k;
+      ctx.fillText(cell.text, tx, y + height / 2 + 1, w - 12);
     }
     x += w;
   }
   ctx.textAlign = "left";
 }
 
+/** Bloc de texte libre (notes) : cadre + lignes, centré ou aligné à gauche. */
+function textBox(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  lines: string[],
+  k: number,
+  align: "left" | "center",
+) {
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeStyle = C.line;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x, y, w, h);
+  const lh = 30 * k;
+  ctx.fillStyle = INK;
+  ctx.font = `500 ${Math.round(22 * k)}px sans-serif`;
+  ctx.textBaseline = "middle";
+  ctx.textAlign = align;
+  const top = align === "center" ? y + (h - lines.length * lh) / 2 : y + 8 * k;
+  lines.forEach((line, i) => ctx.fillText(line, align === "center" ? x + w / 2 : x + 10 * k, top + (i + 0.5) * lh, w - 16));
+  ctx.textAlign = "left";
+}
+
+/** Lignes d'un texte libre, coupées à la largeur `w` (police des notes). */
+function textLines(ctx: CanvasRenderingContext2D, text: string, w: number, k: number): string[] {
+  if (!text) return [];
+  ctx.font = `500 ${Math.round(22 * k)}px sans-serif`;
+  return text.split(/\r?\n/).flatMap((line) => (line.trim() ? wrap(ctx, line, w - 20) : [""]));
+}
+
+/** Nombre de lignes de grille nécessaires pour un texte de `lines` lignes. */
+const rowsFor = (lines: number, k: number) => (lines ? Math.ceil((lines * 30 * k + 16 * k) / (ROW * k)) : 0);
+
 /** Bandeau vertical de section (texte tourné), à gauche de la grille. */
 function band(ctx: CanvasRenderingContext2D, y: number, height: number, text: string, k: number) {
-  ctx.fillStyle = COLORS.band;
+  ctx.fillStyle = C.band;
   ctx.fillRect(SIDE, y, BAND - 4, height);
   ctx.save();
   ctx.translate(SIDE + (BAND - 4) / 2, y + height / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.fillStyle = "#ffffff";
-  ctx.font = `700 ${Math.round(Math.min(20, 20 * k))}px sans-serif`;
+  ctx.font = `700 ${Math.round(Math.min(19, 19 * k))}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(text.toLocaleUpperCase(), 0, 1, height - 12);
+  ctx.fillText(text.toLocaleUpperCase(), 0, 1, height - 10);
   ctx.restore();
 }
 
-/** Bloc posé sur la page : hauteur à l'échelle k, et son dessin. */
+/** Section posée sur la page : hauteur à l'échelle k, et son dessin. */
 interface Block {
   name: string;
   height: number;
@@ -181,231 +143,259 @@ interface Block {
 }
 
 const filled = (r: Record<string, string>) => !isBlank(r);
+const head = (labels: string[], widths: number[]): Cell[] => labels.map((text, i) => ({ text, w: widths[i], kind: "head" }));
+const zebra = (i: number) => (i % 2 ? C.zebra : undefined);
+/** Couleur du nom de package (BLUE en bleu, RED en rouge). */
+const sideColor = (v: string) => (/blue|bleu/i.test(v) ? C.blue : /red|rouge/i.test(v) ? C.red : undefined);
 
 /** Sections de la fiche à l'échelle k (sections et lignes vides omises). */
-function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, l: TacticalLabels, k: number): Block[] {
+function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Block[] {
   const blocks: Block[] = [];
-  const rowsBlock = (name: string, rows: Cell[][]) =>
+  const grid = (name: string, rows: Cell[][]) =>
     blocks.push({
       name,
       height: rows.length * ROW * k,
       draw: (c, top) => rows.forEach((cells, i) => row(c, top + i * ROW * k, cells, k)),
     });
 
-  // 1. Mission (ligne météo / heure seulement si l'une est remplie)
-  const h = s.header;
-  if (filled(h)) {
+  // DATA
+  const d = s.data;
+  if (filled(d)) {
+    const DW = [0.17, 0.15, 0.13, 0.11, 0.14, 0.14, 0.16];
     const rows: Cell[][] = [
-      [
-        { text: "CALLSIGN", w: 0.3, kind: "head" },
-        { text: "PRI", w: 0.17, kind: "head" },
-        { text: "AUX", w: 0.17, kind: "head" },
-        { text: "MISSION", w: 0.36, kind: "head" },
-      ],
-      [
-        { text: h.callsign, w: 0.3, align: "center" },
-        { text: h.pri, w: 0.17, align: "center" },
-        { text: h.aux, w: 0.17, align: "center" },
-        { text: h.mission, w: 0.36, align: "center" },
-      ],
+      head(["CALLSIGN", "TASK", "DATE", "TIME", "AREA", "SERVER", "PACKAGE"], DW),
+      [d.callsign, d.task, d.date, d.time, d.area, d.server, d.package].map((text, i) => ({
+        text,
+        w: DW[i],
+        color: i === 6 ? sideColor(text) : undefined,
+      })),
     ];
-    if (h.weather || h.time) {
-      rows.push([
-        { text: l.weather, w: 0.13, kind: "label" },
-        { text: h.weather, w: 0.51 },
-        { text: l.time, w: 0.13, kind: "label" },
-        { text: h.time, w: 0.23, align: "center" },
-      ]);
-    }
-    rowsBlock("Mission", rows);
+    if (d.weather) rows.push([{ text: "WEATHER", w: 0.1, kind: "label" }, { text: d.weather, w: 0.9, align: "left", kind: "name" }]);
+    grid("Data", rows);
   }
 
-  // 2. Terrains : seulement les lignes DEP / ARR / ALTN remplies
-  const AB = [0.08, 0.17, 0.1, 0.12, 0.12, 0.1, 0.12, 0.19];
-  const airbaseRow = (role: string, a: Airbase, fill: string): Cell[] => [
-    { text: role, w: AB[0], kind: "label", fill },
-    { text: a.name, w: AB[1], fill, align: "center" },
-    { text: a.tacan, w: AB[2], fill, align: "center" },
-    { text: a.vhf, w: AB[3], fill, align: "center" },
-    { text: a.uhf, w: AB[4], fill, align: "center" },
-    { text: a.elev, w: AB[5], fill, align: "center" },
-    { text: a.runway, w: AB[6], fill, align: "center" },
-    { text: a.ils, w: AB[7], fill, align: "center" },
-  ];
-  const bases = (
+  // AIRFIELDS : DEP bleu, ARR rose, ALT vert
+  const AF = [0.07, 0.14, 0.1, 0.08, 0.07, 0.1, 0.1, 0.17, 0.17];
+  const fields = (
     [
-      [l.roles[0], s.airbases.dep, COLORS.blue],
-      [l.roles[1], s.airbases.arr, COLORS.blue],
-      [l.roles[2], s.airbases.alt, COLORS.green],
+      ["DEP", s.airfields.dep, C.dep],
+      ["ARR", s.airfields.arr, C.arr],
+      ["ALT", s.airfields.alt, C.alt],
     ] as const
   ).filter(([, a]) => filled(a));
-  if (bases.length) {
-    rowsBlock(l.sectionAirbase, [
-      ["", l.base, "TCN", "VHF", "UHF", "ELEV.", l.runway, "ILS"].map((text, i) => ({ text, w: AB[i], kind: "head" as const })),
-      ...bases.map(([role, a, fill]) => airbaseRow(role, a, fill)),
-    ]);
-  }
-
-  // 3. Patrouille : lignes remplies (numéro d'origine conservé)
-  const FL = [0.05, 0.18, 0.1, 0.08, 0.08, 0.09, 0.12, 0.3];
-  const flight = s.flight.map((m, i) => ({ m, n: i + 1 })).filter(({ m }) => filled(m));
-  if (flight.length) {
-    rowsBlock(l.sectionFlight, [
-      ["#", l.pilot, l.helmet, "TCN", "LSR", "STN", "TAIL #", l.notes].map((text, i) => ({ text, w: FL[i], kind: "head" as const })),
-      ...flight.map(({ m, n }): Cell[] => [
-        { text: String(n), w: FL[0], kind: "label" },
-        { text: m.pilot, w: FL[1] },
-        { text: m.helmet, w: FL[2], align: "center" },
-        { text: m.tacan, w: FL[3], align: "center" },
-        { text: m.laser, w: FL[4], align: "center" },
-        { text: m.stn, w: FL[5], align: "center" },
-        { text: m.tail, w: FL[6], align: "center" },
-        { text: m.notes, w: FL[7], kind: "name" },
-      ]),
-    ]);
-  }
-
-  // 4. Emports : lignes remplies, deux par rangée
-  const lo = s.loadout;
-  const loads = (
-    [
-      ["A/A", lo.aa],
-      ["A/G", lo.ag],
-      ["POD", lo.pod],
-      ["TANKS", lo.tanks],
-    ] as const
-  ).filter(([, v]) => v);
-  if (loads.length) {
-    const pairs: Cell[][] = [];
-    for (let i = 0; i < loads.length; i += 2) {
-      const cells: Cell[] = [];
-      for (const [label, value] of loads.slice(i, i + 2)) {
-        cells.push({ text: label, w: 0.1, kind: "label" }, { text: value, w: 0.4, align: "center" });
-      }
-      if (cells.length === 2) cells.push({ text: "", w: 0.5 });
-      pairs.push(cells);
-    }
-    rowsBlock(l.sectionLoadout, [[{ text: l.configuration, w: 1, kind: "head" }], ...pairs]);
-  }
-
-  // 5. Radios : COM1 (PRI) et COM2 (AUX) côte à côte, lignes remplies
-  const CM = [0.08, 0.16, 0.26];
-  const blankStation: Station = { code: "", name: "", freq: "" };
-  // Ligne colorée selon la station ; canal toujours teinté (bleu COM1, vert COM2).
-  const comCells = (st: Station, base: string): Cell[] => {
-    const fill = stationColor(st.name);
-    return [
-      { text: st.code, w: CM[0], kind: "label", fill: fill ?? base },
-      { text: st.freq, w: CM[1], align: "center", fill },
-      { text: st.name, w: CM[2], align: "center", fill },
+  if (fields.length) {
+    const fieldRow = (role: string, a: Airfield, fill: string): Cell[] => [
+      { text: role, w: AF[0], kind: "label", fill },
+      ...[a.name, a.runway, a.tacan, a.wpt, a.freq, a.elev, a.procedure, a.ils].map((text, i) => ({ text, w: AF[i + 1], fill })),
     ];
-  };
-  const com1 = s.com1.filter(filled);
-  const com2 = s.com2.filter(filled);
-  const comRows = Math.max(com1.length, com2.length);
-  if (comRows) {
-    rowsBlock(l.sectionCom, [
-      [
-        { text: l.com1, w: 0.5, kind: "head" },
-        { text: l.com2, w: 0.5, kind: "head" },
-      ],
-      [l.channel, l.freq, l.name, l.channel, l.freq, l.name].map((text, i) => ({ text, w: CM[i % 3], kind: "label" as const })),
-      ...Array.from({ length: comRows }, (_, i): Cell[] => [
-        ...comCells(com1[i] ?? blankStation, COLORS.blue),
-        ...comCells(com2[i] ?? blankStation, COLORS.green),
+    grid("Airfields", [
+      [{ text: "AIRFIELDS", w: AF[0] + AF[1], kind: "head" }, ...head(["RWY", "TCN", "WPT", "FREQ", "ELEV", "PROCEDURE", "ILS"], AF.slice(2))],
+      ...fields.map(([role, a, fill]) => fieldRow(role, a, fill)),
+    ]);
+  }
+
+  // FLIGHT : numéro coloré, sanctuaire en rouge
+  const FL = [0.04, 0.13, 0.07, 0.09, 0.09, 0.09, 0.1, 0.08, 0.14, 0.17];
+  const flight = s.flight.map((m, i) => ({ m, i })).filter(({ m }) => filled(m));
+  if (flight.length) {
+    grid("Flight", [
+      head(["#", "CREW", "TYPE", "HELMET", "TCN", "SQWK", "SNCTRY", "LSR", "SERIAL", "LIVERY"], FL),
+      ...flight.map(({ m, i }, r): Cell[] => [
+        { text: String(i + 1), w: FL[0], kind: "label", fill: C.flight[i] },
+        ...[m.crew, m.type, m.helmet, m.tacan, m.sqwk, m.sanctuary, m.laser, m.serial, m.livery].map((text, j) => ({
+          text,
+          w: FL[j + 1],
+          fill: zebra(r),
+          color: j === 5 ? C.red : undefined,
+        })),
       ]),
     ]);
   }
 
-  // 6. Objectifs
-  const TG = [0.05, 0.17, 0.36, 0.12, 0.3];
-  const targets = s.targets.filter(filled);
-  if (targets.length) {
-    rowsBlock(l.sectionTargets, [
-      ["N°", l.type, l.coords, l.alt, l.threats].map((text, i) => ({ text, w: TG[i], kind: "head" as const })),
-      ...targets.map((t, i): Cell[] => [
-        { text: String(i + 1), w: TG[0], kind: "label" },
-        { text: t.type, w: TG[1] },
-        { text: t.coords, w: TG[2], align: "center" },
-        { text: t.alt, w: TG[3], align: "center" },
-        { text: t.notes, w: TG[4], kind: "name" },
-      ]),
-    ]);
+  // LOADOUT : configuration, carburant, spec côte à côte
+  const lo = s.loadout;
+  const fu = s.fuel;
+  const sp = s.spec;
+  if (filled(lo) || filled(fu) || filled(sp)) {
+    const L = (text: string, w: number): Cell => ({ text, w, kind: "label" });
+    const V = (text: string, w: number, fill?: string): Cell => ({ text, w, fill });
+    const lines: { used: boolean; cells: Cell[] }[] = [
+      {
+        used: !!(lo.aa || lo.tanks || lo.ecm || fu.total || sp.rotSpd),
+        cells: [
+          L("A/A", 0.08),
+          V(lo.aa, 0.17),
+          L("Tanks", 0.08),
+          V(lo.tanks, 0.06),
+          L("ECM POD", 0.09),
+          V(lo.ecm, 0.07),
+          L("TOTAL", 0.11),
+          V(fu.total, 0.14, C.fuelTotal),
+          L("ROT SPD", 0.11),
+          V(sp.rotSpd, 0.09),
+        ],
+      },
+      {
+        used: !!(lo.ag || fu.target || sp.alow),
+        cells: [L("A/G", 0.08), V(lo.ag, 0.47), L("TARGET", 0.11), V(fu.target, 0.14, C.fuelTarget), L("ALOW", 0.11), V(sp.alow, 0.09)],
+      },
+      {
+        used: !!(lo.pods || fu.joker || sp.msl),
+        cells: [L("PODS", 0.08), V(lo.pods, 0.47), L("JOKER", 0.11), V(fu.joker, 0.14, C.joker), L("MSL", 0.11), V(sp.msl, 0.09)],
+      },
+      {
+        used: !!(lo.chfl || fu.bingo || sp.stn),
+        cells: [L("CH/FL", 0.08), V(lo.chfl, 0.47), L("BINGO", 0.11), V(fu.bingo, 0.14, C.bingo), L("STN", 0.11), V(sp.stn, 0.09)],
+      },
+      {
+        used: !!(lo.notes || fu.altn),
+        cells: [L("NOTES", 0.08), V(lo.notes, 0.47), L("ALTN FUEL", 0.11), V(fu.altn, 0.14), V("", 0.2)],
+      },
+    ];
+    grid("Loadout", [head(["CONFIGURATION", "FUEL", "SPEC"], [0.55, 0.25, 0.2]), ...lines.filter((l) => l.used).map((l) => l.cells)]);
   }
 
-  // 7. Support : ravitailleurs, AWACS, GCI…
-  const SP = [0.07, 0.15, 0.15, 0.13, 0.1, 0.08, 0.1, 0.22];
-  const support = s.support.filter(filled);
-  if (support.length) {
-    rowsBlock(l.sectionSupport, [
-      [l.role, l.acType, "CALLSIGN", "UHF", "VHF", "TCN", "ALT", l.notes].map((text, i) => ({ text, w: SP[i], kind: "head" as const })),
-      ...support.map((u): Cell[] => [
-        { text: u.role, w: SP[0], kind: "label", fill: COLORS.purple },
-        { text: u.type, w: SP[1], fill: COLORS.purple, align: "center" },
-        { text: u.callsign, w: SP[2], fill: COLORS.purple, align: "center" },
-        { text: u.uhf, w: SP[3], align: "center", fill: "#f1ebf9" },
-        { text: u.vhf, w: SP[4], align: "center", fill: "#f1ebf9" },
-        { text: u.tacan, w: SP[5], align: "center", fill: "#f1ebf9" },
-        { text: u.alt, w: SP[6], align: "center", fill: "#f1ebf9" },
-        { text: u.notes, w: SP[7], kind: "name", fill: "#f1ebf9" },
-      ]),
-    ]);
-  }
-
-  // 8. Notes de vol : RTBA et notes côte à côte, puis RAMROD (même bandeau)
-  const half = (WIDTH - GAP) / 2;
-  const RT = [0.4, 0.26, 0.34];
-  const notesWidth = s.rtba.length ? half : WIDTH;
-  const notesFont = `500 ${Math.round(26 * k)}px sans-serif`;
-  ctx.font = notesFont;
-  const lines = s.notes
-    ? s.notes.split(/\r?\n/).flatMap((line) => (line.trim() ? wrap(ctx, line, notesWidth - 24) : [""]))
-    : [];
-  const lineHeight = 34 * k;
-  const rtbaHeight = s.rtba.length ? (s.rtba.length + 1) * ROW * k : 0;
-  const notesHeight = lines.length ? lines.length * lineHeight + 16 * k : 0;
-  const topHeight = Math.max(rtbaHeight, notesHeight);
-  if (topHeight) {
+  // RADIO : UHF, VHF, COM NOTES, SPIN
+  const uhf = s.uhf.filter(filled);
+  const vhf = s.vhf.filter(filled);
+  const comLines = textLines(ctx, s.comNotes, 0.25 * WIDTH, k);
+  const spinLines = textLines(ctx, s.spin, 0.15 * WIDTH, k);
+  if (uhf.length || vhf.length || comLines.length || spinLines.length) {
+    const n = Math.max(uhf.length, vhf.length, rowsFor(comLines.length, k), rowsFor(spinLines.length, k), 1);
+    const none: Station = { code: "", name: "", freq: "" };
+    const ST = [0.06, 0.1, 0.14];
+    const stationCells = (st: Station, r: number): Cell[] => [
+      { text: st.code, w: ST[0], fill: zebra(r) },
+      { text: st.freq, w: ST[1], fill: zebra(r) },
+      { text: st.name, w: ST[2], fill: zebra(r) },
+    ];
     blocks.push({
-      name: l.sectionFlightNotes,
-      height: topHeight,
+      name: "Radio",
+      height: (n + 1) * ROW * k,
       draw: (c, top) => {
-        if (s.rtba.length) {
-          const width = lines.length ? half : WIDTH;
-          row(c, top, ["RTBA · " + l.waypoint, "T+", "TOT"].map((text, i) => ({ text, w: RT[i], kind: "head" as const })), k, X0, width);
-          s.rtba.forEach((r, i) =>
-            row(
-              c,
-              top + (i + 1) * ROW * k,
-              [
-                { text: r.wp, w: RT[0], fill: "#fdf1d6" },
-                { text: r.offset, w: RT[1], align: "center", fill: "#fdf1d6" },
-                { text: "", w: RT[2] },
-              ],
-              k,
-              X0,
-              width,
-            ),
-          );
+        row(c, top, head(["UHF", "VHF", "COM NOTES", "SPIN"], [0.3, 0.3, 0.25, 0.15]), k);
+        for (let i = 0; i < n; i++) {
+          row(c, top + (i + 1) * ROW * k, [...stationCells(uhf[i] ?? none, i), ...stationCells(vhf[i] ?? none, i)], k);
         }
-        if (lines.length) {
-          const left = s.rtba.length ? X0 + half + GAP : X0;
-          c.strokeStyle = COLORS.line;
-          c.lineWidth = 2;
-          c.strokeRect(left, top, notesWidth, topHeight);
-          c.fillStyle = INK;
-          c.font = notesFont;
-          c.textBaseline = "alphabetic";
-          lines.forEach((line, i) => c.fillText(line, left + 12, top + (i + 1) * lineHeight));
-        }
+        const y = top + ROW * k;
+        const h = n * ROW * k;
+        textBox(c, X0 + 0.6 * WIDTH, y, 0.25 * WIDTH, h, comLines, k, "left");
+        textBox(c, X0 + 0.85 * WIDTH, y, 0.15 * WIDTH, h, spinLines, k, "left");
       },
     });
   }
-  if (s.ramrod.some(Boolean)) {
+
+  // WAYPOINTS : notes et menaces (en-tête rouge)
+  const wps = s.waypoints.filter(filled);
+  const wptLines = textLines(ctx, s.wptNotes, 0.2 * WIDTH, k);
+  const threatLines = textLines(ctx, s.threatNotes, 0.25 * WIDTH, k);
+  if (wps.length || wptLines.length || threatLines.length) {
+    const n = Math.max(wps.length, rowsFor(wptLines.length, k), rowsFor(threatLines.length, k), 1);
+    const WP = [0.05, 0.16, 0.24, 0.1];
     blocks.push({
-      name: l.sectionFlightNotes,
-      height: (60 + 96) * k,
-      draw: (c, top) => void drawRamrod(c, top, s.ramrod, X0, WIDTH, 60 * k, 96 * k, "dark"),
+      name: "Waypoints",
+      height: (n + 1) * ROW * k,
+      draw: (c, top) => {
+        row(
+          c,
+          top,
+          [
+            ...head(["N°", "NAME", "COORDINATES", "ALTITUDE", "WPT NOTES"], [...WP, 0.2]),
+            { text: "THREAT NOTES", w: 0.25, kind: "head", fill: C.threat },
+          ],
+          k,
+        );
+        for (let i = 0; i < n; i++) {
+          const w = wps[i];
+          row(
+            c,
+            top + (i + 1) * ROW * k,
+            [
+              { text: w ? w.n || String(i + 1) : "", w: WP[0], kind: "label" },
+              { text: w?.name, w: WP[1], fill: zebra(i) },
+              { text: w?.coords, w: WP[2], fill: zebra(i) },
+              { text: w?.alt, w: WP[3], fill: zebra(i) },
+            ],
+            k,
+          );
+        }
+        const y = top + ROW * k;
+        const h = n * ROW * k;
+        textBox(c, X0 + 0.55 * WIDTH, y, 0.2 * WIDTH, h, wptLines, k, "center");
+        textBox(c, X0 + 0.75 * WIDTH, y, 0.25 * WIDTH, h, threatLines, k, "center");
+      },
+    });
+  }
+
+  // RTBA : waypoints minutés (TOT calculés sur la planche RTBA)
+  if (s.rtba.length) {
+    const RT = [0.4, 0.25, 0.35];
+    grid("RTBA", [
+      head(["WAYPOINT", "T+", "TOT"], RT),
+      ...s.rtba.map((r, i): Cell[] => [
+        { text: r.wp, w: RT[0], fill: zebra(i) },
+        { text: r.offset, w: RT[1], fill: zebra(i) },
+        { text: "", w: RT[2], fill: zebra(i) },
+      ]),
+    ]);
+  }
+
+  // PACKAGE
+  const pkg = s.package.filter(filled);
+  if (pkg.length) {
+    const PK = [0.16, 0.1, 0.1, 0.13, 0.1, 0.1, 0.1, 0.21];
+    grid("Package", [
+      head(["CALLSIGN", "TYPE", "COM", "LEADER", "STN", "TCN", "ALT", "TASK"], PK),
+      ...pkg.map((p, i): Cell[] =>
+        [p.callsign, p.type, p.com, p.leader, p.stn, p.tacan, p.alt, p.task].map((text, j) => ({ text, w: PK[j], fill: zebra(i) })),
+      ),
+    ]);
+  }
+
+  // SUPPORT
+  const sup = s.support.filter(filled);
+  if (sup.length) {
+    const SP = [0.11, 0.12, 0.15, 0.12, 0.08, 0.1, 0.1, 0.22];
+    grid("Support", [
+      head(["ROLE", "TYPE", "CALLSIGN", "COM", "WPT", "TCN", "ALT", "NOTES"], SP),
+      ...sup.map((u, i): Cell[] =>
+        [u.role, u.type, u.callsign, u.com, u.wpt, u.tacan, u.alt, u.notes].map((text, j) => ({
+          text,
+          w: SP[j],
+          fill: zebra(i),
+          kind: j === 7 ? "name" : "value",
+        })),
+      ),
+    ]);
+  }
+
+  // ADMIN : bullseye et RAMROD (« / » dans les cases vides)
+  const be = s.bullseye;
+  if (filled(be) || s.ramrod.some(Boolean)) {
+    blocks.push({
+      name: "Admin",
+      height: 3 * ROW * k,
+      draw: (c, top) => {
+        const BE = [0.14, 0.1, 0.1, 0.08];
+        row(c, top, [{ text: "BULLSEYE", w: 0.42, kind: "head" }], k);
+        row(c, top + ROW * k, [be.name, be.lat, be.lon, be.wpt].map((text, i) => ({ text, w: BE[i] })), k, X0, WIDTH, 2);
+        const left = X0 + 0.45 * WIDTH;
+        const span = 0.55 * WIDTH;
+        row(c, top, [{ text: "RAMROD", w: 1, kind: "head" }], k, left, span);
+        row(c, top + ROW * k, Array.from({ length: 10 }, (_, i) => ({ text: String(i), w: 0.1 })), k, left, span);
+        row(c, top + 2 * ROW * k, s.ramrod.map((ch) => ({ text: ch || "/", w: 0.1 })), k, left, span);
+      },
+    });
+  }
+
+  // GAMEPLAN
+  const plan = textLines(ctx, s.gameplan, WIDTH, k);
+  if (plan.length) {
+    const n = Math.max(2, rowsFor(plan.length, k));
+    blocks.push({
+      name: "Gameplan",
+      height: n * ROW * k,
+      draw: (c, top) => textBox(c, X0, top, WIDTH, n * ROW * k, plan, k, "left"),
     });
   }
   return blocks;
@@ -416,7 +406,6 @@ const totalHeight = (blocks: Block[]) => blocks.reduce((sum, b) => sum + b.heigh
 export async function renderTactical(
   title: string,
   s: TacticalSheet,
-  l: TacticalLabels,
   /** Résolution (1 = 150 dpi, 2 = 300 dpi) */
   scale = 1,
 ): Promise<File[]> {
@@ -425,24 +414,17 @@ export async function renderTactical(
 
   // Échelle : la plus grande (≤ MAX_SCALE) qui fait tout tenir sur la page.
   let k = MAX_SCALE;
-  let blocks = layout(ctx, s, l, k);
+  let blocks = layout(ctx, s, k);
   for (let i = 0; i < 6 && totalHeight(blocks) > available && k > MIN_SCALE; i++) {
     k = Math.max(MIN_SCALE, k * (available / totalHeight(blocks)) * 0.995);
-    blocks = layout(ctx, s, l, k);
+    blocks = layout(ctx, s, k);
   }
 
-  // Blocs consécutifs d'une même section (notes de vol) : un seul bandeau.
   let y = TOP;
-  let bandTop = y;
-  blocks.forEach((block, i) => {
+  for (const block of blocks) {
+    band(ctx, y, block.height, block.name, k);
     block.draw(ctx, y);
-    const next = blocks[i + 1];
-    if (!next || next.name !== block.name) {
-      band(ctx, bandTop, y + block.height - bandTop, block.name, k);
-      bandTop = y + block.height + GAP;
-    }
     y += block.height + GAP;
-  });
-
+  }
   return [await toFile(canvas, title)];
 }

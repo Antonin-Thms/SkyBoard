@@ -5,7 +5,7 @@ import { renderChecklist } from "@/lib/documents/generate";
 import { fileName } from "@/lib/documents/file-name";
 import type { GeneratedSource } from "@/lib/documents/generated";
 import { renderRtba } from "@/lib/documents/render-rtba";
-import { renderTactical, tacticalLabels } from "@/lib/documents/render-tactical";
+import { renderTactical } from "@/lib/documents/render-tactical";
 import type { Dictionary } from "@/lib/i18n/dictionary";
 
 /** Enregistre un fichier sur l'appareil (lien de téléchargement temporaire). */
@@ -34,7 +34,7 @@ export async function downloadKneeboard(
     const source = doc.source;
     const hd =
       source?.kind === "tactical"
-        ? await renderTactical(doc.name, source, tacticalLabels(t.create), 2)
+        ? await renderTactical(doc.name, source, 2)
         : source?.kind === "checklist"
           ? await renderChecklist(source.title, source.items, t.create.continued, 2)
           : source?.kind === "rtba"
