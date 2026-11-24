@@ -14,7 +14,6 @@ import {
   emptyPackageMember,
   emptySupportRow,
   isBlank,
-  TACTICAL_LIMITS,
   type Airfield,
   type Station,
   type TacticalSheet,
@@ -287,29 +286,26 @@ const zebra = (i: number) => (i % 2 ? C.zebra : undefined);
 /** Couleur du nom de package (BLUE en bleu, RED en rouge). */
 const sideColor = (v: string) => (/blue|bleu/i.test(v) ? C.blue : /red|rouge/i.test(v) ? C.red : undefined);
 
-/** Lignes vides par section. */
-type Pad = Record<string, number>;
+/** Sections de la fiche, dans l'ordre de la page. */
+const SECTIONS = ["Data", "Airfields", "Flight", "Loadout", "Radio", "Waypoints", "Package", "Support", "Admin", "Gameplan"];
+/** Lignes vierges d'une section vide affichée pour remplir la page. */
+const BLANK_ROWS = 2;
 
 /**
- * Sections de la fiche : texte à l'échelle k, lignes de hauteur `rh`
- * (sections et lignes vides omises).
+ * Sections de la fiche : texte à l'échelle k, lignes de hauteur `rh`.
+ * Les sections vides sont omises, sauf celles de `blank`, affichées vierges
+ * (à remplir au stylo) ; `extra` : hauteur ajoutée au GAMEPLAN pour finir la page.
  */
 function layout(
   ctx: CanvasRenderingContext2D,
   s: TacticalSheet,
   k: number,
   rh: number,
-  /** Lignes vides ajoutées par section (pour remplir la page) */
-  pad: Pad = {},
-  /** Sortie : nombre maximal de lignes vides que chaque section peut recevoir */
-  caps: Pad = {},
+  blank: ReadonlySet<string> = new Set(),
+  extra = 0,
 ): Block[] {
   const blocks: Block[] = [];
-  /** Lignes vides accordées à une section (au plus `cap`). */
-  const more = (name: string, cap: number) => {
-    caps[name] = Math.max(0, cap);
-    return Math.max(0, Math.min(pad[name] ?? 0, cap));
-  };
+  const shown = (name: string, used: boolean) => used || blank.has(name);
   const line = (c: CanvasRenderingContext2D, y: number, cells: Cell[], left?: number, span?: number, rows?: number) =>
     row(c, y, cells, k, rh, left, span, rows);
   /** Tableau : colonnes ajustées au contenu (lignes de même structure que `base`). */
@@ -324,7 +320,7 @@ function layout(
 
   // DATA
   const d = s.data;
-  if (filled(d)) {
+  if (shown("Data", filled(d))) {
     const DW = [0.17, 0.15, 0.13, 0.11, 0.14, 0.14, 0.16];
     const rows: Cell[][] = [
       head(["CALLSIGN", "TASK", "DATE", "TIME", "AREA", "SERVER", "PACKAGE"], DW),
@@ -346,10 +342,9 @@ function layout(
     ["ALT", s.airfields.alt, C.alt],
   ] as const;
   const used = roles.filter(([, a]) => filled(a)).length;
-  if (used) {
-    // Rôles vides ajoutés (dans l'ordre DEP, ARR, ALT) s'il reste de la place.
-    let blank = more("Airfields", roles.length - used);
-    const fields = roles.filter(([, a]) => filled(a) || blank-- > 0);
+  if (shown("Airfields", used > 0)) {
+    // Section vierge : les trois rôles.
+    const fields = used ? roles.filter(([, a]) => filled(a)) : roles;
     const fieldRow = (role: string, a: Airfield, fill: string): Cell[] => [
       { text: role, w: AF[0], kind: "label", fill },
       ...[a.name, a.runway, a.tacan, a.wpt, a.freq, a.elev, a.procedure, a.ils].map((text, i) => ({ text, w: AF[i + 1], fill })),
@@ -368,9 +363,8 @@ function layout(
   const FL = [0.04, 0.13, 0.07, 0.09, 0.09, 0.09, 0.1, 0.08, 0.14, 0.17];
   const members = s.flight.map((m, i) => ({ m, i }));
   const flightUsed = members.filter(({ m }) => filled(m)).length;
-  if (flightUsed) {
-    let blank = more("Flight", members.length - flightUsed);
-    const flight = members.filter(({ m }) => filled(m) || blank-- > 0);
+  if (shown("Flight", flightUsed > 0)) {
+    const flight = flightUsed ? members.filter(({ m }) => filled(m)) : members.slice(0, BLANK_ROWS);
     grid("Flight", [
       head(["#", "CREW", "TYPE", "HELMET", "TCN", "SQWK", "SNCTRY", "LSR", "SERIAL", "LIVERY"], FL),
       ...flight.map(({ m, i }, r): Cell[] => [
@@ -386,13 +380,16 @@ function layout(
   }
 
   // LOADOUT : configuration par avion (numéro coloré comme FLIGHT), puis carburant et spec
-  const allLoads = s.loadout.map((l, i) => ({ l, i }));
-  const loadUsed = allLoads.filter(({ l }) => filled(l)).length;
-  let loadBlank = loadUsed ? more("Loadout", allLoads.length - loadUsed) : 0;
-  const loads = allLoads.filter(({ l }) => filled(l) || (loadUsed > 0 && loadBlank-- > 0));
   const fu = s.fuel;
   const sp = s.spec;
-  if (loads.length || filled(fu) || filled(sp)) {
+  const allLoads = s.loadout.map((l, i) => ({ l, i }));
+  const loadUsed = allLoads.some(({ l }) => filled(l)) || filled(fu) || filled(sp);
+  const loadBlank = !loadUsed && blank.has("Loadout");
+  // Section vierge : une ligne par avion de la patrouille (au moins deux), carburant et spec.
+  const loads = loadBlank
+    ? allLoads.slice(0, Math.max(BLANK_ROWS, flightUsed))
+    : allLoads.filter(({ l }) => filled(l));
+  if (loadUsed || loadBlank) {
     const rows: Cell[][] = [];
     /** Ajoute une ligne (ou un tableau) aux colonnes ajustées à son propre contenu. */
     const fit = (base: number[], part: Cell[][]) => rows.push(...withWidths(part, fitColumns(ctx, base, part, k)));
@@ -416,7 +413,7 @@ function layout(
     const L = (text: string, w: number): Cell => ({ text, w, kind: "label" });
     const V = (text: string, w: number, fill?: string): Cell => ({ text, w, fill });
     const cells = (row: Cell[]) => fit(row.map((c) => c.w), [row]);
-    if (filled(fu)) {
+    if (filled(fu) || loadBlank) {
       cells([
         { text: "FUEL", w: 0.1, kind: "head" },
         L("TOTAL", 0.08),
@@ -431,7 +428,7 @@ function layout(
         V(fu.altn, 0.08),
       ]);
     }
-    if (filled(sp)) {
+    if (filled(sp) || loadBlank) {
       cells([
         { text: "SPEC", w: 0.1, kind: "head" },
         L("ROT SPD", 0.1),
@@ -450,14 +447,20 @@ function layout(
   // RADIO : UHF, VHF, COM NOTES, SPIN (colonnes de notes vides : place rendue aux fréquences)
   const uhf = s.uhf.filter(filled);
   const vhf = s.vhf.filter(filled);
-  const comW = s.comNotes.trim() ? 0.25 : 0;
-  const spinW = s.spin.trim() ? 0.15 : 0;
+  const radioUsed = uhf.length > 0 || vhf.length > 0 || !!s.comNotes.trim() || !!s.spin.trim();
+  const radioBlank = !radioUsed && blank.has("Radio");
+  const comW = s.comNotes.trim() || radioBlank ? 0.25 : 0;
+  const spinW = s.spin.trim() || radioBlank ? 0.15 : 0;
   const comLines = comW ? textLines(ctx, s.comNotes, comW * WIDTH, k) : [];
   const spinLines = spinW ? textLines(ctx, s.spin, spinW * WIDTH, k) : [];
-  if (uhf.length || vhf.length || comLines.length || spinLines.length) {
-    const n =
-      Math.max(uhf.length, vhf.length, rowsFor(comLines.length, k, rh), rowsFor(spinLines.length, k, rh), 1) +
-      more("Radio", TACTICAL_LIMITS.com);
+  if (radioUsed || radioBlank) {
+    const n = Math.max(
+      uhf.length,
+      vhf.length,
+      rowsFor(comLines.length, k, rh),
+      rowsFor(spinLines.length, k, rh),
+      radioBlank ? BLANK_ROWS + 1 : 1,
+    );
     const none: Station = { code: "", name: "", freq: "" };
     const freqW = 1 - comW - spinW;
     const stationCells = (st: Station, r: number, w = [0.1, 0.16, 0.24]): Cell[] => [
@@ -501,14 +504,19 @@ function layout(
 
   // WAYPOINTS : notes et menaces (en-tête rouge), colonnes de notes masquées si vides
   const wps = s.waypoints.filter(filled);
-  const wptW = s.wptNotes.trim() ? 0.2 : 0;
-  const threatW = s.threatNotes.trim() ? 0.25 : 0;
+  const wpUsed = wps.length > 0 || !!s.wptNotes.trim() || !!s.threatNotes.trim();
+  const wpBlank = !wpUsed && blank.has("Waypoints");
+  const wptW = s.wptNotes.trim() || wpBlank ? 0.2 : 0;
+  const threatW = s.threatNotes.trim() || wpBlank ? 0.25 : 0;
   const wptLines = wptW ? textLines(ctx, s.wptNotes, wptW * WIDTH, k) : [];
   const threatLines = threatW ? textLines(ctx, s.threatNotes, threatW * WIDTH, k) : [];
-  if (wps.length || wptLines.length || threatLines.length) {
-    const n =
-      Math.max(wps.length, rowsFor(wptLines.length, k, rh), rowsFor(threatLines.length, k, rh), 1) +
-      more("Waypoints", TACTICAL_LIMITS.waypoints);
+  if (wpUsed || wpBlank) {
+    const n = Math.max(
+      wps.length,
+      rowsFor(wptLines.length, k, rh),
+      rowsFor(threatLines.length, k, rh),
+      wpBlank ? BLANK_ROWS + 1 : 1,
+    );
     const tableW = 1 - wptW - threatW;
     const wpCells = (i: number, w = [0.09, 0.29, 0.44, 0.18]): Cell[] => {
       const p = wps[i];
@@ -550,23 +558,21 @@ function layout(
     const RT = [0.4, 0.25, 0.35];
     grid("RTBA", [
       head(["WAYPOINT", "T+", "TOT"], RT),
-      ...[...s.rtba, ...blankRows(more("RTBA", TACTICAL_LIMITS.rtba - s.rtba.length), { wp: "", offset: "" })].map(
-        (r, i): Cell[] => [
-          { text: r.wp, w: RT[0], fill: zebra(i) },
-          { text: r.offset, w: RT[1], fill: zebra(i) },
-          { text: "", w: RT[2], fill: zebra(i) },
-        ],
-      ),
+      ...s.rtba.map((r, i): Cell[] => [
+        { text: r.wp, w: RT[0], fill: zebra(i) },
+        { text: r.offset, w: RT[1], fill: zebra(i) },
+        { text: "", w: RT[2], fill: zebra(i) },
+      ]),
     ], RT);
   }
 
   // PACKAGE
   const pkg = s.package.filter(filled);
-  if (pkg.length) {
+  if (shown("Package", pkg.length > 0)) {
     const PK = [0.16, 0.1, 0.1, 0.13, 0.1, 0.1, 0.1, 0.21];
     grid("Package", [
       head(["CALLSIGN", "TYPE", "COM", "LEADER", "STN", "TCN", "ALT", "TASK"], PK),
-      ...[...pkg, ...blankRows(more("Package", TACTICAL_LIMITS.package - pkg.length), emptyPackageMember())].map((p, i): Cell[] =>
+      ...(pkg.length ? pkg : blankRows(BLANK_ROWS, emptyPackageMember())).map((p, i): Cell[] =>
         [p.callsign, p.type, p.com, p.leader, p.stn, p.tacan, p.alt, p.task].map((text, j) => ({ text, w: PK[j], fill: zebra(i) })),
       ),
     ], PK);
@@ -574,11 +580,11 @@ function layout(
 
   // SUPPORT
   const sup = s.support.filter(filled);
-  if (sup.length) {
+  if (shown("Support", sup.length > 0)) {
     const SP = [0.11, 0.12, 0.15, 0.12, 0.08, 0.1, 0.1, 0.22];
     grid("Support", [
       head(["ROLE", "TYPE", "CALLSIGN", "COM", "WPT", "TCN", "ALT", "NOTES"], SP),
-      ...[...sup, ...blankRows(more("Support", TACTICAL_LIMITS.support - sup.length), emptySupportRow())].map((u, i): Cell[] =>
+      ...(sup.length ? sup : blankRows(BLANK_ROWS, emptySupportRow())).map((u, i): Cell[] =>
         [u.role, u.type, u.callsign, u.com, u.wpt, u.tacan, u.alt, u.notes].map((text, j) => ({
           text,
           w: SP[j],
@@ -591,7 +597,7 @@ function layout(
 
   // ADMIN : bullseye et RAMROD (« / » dans les cases vides)
   const be = s.bullseye;
-  if (filled(be) || s.ramrod.some(Boolean)) {
+  if (shown("Admin", filled(be) || s.ramrod.some(Boolean))) {
     blocks.push({
       name: "Admin",
       height: 3 * rh,
@@ -610,12 +616,12 @@ function layout(
 
   // GAMEPLAN
   const plan = textLines(ctx, s.gameplan, WIDTH, k);
-  if (plan.length) {
-    const n = Math.max(2, rowsFor(plan.length, k, rh));
+  if (shown("Gameplan", plan.length > 0)) {
+    const height = Math.max(2, rowsFor(plan.length, k, rh)) * rh + extra;
     blocks.push({
       name: "Gameplan",
-      height: n * rh,
-      draw: (c, top) => textBox(c, X0, top, WIDTH, n * rh, plan, k, "left"),
+      height,
+      draw: (c, top) => textBox(c, X0, top, WIDTH, height, plan, k, "left"),
     });
   }
   return blocks;
@@ -639,36 +645,30 @@ export async function renderTactical(
     k = Math.max(MIN_SCALE, k * (available / totalHeight(blocks)) * 0.995);
     blocks = layout(ctx, s, k, ROW * k);
   }
-  // Puis la place libre est remplie de lignes vides (à compléter au stylo),
-  // réparties à tour de rôle entre les tableaux, comme sur la fiche Excel.
+  // Place libre : sections vides affichées vierges (à remplir au stylo), dans
+  // l'ordre de la page, tant qu'elles tiennent ; le GAMEPLAN prend le reste.
   let rh = ROW * k;
-  const caps: Pad = {};
-  blocks = layout(ctx, s, k, rh, {}, caps);
-  const pad: Pad = {};
-  let free = Math.floor((available - totalHeight(blocks)) / rh);
-  for (let added = true; free > 0 && added; ) {
-    added = false;
-    for (const name of Object.keys(caps)) {
-      if (free <= 0) break;
-      if (name === "Loadout" && "Flight" in caps) continue; // ajouté avec FLIGHT
-      if ((pad[name] ?? 0) >= caps[name]) continue;
-      // Avion ajouté dans FLIGHT : sa ligne LOADOUT aussi (même numéro).
-      const paired = name === "Flight" && (pad.Loadout ?? 0) < (caps.Loadout ?? 0);
-      if (paired && free < 2) continue;
-      pad[name] = (pad[name] ?? 0) + 1;
-      if (paired) pad.Loadout = (pad.Loadout ?? 0) + 1;
-      free -= paired ? 2 : 1;
-      added = true;
-    }
+  const blank = new Set<string>();
+  const present = new Set(blocks.map((b) => b.name));
+  // GAMEPLAN d'abord (il occupe le bas de la page), puis les autres dans l'ordre.
+  for (const name of ["Gameplan", ...SECTIONS]) {
+    if (present.has(name) || blank.has(name)) continue;
+    blank.add(name);
+    if (totalHeight(layout(ctx, s, k, rh, blank)) > available) blank.delete(name);
   }
-  blocks = layout(ctx, s, k, rh, pad);
-  // Reste (moins d'une ligne, ou plus rien à ajouter) : lignes légèrement plus hautes.
-  for (let i = 0; i < 4; i++) {
-    const gap = available - totalHeight(blocks);
-    if (Math.abs(gap) <= 1) break;
-    const rows = (totalHeight(blocks) - GAP * Math.max(0, blocks.length - 1)) / rh;
-    rh = Math.max(ROW * k * 0.5, rh + gap / rows);
-    blocks = layout(ctx, s, k, rh, pad);
+  blocks = layout(ctx, s, k, rh, blank);
+  const rest = available - totalHeight(blocks);
+  if (blocks.some((b) => b.name === "Gameplan")) {
+    blocks = layout(ctx, s, k, rh, blank, Math.max(0, rest));
+  } else {
+    // Pas la place pour un GAMEPLAN : le reste (moins de deux lignes) est réparti.
+    for (let i = 0; i < 4; i++) {
+      const gap = available - totalHeight(blocks);
+      if (Math.abs(gap) <= 1) break;
+      const rows = (totalHeight(blocks) - GAP * Math.max(0, blocks.length - 1)) / rh;
+      rh = Math.max(ROW * k * 0.5, rh + gap / rows);
+      blocks = layout(ctx, s, k, rh, blank);
+    }
   }
 
   let y = TOP;
