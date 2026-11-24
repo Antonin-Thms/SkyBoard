@@ -306,31 +306,93 @@ export async function replaceGeneratedDocuments(oldId: string, newIds: string[])
   return {};
 }
 
-/** Listes de la fiche tactique (terrains, stations radio) du pilote connecté. */
-export async function getTacticalRefs(): Promise<TacticalRefs> {
-  const supabase = await createClient();
-  // « * » : la colonne support peut manquer tant que sa migration n'est pas passée.
-  const { data } = await supabase.from("tactical_refs").select("*").maybeSingle();
+export type TacticalRefSet = TacticalRefs & { id: string; name: string };
+
+/** Identifiant de la liste unique d'avant les listes nommées (migration pas encore passée). */
+const LEGACY_SET = "legacy";
+
+function refsFrom(row: { airbases?: unknown; stations?: unknown; support?: unknown } | null): TacticalRefs {
   return {
-    airbases: parseRows(data?.airbases ?? [], AIRBASE_KEYS, TACTICAL_LIMITS.refs) ?? [],
-    stations: parseRows(data?.stations ?? [], STATION_KEYS, TACTICAL_LIMITS.refs) ?? [],
-    support: parseRows(data?.support ?? [], SUPPORT_KEYS, TACTICAL_LIMITS.refs) ?? [],
+    airbases: parseRows(row?.airbases ?? [], AIRBASE_KEYS, TACTICAL_LIMITS.refs) ?? [],
+    stations: parseRows(row?.stations ?? [], STATION_KEYS, TACTICAL_LIMITS.refs) ?? [],
+    support: parseRows(row?.support ?? [], SUPPORT_KEYS, TACTICAL_LIMITS.refs) ?? [],
   };
 }
 
-/** Enregistre les listes de la fiche tactique (remplace les précédentes). */
-export async function saveTacticalRefs(refs: TacticalRefs): Promise<ActionResult> {
+/** Listes nommées de la fiche tactique (une par serveur / campagne) et celle active. */
+export async function getTacticalRefs(): Promise<{ sets: TacticalRefSet[]; activeId: string | null }> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("tactical_ref_sets")
+    .select("id, name, airbases, stations, support, active")
+    .order("name");
+  if (!error && data) {
+    const sets = data.map((r) => ({ id: r.id, name: r.name, ...refsFrom(r) }));
+    return { sets, activeId: data.find((r) => r.active)?.id ?? sets[0]?.id ?? null };
+  }
+  // Migration des listes nommées pas encore passée : ancienne liste unique.
+  const { data: old } = await supabase.from("tactical_refs").select("*").maybeSingle();
+  if (!old) return { sets: [], activeId: null };
+  return { sets: [{ id: LEGACY_SET, name: "Mes listes", ...refsFrom(old) }], activeId: LEGACY_SET };
+}
+
+/** Rend une liste active (celle proposée à l'ouverture de la fiche). */
+export async function setActiveRefSet(id: string): Promise<ActionResult> {
   const t = await getT();
-  const airbases = parseRows(refs?.airbases, AIRBASE_KEYS, TACTICAL_LIMITS.refs);
-  const stations = parseRows(refs?.stations, STATION_KEYS, TACTICAL_LIMITS.refs);
-  const support = parseRows(refs?.support, SUPPORT_KEYS, TACTICAL_LIMITS.refs);
+  if (!isUuid(id)) return { error: t.documents.errors.invalidSelection };
+  const supabase = await createClient();
+  // Une seule active (index unique partiel) : on désactive d'abord.
+  const off = await supabase.from("tactical_ref_sets").update({ active: false }).eq("active", true).neq("id", id);
+  if (off.error) return { error: t.documents.errors.saveRefsFailed };
+  const { error } = await supabase.from("tactical_ref_sets").update({ active: true }).eq("id", id);
+  if (error) return { error: t.documents.errors.saveRefsFailed };
+  return {};
+}
+
+/**
+ * Enregistre une liste nommée : `id` absent → nouvelle liste. La liste
+ * enregistrée devient la liste active.
+ */
+export async function saveRefSet(set: {
+  id?: string;
+  name: string;
+  airbases: unknown;
+  stations: unknown;
+  support: unknown;
+}): Promise<{ id?: string; error?: string }> {
+  const t = await getT();
+  const name = typeof set?.name === "string" ? set.name.trim().slice(0, 80) : "";
+  const airbases = parseRows(set?.airbases, AIRBASE_KEYS, TACTICAL_LIMITS.refs);
+  const stations = parseRows(set?.stations, STATION_KEYS, TACTICAL_LIMITS.refs);
+  const support = parseRows(set?.support, SUPPORT_KEYS, TACTICAL_LIMITS.refs);
   const userId = (await getSessionClaims())?.sub;
+  if (!name) return { error: t.documents.errors.refsNameMissing };
   if (!airbases || !stations || !support || !userId) return { error: t.documents.errors.invalidSelection };
+  const editing = set.id && set.id !== LEGACY_SET ? set.id : null;
+  if (editing && !isUuid(editing)) return { error: t.documents.errors.invalidSelection };
 
   const supabase = await createClient();
-  const { error } = await supabase
-    .from("tactical_refs")
-    .upsert({ airbases, stations, support, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+  const values = { name, airbases, stations, support };
+  const res = editing
+    ? await supabase
+        .from("tactical_ref_sets")
+        .update({ ...values, updated_at: new Date().toISOString() })
+        .eq("id", editing)
+        .select("id")
+        .maybeSingle()
+    : await supabase.from("tactical_ref_sets").insert(values).select("id").maybeSingle();
+  if (res.error || !res.data) return { error: t.documents.errors.saveRefsFailed };
+  const active = await setActiveRefSet(res.data.id);
+  if (active.error) return { error: active.error };
+  return { id: res.data.id };
+}
+
+/** Supprime une liste nommée. */
+export async function deleteRefSet(id: string): Promise<ActionResult> {
+  const t = await getT();
+  if (!isUuid(id)) return { error: t.documents.errors.invalidSelection };
+  const supabase = await createClient();
+  const { error } = await supabase.from("tactical_ref_sets").delete().eq("id", id);
   if (error) return { error: t.documents.errors.saveRefsFailed };
   return {};
 }

@@ -2,7 +2,7 @@
 
 import { Copy, ListPlus, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { getTacticalRefs } from "@/app/(app)/documents/actions";
+import { getTacticalRefs, setActiveRefSet } from "@/app/(app)/documents/actions";
 import { Select, type SelectOption } from "@/components/ui/select";
 import { renderTactical } from "@/lib/documents/render-tactical";
 import {
@@ -25,7 +25,7 @@ import {
 import { useT } from "@/lib/i18n/client";
 import { uuid } from "@/lib/uuid";
 import type { CreatedPage } from "./create-pages";
-import { TacticalRefsDialog } from "./tactical-refs-dialog";
+import { TacticalRefsDialog, type RefSetsState } from "./tactical-refs-dialog";
 import { Field, RamrodInputs, Rows, Section } from "./tactical-fields";
 
 type Role = keyof TacticalSheet["airfields"];
@@ -53,7 +53,7 @@ export function TacticalDialog({
   const dialog = useRef<HTMLDialogElement>(null);
   const [title, setTitle] = useState(initial?.title ?? "");
   const [sheet, setSheet] = useState<TacticalSheet>(() => initial?.data ?? emptyTacticalSheet());
-  const [refs, setRefs] = useState<TacticalRefs | null>(null);
+  const [refSets, setRefSets] = useState<RefSetsState | null>(null);
   const [refsOpen, setRefsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [working, setWorking] = useState(false);
@@ -67,8 +67,8 @@ export function TacticalDialog({
   useEffect(() => {
     let alive = true;
     getTacticalRefs()
-      .then((r) => alive && setRefs(r))
-      .catch(() => alive && setRefs({ airbases: [], stations: [], support: [] }));
+      .then((r) => alive && setRefSets(r))
+      .catch(() => alive && setRefSets({ sets: [], activeId: null }));
     return () => {
       alive = false;
     };
@@ -107,6 +107,16 @@ export function TacticalDialog({
     }
   }
 
+  /** Liste active (choix rapide d'une liste à l'autre). */
+  const refs: TacticalRefs | null = refSets
+    ? (refSets.sets.find((x) => x.id === refSets.activeId) ?? { airbases: [], stations: [], support: [] })
+    : null;
+  function switchSet(id: string) {
+    setRefSets((r) => (r ? { ...r, activeId: id } : r));
+    // Mémorisée pour la prochaine fiche (sans bloquer si l'enregistrement échoue).
+    if (id !== "legacy") void setActiveRefSet(id).catch(() => undefined);
+  }
+
   const options = (labels: string[]): SelectOption[] => labels.map((label, i) => ({ value: String(i), label }));
   const airbaseOptions = options((refs?.airbases ?? []).map((a) => [a.name, a.tacan].filter(Boolean).join(" · ")));
   const stationOptions = options((refs?.stations ?? []).map((s) => [s.code, s.name, s.freq].filter(Boolean).join(" · ")));
@@ -137,6 +147,17 @@ export function TacticalDialog({
             {initial ? t.editTacticalTitle : t.tacticalDialogTitle}
           </h2>
           <div className="flex items-center gap-1">
+            {refSets && refSets.sets.length > 0 && (
+              <Select
+                size="sm"
+                value={refSets.activeId ?? ""}
+                options={refSets.sets.map((x) => ({ value: x.id, label: x.name }))}
+                label={t.refsActive}
+                align="end"
+                className="max-w-[16rem]"
+                onChange={switchSet}
+              />
+            )}
             <button type="button" className="btn-secondary min-h-9 px-3 text-sm" disabled={refs === null} onClick={() => setRefsOpen(true)}>
               <ListPlus size={16} strokeWidth={1.75} />
               {t.manageLists}
@@ -421,13 +442,13 @@ export function TacticalDialog({
           </button>
         </div>
       </form>
-      {refsOpen && refs && (
+      {refsOpen && refSets && (
         <TacticalRefsDialog
-          initial={refs}
+          initial={refSets}
           onClose={() => setRefsOpen(false)}
-          onSaved={(saved) => {
-            setRefs(saved);
-            setRefsOpen(false);
+          onChange={(state, close) => {
+            setRefSets(state);
+            if (close) setRefsOpen(false);
           }}
         />
       )}

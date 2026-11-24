@@ -1,8 +1,9 @@
 "use client";
 
-import { BookOpen, ClipboardPaste, X } from "lucide-react";
+import { BookOpen, ClipboardPaste, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { saveTacticalRefs } from "@/app/(app)/documents/actions";
+import { deleteRefSet, saveRefSet, type TacticalRefSet } from "@/app/(app)/documents/actions";
+import { Select } from "@/components/ui/select";
 import {
   AIRBASE_KEYS,
   emptyAirbase,
@@ -14,27 +15,48 @@ import {
   TACTICAL_LIMITS,
   type TacticalRefs,
 } from "@/lib/documents/tactical";
+import { INTER_ESCADRILLES_NOV26 } from "@/lib/documents/presets/inter-escadrilles";
 import { MANEX_GERMANY } from "@/lib/documents/presets/manex-germany";
+import { fmt } from "@/lib/i18n/define";
 import { useT } from "@/lib/i18n/client";
 import { Rows, Section } from "./tactical-fields";
 
+export type RefSetsState = { sets: TacticalRefSet[]; activeId: string | null };
+
+/** Modèles tout faits (documents de briefing), à enregistrer ensuite sous un nom. */
+const PRESETS: { name: string; refs: TacticalRefs }[] = [
+  { name: "Manex DJS Germany", refs: MANEX_GERMANY },
+  { name: "Inter-escadrilles DJS Nov 26", refs: INTER_ESCADRILLES_NOV26 },
+];
+
+const NEW = "";
+const emptyRefs = (): TacticalRefs => ({ airbases: [], stations: [], support: [] });
+const sortSets = (sets: TacticalRefSet[]) => [...sets].sort((a, b) => a.name.localeCompare(b.name));
+
 /**
- * Listes de la fiche tactique : terrains et stations radio, saisis ligne par
- * ligne ou collés depuis Excel (une ligne par élément, colonnes dans l'ordre).
+ * Listes nommées de la fiche tactique (une par serveur / campagne) :
+ * terrains, stations radio et support, saisis ligne par ligne, collés depuis
+ * Excel ou repris d'un modèle. Enregistrer rend la liste active.
  */
 export function TacticalRefsDialog({
   initial,
   onClose,
-  onSaved,
+  onChange,
 }: {
-  initial: TacticalRefs;
+  initial: RefSetsState;
   onClose: () => void;
-  onSaved: (refs: TacticalRefs) => void;
+  /** Listes modifiées (`close` : enregistrement terminé) */
+  onChange: (state: RefSetsState, close: boolean) => void;
 }) {
   const t = useT().documents.create;
   const tErrors = useT().documents.errors;
   const dialog = useRef<HTMLDialogElement>(null);
-  const [refs, setRefs] = useState<TacticalRefs>(initial);
+  const [sets, setSets] = useState(initial.sets);
+  const start = initial.sets.find((s) => s.id === initial.activeId) ?? null;
+  const [editId, setEditId] = useState<string>(start?.id ?? NEW);
+  const [name, setName] = useState(start?.name ?? "");
+  const [refs, setRefs] = useState<TacticalRefs>(() => (start ? structuredClone(start) : emptyRefs()));
+  const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -44,7 +66,23 @@ export function TacticalRefsDialog({
     return () => d?.close();
   }, []);
 
-  async function save() {
+  const edit = (fn: (r: TacticalRefs) => TacticalRefs) => {
+    setRefs(fn);
+    setDirty(true);
+  };
+
+  /** Ouvre une liste enregistrée (ou une nouvelle, vide). */
+  function open(id: string) {
+    if (dirty && !window.confirm(t.refsDiscard)) return;
+    const set = sets.find((s) => s.id === id);
+    setEditId(set?.id ?? NEW);
+    setName(set?.name ?? "");
+    setRefs(set ? structuredClone(set) : emptyRefs());
+    setDirty(false);
+    setError(null);
+  }
+
+  async function save(asNew: boolean) {
     setSaving(true);
     setError(null);
     // Lignes vides retirées avant l'enregistrement.
@@ -53,11 +91,37 @@ export function TacticalRefsDialog({
       stations: refs.stations.filter((s) => Object.values(s).some((v) => v.trim())),
       support: refs.support.filter((s) => Object.values(s).some((v) => v.trim())),
     };
-    const res = await saveTacticalRefs(clean).catch(() => ({ error: tErrors.server }));
+    const res = await saveRefSet({ id: asNew ? undefined : editId || undefined, name, ...clean }).catch(() => ({
+      error: tErrors.server,
+      id: undefined,
+    }));
     setSaving(false);
-    if (res.error) setError(res.error);
-    else onSaved(clean);
+    if (res.error || !res.id) return setError(res.error ?? tErrors.server);
+    const saved: TacticalRefSet = { id: res.id, name: name.trim().slice(0, 80), ...clean };
+    // L'ancienne liste unique (« legacy ») est remplacée par la liste enregistrée.
+    const rest = sets.filter((s) => s.id !== res.id && s.id !== "legacy");
+    onChange({ sets: sortSets([...rest, saved]), activeId: res.id }, true);
   }
+
+  async function remove() {
+    const set = sets.find((s) => s.id === editId);
+    if (!set || !window.confirm(fmt(t.refsDeleteConfirm, { name: set.name }))) return;
+    const res = await deleteRefSet(set.id).catch(() => ({ error: tErrors.server }));
+    if (res.error) return setError(res.error);
+    const left = sets.filter((s) => s.id !== set.id);
+    setSets(left);
+    setDirty(false);
+    const next = left[0];
+    setEditId(next?.id ?? NEW);
+    setName(next?.name ?? "");
+    setRefs(next ? structuredClone(next) : emptyRefs());
+    onChange({ sets: left, activeId: next?.id ?? null }, false);
+  }
+
+  const setOptions = [
+    ...sets.map((s) => ({ value: s.id, label: s.name })),
+    ...(editId === NEW ? [{ value: NEW, label: t.refsUnsaved }] : []),
+  ];
 
   return (
     <dialog
@@ -71,22 +135,59 @@ export function TacticalRefsDialog({
           <h2 id="refs-title" className="text-lg font-medium">
             {t.refsTitle}
           </h2>
-          <div className="flex items-center gap-1">
-            {/* Listes toutes faites (à enregistrer ensuite) */}
+          <button type="button" className="btn-icon -mr-2" aria-label={t.close} onClick={onClose}>
+            <X size={18} strokeWidth={1.75} />
+          </button>
+        </div>
+
+        {/* Choix de la liste, nom, nouvelle / suppression */}
+        <div className="flex flex-wrap items-end gap-2">
+          <div className="flex min-w-[14rem] flex-1 flex-col gap-1.5 text-sm text-muted">
+            {t.refsActive}
+            <Select value={editId} options={setOptions} label={t.refsActive} onChange={open} />
+          </div>
+          <label className="flex min-w-[14rem] flex-[1.4] flex-col gap-1.5 text-sm text-muted">
+            {t.refsName}
+            <input
+              className="input"
+              value={name}
+              maxLength={80}
+              placeholder={t.refsNamePlaceholder}
+              onChange={(e) => {
+                setName(e.target.value);
+                setDirty(true);
+              }}
+            />
+          </label>
+          <button type="button" className="btn-secondary min-h-10 px-3 text-sm" onClick={() => open(NEW)}>
+            <Plus size={16} strokeWidth={1.75} />
+            {t.refsNew}
+          </button>
+          {editId !== NEW && editId !== "legacy" && (
+            <button type="button" className="btn-icon" aria-label={t.refsDelete} title={t.refsDelete} onClick={() => void remove()}>
+              <Trash2 size={17} strokeWidth={1.75} />
+            </button>
+          )}
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="mr-1 text-xs text-subtle">{t.refsPresets} :</span>
+          {PRESETS.map((p) => (
             <button
+              key={p.name}
               type="button"
-              className="btn-secondary min-h-9 px-3 text-sm"
+              className="btn-ghost min-h-8 px-2 text-sm"
               onClick={() => {
-                if (window.confirm(t.refsPresetConfirm)) setRefs(structuredClone(MANEX_GERMANY));
+                const filled = refs.airbases.length || refs.stations.length || refs.support.length;
+                if (filled && !window.confirm(fmt(t.refsPresetReplace, { name: p.name }))) return;
+                setRefs(structuredClone(p.refs));
+                if (!name.trim()) setName(p.name);
+                setDirty(true);
               }}
             >
-              <BookOpen size={16} strokeWidth={1.75} />
-              {t.refsPreset}
+              <BookOpen size={15} strokeWidth={1.75} />
+              {p.name}
             </button>
-            <button type="button" className="btn-icon -mr-2" aria-label={t.close} onClick={onClose}>
-              <X size={18} strokeWidth={1.75} />
-            </button>
-          </div>
+          ))}
         </div>
 
         <Section title={t.refsAirbases}>
@@ -105,14 +206,14 @@ export function TacticalRefsDialog({
                 rows={refs.airbases}
                 max={TACTICAL_LIMITS.refs}
                 empty={emptyAirbase()}
-                onChange={(airbases) => setRefs((r) => ({ ...r, airbases }))}
+                onChange={(airbases) => edit((r) => ({ ...r, airbases }))}
               />
             </div>
           </div>
           <PasteBox
             hint={t.refsAirbasesPasteHint}
             onImport={(text) =>
-              setRefs((r) => ({
+              edit((r) => ({
                 ...r,
                 airbases: [...r.airbases, ...parsePastedRows(text, AIRBASE_KEYS)].slice(0, TACTICAL_LIMITS.refs),
               }))
@@ -130,12 +231,12 @@ export function TacticalRefsDialog({
             rows={refs.stations}
             max={TACTICAL_LIMITS.refs}
             empty={emptyStation()}
-            onChange={(stations) => setRefs((r) => ({ ...r, stations }))}
+            onChange={(stations) => edit((r) => ({ ...r, stations }))}
           />
           <PasteBox
             hint={t.refsStationsPasteHint}
             onImport={(text) =>
-              setRefs((r) => ({
+              edit((r) => ({
                 ...r,
                 stations: [...r.stations, ...parsePastedRows(text, STATION_KEYS)].slice(0, TACTICAL_LIMITS.refs),
               }))
@@ -160,14 +261,14 @@ export function TacticalRefsDialog({
                 rows={refs.support}
                 max={TACTICAL_LIMITS.refs}
                 empty={emptySupport()}
-                onChange={(support) => setRefs((r) => ({ ...r, support }))}
+                onChange={(support) => edit((r) => ({ ...r, support }))}
               />
             </div>
           </div>
           <PasteBox
             hint={t.refsSupportPasteHint}
             onImport={(text) =>
-              setRefs((r) => ({
+              edit((r) => ({
                 ...r,
                 support: [...r.support, ...parsePastedRows(text, SUPPORT_KEYS)].slice(0, TACTICAL_LIMITS.refs),
               }))
@@ -176,11 +277,16 @@ export function TacticalRefsDialog({
         </Section>
 
         {error && <p className="text-sm text-danger">{error}</p>}
-        <div className="sticky bottom-0 -mx-5 -mb-5 flex justify-end gap-2 border-t border-line bg-overlay px-5 py-4">
+        <div className="sticky bottom-0 -mx-5 -mb-5 flex flex-wrap justify-end gap-2 border-t border-line bg-overlay px-5 py-4">
           <button type="button" className="btn-ghost" onClick={onClose}>
             {t.cancel}
           </button>
-          <button type="button" className="btn-primary" disabled={saving} onClick={() => void save()}>
+          {editId !== NEW && (
+            <button type="button" className="btn-secondary" disabled={saving} onClick={() => void save(true)}>
+              {t.refsSaveAs}
+            </button>
+          )}
+          <button type="button" className="btn-primary" disabled={saving} onClick={() => void save(false)}>
             {saving ? t.editSaving : t.refsSave}
           </button>
         </div>
