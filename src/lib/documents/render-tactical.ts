@@ -24,6 +24,8 @@ const GAP = 8;
 /** Échelle maximale (fiche courte) et minimale (au-delà, le texte devient illisible). */
 const MAX_SCALE = 1.3;
 const MIN_SCALE = 0.45;
+/** Taille maximale du texte quand les lignes sont étirées pour remplir la page. */
+const MAX_TEXT = 1.6;
 
 /** Couleurs de la fiche Excel de l'escadron. */
 const C = {
@@ -56,9 +58,81 @@ interface Cell {
   align?: "left" | "center";
 }
 
-/** Une ligne de cellules (texte ajusté à la largeur), haut à `y` ; `left` / `span` : partie de la grille. */
-function row(ctx: CanvasRenderingContext2D, y: number, cells: Cell[], k: number, left = X0, span = WIDTH, rows = 1) {
-  const height = ROW * k * rows;
+/** Police d'une cellule (graisse, taille à l'échelle 1). */
+const FONT: Record<NonNullable<Cell["kind"]>, [number, number]> = {
+  head: [700, 19],
+  label: [700, 20],
+  name: [500, 22],
+  value: [700, 23],
+};
+const PAD = 14;
+
+/** Largeur du texte d'une cellule à sa taille nominale (échelle k). */
+function measure(ctx: CanvasRenderingContext2D, text: string | undefined, kind: Cell["kind"], k: number): number {
+  if (!text) return 0;
+  const [weight, size] = FONT[kind ?? "value"];
+  ctx.font = `${weight} ${Math.round(size * k)}px sans-serif`;
+  return ctx.measureText(text).width;
+}
+
+/**
+ * Texte d'une cellule sans jamais l'écraser : taille nominale si ça tient,
+ * sinon sur deux lignes si la cellule est assez haute, sinon police réduite.
+ */
+function cellText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  kind: NonNullable<Cell["kind"]>,
+  k: number,
+  align: "left" | "center",
+) {
+  const [weight, base] = FONT[kind];
+  const room = w - PAD;
+  const font = (px: number) => (ctx.font = `${weight} ${Math.round(px)}px sans-serif`);
+  ctx.textBaseline = "middle";
+  ctx.textAlign = align;
+  const tx = align === "center" ? x + w / 2 : x + 8 * k;
+  let size = base * k;
+  font(size);
+  const full = ctx.measureText(text).width;
+  if (full <= room) return void ctx.fillText(text, tx, y + h / 2 + 1);
+  // Un peu trop long : police légèrement réduite plutôt qu'une coupure.
+  if (full * 0.85 <= room) {
+    font(size * (room / full));
+    return void ctx.fillText(text, tx, y + h / 2 + 1);
+  }
+  // Deux lignes, si la hauteur le permet (coupure aux espaces).
+  for (let px = size; px >= base * k * 0.62; px -= 1) {
+    if (2 * px * 1.08 > h - 6) continue;
+    font(px);
+    const lines = wrap(ctx, text, room);
+    if (lines.length === 2 && lines.every((l) => ctx.measureText(l).width <= room)) {
+      lines.forEach((l, i) => ctx.fillText(l, tx, y + h / 2 + (i - 0.5) * px * 1.08 + 1));
+      return;
+    }
+  }
+  // Une ligne, police réduite à la largeur (jamais compressée).
+  size = Math.max(8, size * (room / full));
+  font(size);
+  ctx.fillText(text, tx, y + h / 2 + 1, room);
+}
+
+/** Une ligne de cellules de hauteur `rh` (× `rows`), haut à `y` ; `left` / `span` : partie de la grille. */
+function row(
+  ctx: CanvasRenderingContext2D,
+  y: number,
+  cells: Cell[],
+  k: number,
+  rh: number,
+  left = X0,
+  span = WIDTH,
+  rows = 1,
+) {
+  const height = rh * rows;
   let x = left;
   for (const cell of cells) {
     const w = cell.w * span;
@@ -70,18 +144,72 @@ function row(ctx: CanvasRenderingContext2D, y: number, cells: Cell[], k: number,
     ctx.strokeRect(x, y, w, height);
     if (cell.text) {
       ctx.fillStyle = cell.color ?? (kind === "head" ? "#ffffff" : INK);
-      const [weight, size] =
-        kind === "head" ? [700, 19] : kind === "label" ? [700, 20] : kind === "name" ? [500, 22] : [700, 23];
-      ctx.font = `${weight} ${Math.round(size * k)}px sans-serif`;
-      ctx.textBaseline = "middle";
-      const align = cell.align ?? "center";
-      ctx.textAlign = align;
-      const tx = align === "center" ? x + w / 2 : x + 8 * k;
-      ctx.fillText(cell.text, tx, y + height / 2 + 1, w - 12);
+      cellText(ctx, cell.text, x, y, w, height, kind, k, cell.align ?? "center");
     }
     x += w;
   }
   ctx.textAlign = "left";
+}
+
+/** Nombre de tableaux trop larges pour leur contenu au dernier calcul de mise en page. */
+let tooWide = 0;
+
+/**
+ * Largeurs de colonnes (fractions de `span`, total 1) d'après le contenu :
+ * chaque colonne reçoit au moins la place de son texte le plus long, le
+ * reste est réparti selon les proportions de base ; si tout ne tient pas,
+ * les colonnes sont réduites en proportion de leur besoin.
+ */
+function fitColumns(
+  ctx: CanvasRenderingContext2D,
+  base: number[],
+  rows: Cell[][],
+  k: number,
+  span = WIDTH,
+): number[] {
+  const need = base.map(() => 0);
+  for (const cells of rows) {
+    if (cells.length !== base.length) continue;
+    cells.forEach((c, i) => {
+      if (c.text) need[i] = Math.max(need[i], (measure(ctx, c.text, c.kind, k) + PAD + 4) / span);
+    });
+  }
+  const baseSum = base.reduce((a, b) => a + b, 0);
+  // Colonne vide : garde un peu de place pour écrire au stylo.
+  base.forEach((b, i) => (need[i] = Math.max(need[i], (b / baseSum) * 0.4)));
+  const total = need.reduce((a, b) => a + b, 0);
+  if (total > 1) {
+    tooWide++;
+    // Trop large : les colonnes courtes gardent leur place, seules les plus
+    // longues sont limitées (même plafond pour toutes) et passent sur deux lignes.
+    let lo = 0;
+    let hi = Math.max(...need);
+    for (let i = 0; i < 30; i++) {
+      const cap = (lo + hi) / 2;
+      if (need.reduce((sum, n) => sum + Math.min(n, cap), 0) > 1) hi = cap;
+      else lo = cap;
+    }
+    const w = need.map((n) => Math.min(n, lo));
+    const sum = w.reduce((a, b) => a + b, 0);
+    return w.map((x) => x / sum);
+  }
+  // Place restante : d'abord pour rapprocher chaque colonne de sa largeur de base.
+  const w = [...need];
+  let extra = 1 - total;
+  const deficit = base.map((b, i) => Math.max(0, b / baseSum - w[i]));
+  const defSum = deficit.reduce((a, b) => a + b, 0);
+  if (defSum > 0) {
+    const give = Math.min(extra, defSum);
+    deficit.forEach((d, i) => (w[i] += (d / defSum) * give));
+    extra -= give;
+  }
+  if (extra > 0) base.forEach((b, i) => (w[i] += (b / baseSum) * extra));
+  return w;
+}
+
+/** Applique des largeurs aux lignes de même structure (les autres sont laissées telles quelles). */
+function withWidths(rows: Cell[][], widths: number[]): Cell[][] {
+  return rows.map((cells) => (cells.length === widths.length ? cells.map((c, i) => ({ ...c, w: widths[i] })) : cells));
 }
 
 /** Bloc de texte libre (notes) : cadre + lignes, centré ou aligné à gauche. */
@@ -117,8 +245,8 @@ function textLines(ctx: CanvasRenderingContext2D, text: string, w: number, k: nu
   return text.split(/\r?\n/).flatMap((line) => (line.trim() ? wrap(ctx, line, w - 20) : [""]));
 }
 
-/** Nombre de lignes de grille nécessaires pour un texte de `lines` lignes. */
-const rowsFor = (lines: number, k: number) => (lines ? Math.ceil((lines * 30 * k + 16 * k) / (ROW * k)) : 0);
+/** Nombre de lignes de grille (hauteur `rh`) nécessaires pour un texte de `lines` lignes. */
+const rowsFor = (lines: number, k: number, rh: number) => (lines ? Math.ceil((lines * 30 * k + 16 * k) / rh) : 0);
 
 /** Bandeau vertical de section (texte tourné), à gauche de la grille. */
 function band(ctx: CanvasRenderingContext2D, y: number, height: number, text: string, k: number) {
@@ -128,10 +256,18 @@ function band(ctx: CanvasRenderingContext2D, y: number, height: number, text: st
   ctx.translate(SIDE + (BAND - 4) / 2, y + height / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.fillStyle = "#ffffff";
-  ctx.font = `700 ${Math.round(Math.min(19, 19 * k))}px sans-serif`;
+  const label = text.toLocaleUpperCase();
+  let size = Math.min(19, 19 * k);
+  ctx.font = `700 ${Math.round(size)}px sans-serif`;
+  const width = ctx.measureText(label).width;
+  // Bandeau court : police réduite (jamais compressée).
+  if (width > height - 10) {
+    size = Math.max(8, size * ((height - 10) / width));
+    ctx.font = `700 ${Math.round(size)}px sans-serif`;
+  }
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(text.toLocaleUpperCase(), 0, 1, height - 10);
+  ctx.fillText(label, 0, 1);
   ctx.restore();
 }
 
@@ -148,15 +284,24 @@ const zebra = (i: number) => (i % 2 ? C.zebra : undefined);
 /** Couleur du nom de package (BLUE en bleu, RED en rouge). */
 const sideColor = (v: string) => (/blue|bleu/i.test(v) ? C.blue : /red|rouge/i.test(v) ? C.red : undefined);
 
-/** Sections de la fiche à l'échelle k (sections et lignes vides omises). */
-function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Block[] {
+/**
+ * Sections de la fiche : texte à l'échelle k, lignes de hauteur `rh`
+ * (sections et lignes vides omises).
+ */
+function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number, rh: number): Block[] {
   const blocks: Block[] = [];
-  const grid = (name: string, rows: Cell[][]) =>
+  tooWide = 0;
+  const line = (c: CanvasRenderingContext2D, y: number, cells: Cell[], left?: number, span?: number, rows?: number) =>
+    row(c, y, cells, k, rh, left, span, rows);
+  /** Tableau : colonnes ajustées au contenu (lignes de même structure que `base`). */
+  const grid = (name: string, rows: Cell[][], base?: number[]) => {
+    const fitted = base ? withWidths(rows, fitColumns(ctx, base, rows, k)) : rows;
     blocks.push({
       name,
-      height: rows.length * ROW * k,
-      draw: (c, top) => rows.forEach((cells, i) => row(c, top + i * ROW * k, cells, k)),
+      height: fitted.length * rh,
+      draw: (c, top) => fitted.forEach((cells, i) => line(c, top + i * rh, cells)),
     });
+  };
 
   // DATA
   const d = s.data;
@@ -171,7 +316,7 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
       })),
     ];
     if (d.weather) rows.push([{ text: "WEATHER", w: 0.1, kind: "label" }, { text: d.weather, w: 0.9, align: "left", kind: "name" }]);
-    grid("Data", rows);
+    grid("Data", rows, DW);
   }
 
   // AIRFIELDS : DEP bleu, ARR rose, ALT vert
@@ -188,9 +333,13 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
       { text: role, w: AF[0], kind: "label", fill },
       ...[a.name, a.runway, a.tacan, a.wpt, a.freq, a.elev, a.procedure, a.ils].map((text, i) => ({ text, w: AF[i + 1], fill })),
     ];
+    const data = fields.map(([role, a, fill]) => fieldRow(role, a, fill));
+    const titles = ["RWY", "TCN", "WPT", "FREQ", "ELEV", "PROCEDURE", "ILS"];
+    // Largeurs d'après le contenu (en-têtes compris : « AIRFIELDS » couvre rôle + nom).
+    const W = fitColumns(ctx, AF, [[{ text: "", w: 0 }, { text: "AIRFIELDS", w: 0, kind: "head" }, ...head(titles, AF.slice(2))], ...data], k);
     grid("Airfields", [
-      [{ text: "AIRFIELDS", w: AF[0] + AF[1], kind: "head" }, ...head(["RWY", "TCN", "WPT", "FREQ", "ELEV", "PROCEDURE", "ILS"], AF.slice(2))],
-      ...fields.map(([role, a, fill]) => fieldRow(role, a, fill)),
+      [{ text: "AIRFIELDS", w: W[0] + W[1], kind: "head" }, ...head(titles, W.slice(2))],
+      ...withWidths(data, W),
     ]);
   }
 
@@ -209,7 +358,7 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
           color: j === 5 ? C.red : undefined,
         })),
       ]),
-    ]);
+    ], FL);
   }
 
   // LOADOUT : configuration par avion (numéro coloré comme FLIGHT), puis carburant et spec
@@ -218,11 +367,13 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
   const sp = s.spec;
   if (loads.length || filled(fu) || filled(sp)) {
     const rows: Cell[][] = [];
+    /** Ajoute une ligne (ou un tableau) aux colonnes ajustées à son propre contenu. */
+    const fit = (base: number[], part: Cell[][]) => rows.push(...withWidths(part, fitColumns(ctx, base, part, k)));
     if (loads.length) {
       const LW = [0.04, 0.11, 0.11, 0.06, 0.07, 0.22, 0.13, 0.12, 0.14];
-      rows.push(head(["#", "CREW", "A/A", "TANKS", "ECM POD", "A/G", "PODS", "CH/FL", "NOTES"], LW));
-      loads.forEach(({ l, i }, r) =>
-        rows.push([
+      fit(LW, [
+        head(["#", "CREW", "A/A", "TANKS", "ECM POD", "A/G", "PODS", "CH/FL", "NOTES"], LW),
+        ...loads.map(({ l, i }, r): Cell[] => [
           { text: String(i + 1), w: LW[0], kind: "label", fill: C.flight[i] },
           { text: s.flight[i]?.crew, w: LW[1], fill: zebra(r) },
           ...[l.aa, l.tanks, l.ecm, l.ag, l.pods, l.chfl, l.notes].map((text, j) => ({
@@ -232,13 +383,14 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
             kind: j === 6 ? ("name" as const) : ("value" as const),
           })),
         ]),
-      );
+      ]);
     }
     // Carburant et spec : une rangée chacun (titre de rangée à gauche), si remplis.
     const L = (text: string, w: number): Cell => ({ text, w, kind: "label" });
     const V = (text: string, w: number, fill?: string): Cell => ({ text, w, fill });
+    const cells = (row: Cell[]) => fit(row.map((c) => c.w), [row]);
     if (filled(fu)) {
-      rows.push([
+      cells([
         { text: "FUEL", w: 0.1, kind: "head" },
         L("TOTAL", 0.08),
         V(fu.total, 0.1, C.fuelTotal),
@@ -253,7 +405,7 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
       ]);
     }
     if (filled(sp)) {
-      rows.push([
+      cells([
         { text: "SPEC", w: 0.1, kind: "head" },
         L("ROT SPD", 0.1),
         V(sp.rotSpd, 0.125),
@@ -268,74 +420,96 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
     grid("Loadout", rows);
   }
 
-  // RADIO : UHF, VHF, COM NOTES, SPIN
+  // RADIO : UHF, VHF, COM NOTES, SPIN (colonnes de notes vides : place rendue aux fréquences)
   const uhf = s.uhf.filter(filled);
   const vhf = s.vhf.filter(filled);
-  const comLines = textLines(ctx, s.comNotes, 0.25 * WIDTH, k);
-  const spinLines = textLines(ctx, s.spin, 0.15 * WIDTH, k);
+  const comW = s.comNotes.trim() ? 0.25 : 0;
+  const spinW = s.spin.trim() ? 0.15 : 0;
+  const comLines = comW ? textLines(ctx, s.comNotes, comW * WIDTH, k) : [];
+  const spinLines = spinW ? textLines(ctx, s.spin, spinW * WIDTH, k) : [];
   if (uhf.length || vhf.length || comLines.length || spinLines.length) {
-    const n = Math.max(uhf.length, vhf.length, rowsFor(comLines.length, k), rowsFor(spinLines.length, k), 1);
+    const n = Math.max(uhf.length, vhf.length, rowsFor(comLines.length, k, rh), rowsFor(spinLines.length, k, rh), 1);
     const none: Station = { code: "", name: "", freq: "" };
-    const ST = [0.06, 0.1, 0.14];
-    const stationCells = (st: Station, r: number): Cell[] => [
-      { text: st.code, w: ST[0], fill: zebra(r) },
-      { text: st.freq, w: ST[1], fill: zebra(r) },
-      { text: st.name, w: ST[2], fill: zebra(r) },
+    const freqW = 1 - comW - spinW;
+    const stationCells = (st: Station, r: number, w = [0.1, 0.16, 0.24]): Cell[] => [
+      { text: st.code, w: w[0], fill: zebra(r) },
+      { text: st.freq, w: w[1], fill: zebra(r) },
+      { text: st.name, w: w[2], fill: zebra(r), kind: "name" },
+    ];
+    const pair = (i: number, w?: number[]) => [
+      ...stationCells(uhf[i] ?? none, i, w?.slice(0, 3)),
+      ...stationCells(vhf[i] ?? none, i, w?.slice(3)),
+    ];
+    // Colonnes canal / fréquence / nom des deux blocs ajustées au contenu.
+    const ST = fitColumns(
+      ctx,
+      [0.1, 0.16, 0.24, 0.1, 0.16, 0.24],
+      Array.from({ length: n }, (_, i) => pair(i)),
+      k,
+      freqW * WIDTH,
+    ).map((x) => x * freqW);
+    const titles = [
+      { text: "UHF", w: ST[0] + ST[1] + ST[2], kind: "head" as const },
+      { text: "VHF", w: ST[3] + ST[4] + ST[5], kind: "head" as const },
+      ...(comW ? [{ text: "COM NOTES", w: comW, kind: "head" as const }] : []),
+      ...(spinW ? [{ text: "SPIN", w: spinW, kind: "head" as const }] : []),
     ];
     blocks.push({
       name: "Radio",
-      height: (n + 1) * ROW * k,
+      height: (n + 1) * rh,
       draw: (c, top) => {
-        row(c, top, head(["UHF", "VHF", "COM NOTES", "SPIN"], [0.3, 0.3, 0.25, 0.15]), k);
+        line(c, top, titles);
         for (let i = 0; i < n; i++) {
-          row(c, top + (i + 1) * ROW * k, [...stationCells(uhf[i] ?? none, i), ...stationCells(vhf[i] ?? none, i)], k);
+          line(c, top + (i + 1) * rh, pair(i, ST));
         }
-        const y = top + ROW * k;
-        const h = n * ROW * k;
-        textBox(c, X0 + 0.6 * WIDTH, y, 0.25 * WIDTH, h, comLines, k, "left");
-        textBox(c, X0 + 0.85 * WIDTH, y, 0.15 * WIDTH, h, spinLines, k, "left");
+        const y = top + rh;
+        const h = n * rh;
+        if (comW) textBox(c, X0 + freqW * WIDTH, y, comW * WIDTH, h, comLines, k, "left");
+        if (spinW) textBox(c, X0 + (freqW + comW) * WIDTH, y, spinW * WIDTH, h, spinLines, k, "left");
       },
     });
   }
 
-  // WAYPOINTS : notes et menaces (en-tête rouge)
+  // WAYPOINTS : notes et menaces (en-tête rouge), colonnes de notes masquées si vides
   const wps = s.waypoints.filter(filled);
-  const wptLines = textLines(ctx, s.wptNotes, 0.2 * WIDTH, k);
-  const threatLines = textLines(ctx, s.threatNotes, 0.25 * WIDTH, k);
+  const wptW = s.wptNotes.trim() ? 0.2 : 0;
+  const threatW = s.threatNotes.trim() ? 0.25 : 0;
+  const wptLines = wptW ? textLines(ctx, s.wptNotes, wptW * WIDTH, k) : [];
+  const threatLines = threatW ? textLines(ctx, s.threatNotes, threatW * WIDTH, k) : [];
   if (wps.length || wptLines.length || threatLines.length) {
-    const n = Math.max(wps.length, rowsFor(wptLines.length, k), rowsFor(threatLines.length, k), 1);
-    const WP = [0.05, 0.16, 0.24, 0.1];
+    const n = Math.max(wps.length, rowsFor(wptLines.length, k, rh), rowsFor(threatLines.length, k, rh), 1);
+    const tableW = 1 - wptW - threatW;
+    const wpCells = (i: number, w = [0.09, 0.29, 0.44, 0.18]): Cell[] => {
+      const p = wps[i];
+      return [
+        { text: p ? p.n || String(i + 1) : "", w: w[0], kind: "label" },
+        { text: p?.name, w: w[1], fill: zebra(i) },
+        { text: p?.coords, w: w[2], fill: zebra(i) },
+        { text: p?.alt, w: w[3], fill: zebra(i) },
+      ];
+    };
+    const headCells = (w: number[]) => head(["N°", "NAME", "COORDINATES", "ALTITUDE"], w);
+    const WP = fitColumns(
+      ctx,
+      [0.09, 0.29, 0.44, 0.18],
+      [headCells([0, 0, 0, 0]), ...wps.map((_, i) => wpCells(i))],
+      k,
+      tableW * WIDTH,
+    ).map((x) => x * tableW);
     blocks.push({
       name: "Waypoints",
-      height: (n + 1) * ROW * k,
+      height: (n + 1) * rh,
       draw: (c, top) => {
-        row(
-          c,
-          top,
-          [
-            ...head(["N°", "NAME", "COORDINATES", "ALTITUDE", "WPT NOTES"], [...WP, 0.2]),
-            { text: "THREAT NOTES", w: 0.25, kind: "head", fill: C.threat },
-          ],
-          k,
-        );
-        for (let i = 0; i < n; i++) {
-          const w = wps[i];
-          row(
-            c,
-            top + (i + 1) * ROW * k,
-            [
-              { text: w ? w.n || String(i + 1) : "", w: WP[0], kind: "label" },
-              { text: w?.name, w: WP[1], fill: zebra(i) },
-              { text: w?.coords, w: WP[2], fill: zebra(i) },
-              { text: w?.alt, w: WP[3], fill: zebra(i) },
-            ],
-            k,
-          );
-        }
-        const y = top + ROW * k;
-        const h = n * ROW * k;
-        textBox(c, X0 + 0.55 * WIDTH, y, 0.2 * WIDTH, h, wptLines, k, "center");
-        textBox(c, X0 + 0.75 * WIDTH, y, 0.25 * WIDTH, h, threatLines, k, "center");
+        line(c, top, [
+          ...headCells(WP),
+          ...(wptW ? head(["WPT NOTES"], [wptW]) : []),
+          ...(threatW ? [{ text: "THREAT NOTES", w: threatW, kind: "head" as const, fill: C.threat }] : []),
+        ]);
+        for (let i = 0; i < n; i++) line(c, top + (i + 1) * rh, wpCells(i, WP));
+        const y = top + rh;
+        const h = n * rh;
+        if (wptW) textBox(c, X0 + tableW * WIDTH, y, wptW * WIDTH, h, wptLines, k, "center");
+        if (threatW) textBox(c, X0 + (tableW + wptW) * WIDTH, y, threatW * WIDTH, h, threatLines, k, "center");
       },
     });
   }
@@ -350,7 +524,7 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
         { text: r.offset, w: RT[1], fill: zebra(i) },
         { text: "", w: RT[2], fill: zebra(i) },
       ]),
-    ]);
+    ], RT);
   }
 
   // PACKAGE
@@ -362,7 +536,7 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
       ...pkg.map((p, i): Cell[] =>
         [p.callsign, p.type, p.com, p.leader, p.stn, p.tacan, p.alt, p.task].map((text, j) => ({ text, w: PK[j], fill: zebra(i) })),
       ),
-    ]);
+    ], PK);
   }
 
   // SUPPORT
@@ -379,7 +553,7 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
           kind: j === 7 ? "name" : "value",
         })),
       ),
-    ]);
+    ], SP);
   }
 
   // ADMIN : bullseye et RAMROD (« / » dans les cases vides)
@@ -387,16 +561,16 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
   if (filled(be) || s.ramrod.some(Boolean)) {
     blocks.push({
       name: "Admin",
-      height: 3 * ROW * k,
+      height: 3 * rh,
       draw: (c, top) => {
         const BE = [0.14, 0.1, 0.1, 0.08];
-        row(c, top, [{ text: "BULLSEYE", w: 0.42, kind: "head" }], k);
-        row(c, top + ROW * k, [be.name, be.lat, be.lon, be.wpt].map((text, i) => ({ text, w: BE[i] })), k, X0, WIDTH, 2);
+        line(c, top, [{ text: "BULLSEYE", w: 0.42, kind: "head" }]);
+        line(c, top + rh, [be.name, be.lat, be.lon, be.wpt].map((text, i) => ({ text, w: BE[i] })), X0, WIDTH, 2);
         const left = X0 + 0.45 * WIDTH;
         const span = 0.55 * WIDTH;
-        row(c, top, [{ text: "RAMROD", w: 1, kind: "head" }], k, left, span);
-        row(c, top + ROW * k, Array.from({ length: 10 }, (_, i) => ({ text: String(i), w: 0.1 })), k, left, span);
-        row(c, top + 2 * ROW * k, s.ramrod.map((ch) => ({ text: ch || "/", w: 0.1 })), k, left, span);
+        line(c, top, [{ text: "RAMROD", w: 1, kind: "head" }], left, span);
+        line(c, top + rh, Array.from({ length: 10 }, (_, i) => ({ text: String(i), w: 0.1 })), left, span);
+        line(c, top + 2 * rh, s.ramrod.map((ch) => ({ text: ch || "/", w: 0.1 })), left, span);
       },
     });
   }
@@ -404,11 +578,11 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number): Blo
   // GAMEPLAN
   const plan = textLines(ctx, s.gameplan, WIDTH, k);
   if (plan.length) {
-    const n = Math.max(2, rowsFor(plan.length, k));
+    const n = Math.max(2, rowsFor(plan.length, k, rh));
     blocks.push({
       name: "Gameplan",
-      height: n * ROW * k,
-      draw: (c, top) => textBox(c, X0, top, WIDTH, n * ROW * k, plan, k, "left"),
+      height: n * rh,
+      draw: (c, top) => textBox(c, X0, top, WIDTH, n * rh, plan, k, "left"),
     });
   }
   return blocks;
@@ -425,12 +599,42 @@ export async function renderTactical(
   const { canvas, ctx } = newPage(scale);
   const available = BOTTOM - TOP;
 
-  // Échelle : la plus grande (≤ MAX_SCALE) qui fait tout tenir sur la page.
+  // Échelle du texte : la plus grande (≤ MAX_SCALE) qui fait tout tenir sur la page.
   let k = MAX_SCALE;
-  let blocks = layout(ctx, s, k);
+  let blocks = layout(ctx, s, k, ROW * k);
   for (let i = 0; i < 6 && totalHeight(blocks) > available && k > MIN_SCALE; i++) {
     k = Math.max(MIN_SCALE, k * (available / totalHeight(blocks)) * 0.995);
-    blocks = layout(ctx, s, k);
+    blocks = layout(ctx, s, k, ROW * k);
+  }
+  // Puis les lignes s'allongent pour occuper toute la page (le texte long
+  // passe alors sur deux lignes au lieu d'être réduit).
+  let rh = ROW * k;
+  for (let i = 0; i < 4; i++) {
+    const free = available - totalHeight(blocks);
+    if (free <= 1) break;
+    const rows = (totalHeight(blocks) - GAP * Math.max(0, blocks.length - 1)) / rh;
+    rh += free / rows;
+    blocks = layout(ctx, s, k, rh);
+  }
+  // Lignes plus hautes : texte un peu plus grand aussi (jusqu'à 1,25×), tant
+  // que les colonnes n'en deviennent pas trop étroites pour leur contenu.
+  blocks = layout(ctx, s, k, rh);
+  const wide = tooWide;
+  for (const f of [1.25, 1.18, 1.12, 1.06]) {
+    const grown = Math.min(MAX_TEXT, k * Math.min(f, rh / (ROW * k)));
+    if (grown <= k) continue;
+    const next = layout(ctx, s, grown, rh);
+    if (tooWide <= wide) {
+      k = grown;
+      blocks = next;
+      break;
+    }
+  }
+  blocks = layout(ctx, s, k, rh);
+  // Notes plus longues après étirement (rare) : on revient à la hauteur qui tient.
+  for (let i = 0; i < 4 && totalHeight(blocks) > available; i++) {
+    rh *= available / totalHeight(blocks);
+    blocks = layout(ctx, s, k, rh);
   }
 
   let y = TOP;
