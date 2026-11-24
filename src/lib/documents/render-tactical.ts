@@ -4,9 +4,9 @@
  * Rendu de la fiche tactique (A4 portrait), au format de la fiche Excel de
  * l'escadron : bandeaux de section à gauche, en-têtes gris foncé, lignes
  * colorées (DEP bleu, ARR rose, ALT vert, numéros de patrouille, carburant,
- * THREAT NOTES rouge…). Seules les sections et lignes remplies sont
- * affichées, et la fiche tient toujours sur une seule page : tout est mis à
- * l'échelle (réduit si le contenu est long, agrandi s'il est court).
+ * THREAT NOTES rouge…). Texte de taille unique (celle de la fiche Excel) ;
+ * la place libre accueille les sections vides, vierges, et le GAMEPLAN
+ * occupe le bas. Une fiche trop chargée est réduite pour tenir sur une page.
  */
 
 import { INK, newPage, PAGE, toFile, wrap } from "./generate";
@@ -26,10 +26,10 @@ const X0 = SIDE + BAND;
 const WIDTH = PAGE.width - SIDE - X0;
 const BOTTOM = PAGE.height - 30;
 /** Hauteur d'une ligne et écart entre sections, à l'échelle 1. */
-const ROW = 40;
+const ROW = 28;
 const GAP = 8;
-/** Échelle maximale (fiche courte) et minimale (au-delà, le texte devient illisible). */
-const MAX_SCALE = 1.3;
+/** Taille normale (celle de la fiche Excel) et minimale (fiche très chargée : tout est réduit). */
+const MAX_SCALE = 1;
 const MIN_SCALE = 0.45;
 
 /** Couleurs de la fiche Excel de l'escadron. */
@@ -65,10 +65,10 @@ interface Cell {
 
 /** Police d'une cellule (graisse, taille à l'échelle 1). */
 const FONT: Record<NonNullable<Cell["kind"]>, [number, number]> = {
-  head: [700, 19],
-  label: [700, 20],
-  name: [500, 22],
-  value: [700, 23],
+  head: [700, 17],
+  label: [700, 17],
+  name: [500, 17],
+  value: [700, 17],
 };
 const PAD = 14;
 
@@ -229,9 +229,9 @@ function textBox(
   ctx.strokeStyle = C.line;
   ctx.lineWidth = 1.5;
   ctx.strokeRect(x, y, w, h);
-  const lh = 30 * k;
+  const lh = 22 * k;
   ctx.fillStyle = INK;
-  ctx.font = `500 ${Math.round(22 * k)}px sans-serif`;
+  ctx.font = `500 ${Math.round(17 * k)}px sans-serif`;
   ctx.textBaseline = "middle";
   ctx.textAlign = align;
   const top = align === "center" ? y + (h - lines.length * lh) / 2 : y + 8 * k;
@@ -242,12 +242,12 @@ function textBox(
 /** Lignes d'un texte libre, coupées à la largeur `w` (police des notes). */
 function textLines(ctx: CanvasRenderingContext2D, text: string, w: number, k: number): string[] {
   if (!text) return [];
-  ctx.font = `500 ${Math.round(22 * k)}px sans-serif`;
+  ctx.font = `500 ${Math.round(17 * k)}px sans-serif`;
   return text.split(/\r?\n/).flatMap((line) => (line.trim() ? wrap(ctx, line, w - 20) : [""]));
 }
 
 /** Nombre de lignes de grille (hauteur `rh`) nécessaires pour un texte de `lines` lignes. */
-const rowsFor = (lines: number, k: number, rh: number) => (lines ? Math.ceil((lines * 30 * k + 16 * k) / rh) : 0);
+const rowsFor = (lines: number, k: number, rh: number) => (lines ? Math.ceil((lines * 22 * k + 16 * k) / rh) : 0);
 
 /** Bandeau vertical de section (texte tourné), à gauche de la grille. */
 function band(ctx: CanvasRenderingContext2D, y: number, height: number, text: string, k: number) {
@@ -258,7 +258,7 @@ function band(ctx: CanvasRenderingContext2D, y: number, height: number, text: st
   ctx.rotate(-Math.PI / 2);
   ctx.fillStyle = "#ffffff";
   const label = text.toLocaleUpperCase();
-  let size = Math.min(19, 19 * k);
+  let size = Math.min(15, 15 * k);
   ctx.font = `700 ${Math.round(size)}px sans-serif`;
   const width = ctx.measureText(label).width;
   // Bandeau court : police réduite (jamais compressée).
