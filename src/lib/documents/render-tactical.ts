@@ -10,7 +10,15 @@
  */
 
 import { INK, newPage, PAGE, toFile, wrap } from "./generate";
-import { isBlank, type Airfield, type Station, type TacticalSheet } from "./tactical";
+import {
+  emptyPackageMember,
+  emptySupportRow,
+  isBlank,
+  TACTICAL_LIMITS,
+  type Airfield,
+  type Station,
+  type TacticalSheet,
+} from "./tactical";
 
 const SIDE = 30;
 const TOP = 30;
@@ -24,8 +32,6 @@ const GAP = 8;
 /** Échelle maximale (fiche courte) et minimale (au-delà, le texte devient illisible). */
 const MAX_SCALE = 1.3;
 const MIN_SCALE = 0.45;
-/** Taille maximale du texte quand les lignes sont étirées pour remplir la page. */
-const MAX_TEXT = 1.6;
 
 /** Couleurs de la fiche Excel de l'escadron. */
 const C = {
@@ -151,9 +157,6 @@ function row(
   ctx.textAlign = "left";
 }
 
-/** Nombre de tableaux trop larges pour leur contenu au dernier calcul de mise en page. */
-let tooWide = 0;
-
 /**
  * Largeurs de colonnes (fractions de `span`, total 1) d'après le contenu :
  * chaque colonne reçoit au moins la place de son texte le plus long, le
@@ -179,7 +182,6 @@ function fitColumns(
   base.forEach((b, i) => (need[i] = Math.max(need[i], (b / baseSum) * 0.4)));
   const total = need.reduce((a, b) => a + b, 0);
   if (total > 1) {
-    tooWide++;
     // Trop large : les colonnes courtes gardent leur place, seules les plus
     // longues sont limitées (même plafond pour toutes) et passent sur deux lignes.
     let lo = 0;
@@ -279,18 +281,35 @@ interface Block {
 }
 
 const filled = (r: Record<string, string>) => !isBlank(r);
+const blankRows = <T,>(n: number, row: T): T[] => Array.from({ length: n }, () => row);
 const head = (labels: string[], widths: number[]): Cell[] => labels.map((text, i) => ({ text, w: widths[i], kind: "head" }));
 const zebra = (i: number) => (i % 2 ? C.zebra : undefined);
 /** Couleur du nom de package (BLUE en bleu, RED en rouge). */
 const sideColor = (v: string) => (/blue|bleu/i.test(v) ? C.blue : /red|rouge/i.test(v) ? C.red : undefined);
 
+/** Lignes vides par section. */
+type Pad = Record<string, number>;
+
 /**
  * Sections de la fiche : texte à l'échelle k, lignes de hauteur `rh`
  * (sections et lignes vides omises).
  */
-function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number, rh: number): Block[] {
+function layout(
+  ctx: CanvasRenderingContext2D,
+  s: TacticalSheet,
+  k: number,
+  rh: number,
+  /** Lignes vides ajoutées par section (pour remplir la page) */
+  pad: Pad = {},
+  /** Sortie : nombre maximal de lignes vides que chaque section peut recevoir */
+  caps: Pad = {},
+): Block[] {
   const blocks: Block[] = [];
-  tooWide = 0;
+  /** Lignes vides accordées à une section (au plus `cap`). */
+  const more = (name: string, cap: number) => {
+    caps[name] = Math.max(0, cap);
+    return Math.max(0, Math.min(pad[name] ?? 0, cap));
+  };
   const line = (c: CanvasRenderingContext2D, y: number, cells: Cell[], left?: number, span?: number, rows?: number) =>
     row(c, y, cells, k, rh, left, span, rows);
   /** Tableau : colonnes ajustées au contenu (lignes de même structure que `base`). */
@@ -321,14 +340,16 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number, rh: 
 
   // AIRFIELDS : DEP bleu, ARR rose, ALT vert
   const AF = [0.07, 0.14, 0.1, 0.08, 0.07, 0.1, 0.1, 0.17, 0.17];
-  const fields = (
-    [
-      ["DEP", s.airfields.dep, C.dep],
-      ["ARR", s.airfields.arr, C.arr],
-      ["ALT", s.airfields.alt, C.alt],
-    ] as const
-  ).filter(([, a]) => filled(a));
-  if (fields.length) {
+  const roles = [
+    ["DEP", s.airfields.dep, C.dep],
+    ["ARR", s.airfields.arr, C.arr],
+    ["ALT", s.airfields.alt, C.alt],
+  ] as const;
+  const used = roles.filter(([, a]) => filled(a)).length;
+  if (used) {
+    // Rôles vides ajoutés (dans l'ordre DEP, ARR, ALT) s'il reste de la place.
+    let blank = more("Airfields", roles.length - used);
+    const fields = roles.filter(([, a]) => filled(a) || blank-- > 0);
     const fieldRow = (role: string, a: Airfield, fill: string): Cell[] => [
       { text: role, w: AF[0], kind: "label", fill },
       ...[a.name, a.runway, a.tacan, a.wpt, a.freq, a.elev, a.procedure, a.ils].map((text, i) => ({ text, w: AF[i + 1], fill })),
@@ -345,8 +366,11 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number, rh: 
 
   // FLIGHT : numéro coloré, sanctuaire en rouge
   const FL = [0.04, 0.13, 0.07, 0.09, 0.09, 0.09, 0.1, 0.08, 0.14, 0.17];
-  const flight = s.flight.map((m, i) => ({ m, i })).filter(({ m }) => filled(m));
-  if (flight.length) {
+  const members = s.flight.map((m, i) => ({ m, i }));
+  const flightUsed = members.filter(({ m }) => filled(m)).length;
+  if (flightUsed) {
+    let blank = more("Flight", members.length - flightUsed);
+    const flight = members.filter(({ m }) => filled(m) || blank-- > 0);
     grid("Flight", [
       head(["#", "CREW", "TYPE", "HELMET", "TCN", "SQWK", "SNCTRY", "LSR", "SERIAL", "LIVERY"], FL),
       ...flight.map(({ m, i }, r): Cell[] => [
@@ -362,7 +386,10 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number, rh: 
   }
 
   // LOADOUT : configuration par avion (numéro coloré comme FLIGHT), puis carburant et spec
-  const loads = s.loadout.map((l, i) => ({ l, i })).filter(({ l }) => filled(l));
+  const allLoads = s.loadout.map((l, i) => ({ l, i }));
+  const loadUsed = allLoads.filter(({ l }) => filled(l)).length;
+  let loadBlank = loadUsed ? more("Loadout", allLoads.length - loadUsed) : 0;
+  const loads = allLoads.filter(({ l }) => filled(l) || (loadUsed > 0 && loadBlank-- > 0));
   const fu = s.fuel;
   const sp = s.spec;
   if (loads.length || filled(fu) || filled(sp)) {
@@ -428,7 +455,9 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number, rh: 
   const comLines = comW ? textLines(ctx, s.comNotes, comW * WIDTH, k) : [];
   const spinLines = spinW ? textLines(ctx, s.spin, spinW * WIDTH, k) : [];
   if (uhf.length || vhf.length || comLines.length || spinLines.length) {
-    const n = Math.max(uhf.length, vhf.length, rowsFor(comLines.length, k, rh), rowsFor(spinLines.length, k, rh), 1);
+    const n =
+      Math.max(uhf.length, vhf.length, rowsFor(comLines.length, k, rh), rowsFor(spinLines.length, k, rh), 1) +
+      more("Radio", TACTICAL_LIMITS.com);
     const none: Station = { code: "", name: "", freq: "" };
     const freqW = 1 - comW - spinW;
     const stationCells = (st: Station, r: number, w = [0.1, 0.16, 0.24]): Cell[] => [
@@ -477,7 +506,9 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number, rh: 
   const wptLines = wptW ? textLines(ctx, s.wptNotes, wptW * WIDTH, k) : [];
   const threatLines = threatW ? textLines(ctx, s.threatNotes, threatW * WIDTH, k) : [];
   if (wps.length || wptLines.length || threatLines.length) {
-    const n = Math.max(wps.length, rowsFor(wptLines.length, k, rh), rowsFor(threatLines.length, k, rh), 1);
+    const n =
+      Math.max(wps.length, rowsFor(wptLines.length, k, rh), rowsFor(threatLines.length, k, rh), 1) +
+      more("Waypoints", TACTICAL_LIMITS.waypoints);
     const tableW = 1 - wptW - threatW;
     const wpCells = (i: number, w = [0.09, 0.29, 0.44, 0.18]): Cell[] => {
       const p = wps[i];
@@ -519,11 +550,13 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number, rh: 
     const RT = [0.4, 0.25, 0.35];
     grid("RTBA", [
       head(["WAYPOINT", "T+", "TOT"], RT),
-      ...s.rtba.map((r, i): Cell[] => [
-        { text: r.wp, w: RT[0], fill: zebra(i) },
-        { text: r.offset, w: RT[1], fill: zebra(i) },
-        { text: "", w: RT[2], fill: zebra(i) },
-      ]),
+      ...[...s.rtba, ...blankRows(more("RTBA", TACTICAL_LIMITS.rtba - s.rtba.length), { wp: "", offset: "" })].map(
+        (r, i): Cell[] => [
+          { text: r.wp, w: RT[0], fill: zebra(i) },
+          { text: r.offset, w: RT[1], fill: zebra(i) },
+          { text: "", w: RT[2], fill: zebra(i) },
+        ],
+      ),
     ], RT);
   }
 
@@ -533,7 +566,7 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number, rh: 
     const PK = [0.16, 0.1, 0.1, 0.13, 0.1, 0.1, 0.1, 0.21];
     grid("Package", [
       head(["CALLSIGN", "TYPE", "COM", "LEADER", "STN", "TCN", "ALT", "TASK"], PK),
-      ...pkg.map((p, i): Cell[] =>
+      ...[...pkg, ...blankRows(more("Package", TACTICAL_LIMITS.package - pkg.length), emptyPackageMember())].map((p, i): Cell[] =>
         [p.callsign, p.type, p.com, p.leader, p.stn, p.tacan, p.alt, p.task].map((text, j) => ({ text, w: PK[j], fill: zebra(i) })),
       ),
     ], PK);
@@ -545,7 +578,7 @@ function layout(ctx: CanvasRenderingContext2D, s: TacticalSheet, k: number, rh: 
     const SP = [0.11, 0.12, 0.15, 0.12, 0.08, 0.1, 0.1, 0.22];
     grid("Support", [
       head(["ROLE", "TYPE", "CALLSIGN", "COM", "WPT", "TCN", "ALT", "NOTES"], SP),
-      ...sup.map((u, i): Cell[] =>
+      ...[...sup, ...blankRows(more("Support", TACTICAL_LIMITS.support - sup.length), emptySupportRow())].map((u, i): Cell[] =>
         [u.role, u.type, u.callsign, u.com, u.wpt, u.tacan, u.alt, u.notes].map((text, j) => ({
           text,
           w: SP[j],
@@ -606,35 +639,36 @@ export async function renderTactical(
     k = Math.max(MIN_SCALE, k * (available / totalHeight(blocks)) * 0.995);
     blocks = layout(ctx, s, k, ROW * k);
   }
-  // Puis les lignes s'allongent pour occuper toute la page (le texte long
-  // passe alors sur deux lignes au lieu d'être réduit).
+  // Puis la place libre est remplie de lignes vides (à compléter au stylo),
+  // réparties à tour de rôle entre les tableaux, comme sur la fiche Excel.
   let rh = ROW * k;
-  for (let i = 0; i < 4; i++) {
-    const free = available - totalHeight(blocks);
-    if (free <= 1) break;
-    const rows = (totalHeight(blocks) - GAP * Math.max(0, blocks.length - 1)) / rh;
-    rh += free / rows;
-    blocks = layout(ctx, s, k, rh);
-  }
-  // Lignes plus hautes : texte un peu plus grand aussi (jusqu'à 1,25×), tant
-  // que les colonnes n'en deviennent pas trop étroites pour leur contenu.
-  blocks = layout(ctx, s, k, rh);
-  const wide = tooWide;
-  for (const f of [1.25, 1.18, 1.12, 1.06]) {
-    const grown = Math.min(MAX_TEXT, k * Math.min(f, rh / (ROW * k)));
-    if (grown <= k) continue;
-    const next = layout(ctx, s, grown, rh);
-    if (tooWide <= wide) {
-      k = grown;
-      blocks = next;
-      break;
+  const caps: Pad = {};
+  blocks = layout(ctx, s, k, rh, {}, caps);
+  const pad: Pad = {};
+  let free = Math.floor((available - totalHeight(blocks)) / rh);
+  for (let added = true; free > 0 && added; ) {
+    added = false;
+    for (const name of Object.keys(caps)) {
+      if (free <= 0) break;
+      if (name === "Loadout" && "Flight" in caps) continue; // ajouté avec FLIGHT
+      if ((pad[name] ?? 0) >= caps[name]) continue;
+      // Avion ajouté dans FLIGHT : sa ligne LOADOUT aussi (même numéro).
+      const paired = name === "Flight" && (pad.Loadout ?? 0) < (caps.Loadout ?? 0);
+      if (paired && free < 2) continue;
+      pad[name] = (pad[name] ?? 0) + 1;
+      if (paired) pad.Loadout = (pad.Loadout ?? 0) + 1;
+      free -= paired ? 2 : 1;
+      added = true;
     }
   }
-  blocks = layout(ctx, s, k, rh);
-  // Notes plus longues après étirement (rare) : on revient à la hauteur qui tient.
-  for (let i = 0; i < 4 && totalHeight(blocks) > available; i++) {
-    rh *= available / totalHeight(blocks);
-    blocks = layout(ctx, s, k, rh);
+  blocks = layout(ctx, s, k, rh, pad);
+  // Reste (moins d'une ligne, ou plus rien à ajouter) : lignes légèrement plus hautes.
+  for (let i = 0; i < 4; i++) {
+    const gap = available - totalHeight(blocks);
+    if (Math.abs(gap) <= 1) break;
+    const rows = (totalHeight(blocks) - GAP * Math.max(0, blocks.length - 1)) / rh;
+    rh = Math.max(ROW * k * 0.5, rh + gap / rows);
+    blocks = layout(ctx, s, k, rh, pad);
   }
 
   let y = TOP;
