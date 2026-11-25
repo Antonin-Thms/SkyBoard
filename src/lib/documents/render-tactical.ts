@@ -31,6 +31,9 @@ const GAP = 8;
 /** Taille normale (celle de la fiche Excel) et minimale (fiche très chargée : tout est réduit). */
 const MAX_SCALE = 1;
 const MIN_SCALE = 0.45;
+/** Fiche courte : agrandissement maximal, et part de la page laissée au GAMEPLAN. */
+const MAX_GROW = 1.5;
+const GAMEPLAN_SHARE = 0.2;
 
 /** Couleurs de la fiche Excel de l'escadron. */
 const C = {
@@ -379,69 +382,104 @@ function layout(
     ], FL);
   }
 
-  // LOADOUT : configuration par avion (numéro coloré comme FLIGHT), puis carburant et spec
+  // LOADOUT, comme la fiche Excel : CONFIGURATION à gauche (une colonne par
+  // avion, ou une seule si toute la patrouille a le même emport), FUEL et SPEC
+  // en colonnes à droite.
   const fu = s.fuel;
   const sp = s.spec;
   const allLoads = s.loadout.map((l, i) => ({ l, i }));
-  const loadUsed = allLoads.some(({ l }) => filled(l)) || filled(fu) || filled(sp);
+  const filledLoads = allLoads.filter(({ l }) => filled(l));
+  const loadUsed = filledLoads.length > 0 || filled(fu) || filled(sp);
   const loadBlank = !loadUsed && blank.has("Loadout");
-  // Section vierge : une ligne par avion de la patrouille (au moins deux), carburant et spec.
-  const loads = loadBlank
-    ? allLoads.slice(0, Math.max(BLANK_ROWS, flightUsed))
-    : allLoads.filter(({ l }) => filled(l));
   if (loadUsed || loadBlank) {
-    const rows: Cell[][] = [];
-    /** Ajoute une ligne (ou un tableau) aux colonnes ajustées à son propre contenu. */
-    const fit = (base: number[], part: Cell[][]) => rows.push(...withWidths(part, fitColumns(ctx, base, part, k)));
-    if (loads.length) {
-      const LW = [0.04, 0.11, 0.11, 0.06, 0.07, 0.22, 0.13, 0.12, 0.14];
-      fit(LW, [
-        head(["#", "CREW", "A/A", "TANKS", "ECM POD", "A/G", "PODS", "CH/FL", "NOTES"], LW),
-        ...loads.map(({ l, i }, r): Cell[] => [
-          { text: String(i + 1), w: LW[0], kind: "label", fill: C.flight[i] },
-          { text: s.flight[i]?.crew, w: LW[1], fill: zebra(r) },
-          ...[l.aa, l.tanks, l.ecm, l.ag, l.pods, l.chfl, l.notes].map((text, j) => ({
-            text,
-            w: LW[j + 2],
+    const showFuel = filled(fu) || loadBlank;
+    const showSpec = filled(sp) || loadBlank;
+    const FUEL_W = showFuel ? 0.27 : 0;
+    const SPEC_W = showSpec ? 0.2 : 0;
+    const CONF_W = 1 - FUEL_W - SPEC_W;
+    const LOAD_ROWS = [
+      ["A/A", "aa"],
+      ["TANKS", "tanks"],
+      ["ECM POD", "ecm"],
+      ["A/G", "ag"],
+      ["PODS", "pods"],
+      ["CH/FL", "chfl"],
+      ["NOTES", "notes"],
+    ] as const;
+    const same = filledLoads.every(({ l }) => LOAD_ROWS.every(([, key]) => l[key] === filledLoads[0].l[key]));
+    // Colonnes : une par avion rempli, une seule si emport commun (ou section vierge).
+    const cols = filledLoads.length > 1 && !same ? filledLoads : filledLoads.slice(0, 1);
+    const confRows = LOAD_ROWS.filter(([, key]) => cols.some(({ l }) => l[key].trim()));
+    const shownRows = confRows.length ? confRows : LOAD_ROWS;
+    const fuelRows: [string, string, string | undefined][] = [
+      ["TOTAL", fu.total, C.fuelTotal],
+      ["TARGET", fu.target, C.fuelTarget],
+      ["JOKER", fu.joker, C.joker],
+      ["BINGO", fu.bingo, C.bingo],
+      ["ALTN FUEL", fu.altn, undefined],
+    ];
+    const specRows: [string, string][] = [
+      ["ROT SPD", sp.rotSpd],
+      ["ALOW", sp.alow],
+      ["MSL", sp.msl],
+      ["STN", sp.stn],
+    ];
+    const n = Math.max(
+      (filledLoads.length || loadBlank ? shownRows.length : 0) + 1,
+      showFuel ? fuelRows.length + 1 : 0,
+      showSpec ? specRows.length + 1 : 0,
+    );
+    // Tableau CONFIGURATION (largeurs ajustées au contenu).
+    const multi = cols.length > 1;
+    const confTable: Cell[][] = [
+      multi
+        ? [
+            // Colonnes nommées par avion : pas de titre (il serait réduit).
+            { text: "", w: 0.2, kind: "head" },
+            ...cols.map(({ i }) => ({
+              text: [String(i + 1), s.flight[i]?.crew].filter(Boolean).join(" · "),
+              w: 0.8 / cols.length,
+              kind: "label" as const,
+              fill: C.flight[i],
+            })),
+          ]
+        : [{ text: "CONFIGURATION", w: 1, kind: "head" }],
+      ...Array.from({ length: n - 1 }, (_, r): Cell[] => {
+        const entry = shownRows[r];
+        return [
+          { text: entry?.[0], w: 0.2, kind: "label" },
+          ...(multi ? cols : [cols[0] ?? { l: undefined }]).map(({ l }) => ({
+            text: entry && l ? l[entry[1]] : "",
+            w: 0.8 / Math.max(1, multi ? cols.length : 1),
             fill: zebra(r),
-            kind: j === 6 ? ("name" as const) : ("value" as const),
           })),
-        ]),
-      ]);
-    }
-    // Carburant et spec : une rangée chacun (titre de rangée à gauche), si remplis.
-    const L = (text: string, w: number): Cell => ({ text, w, kind: "label" });
-    const V = (text: string, w: number, fill?: string): Cell => ({ text, w, fill });
-    const cells = (row: Cell[]) => fit(row.map((c) => c.w), [row]);
-    if (filled(fu) || loadBlank) {
-      cells([
-        { text: "FUEL", w: 0.1, kind: "head" },
-        L("TOTAL", 0.08),
-        V(fu.total, 0.1, C.fuelTotal),
-        L("TARGET", 0.08),
-        V(fu.target, 0.1, C.fuelTarget),
-        L("JOKER", 0.08),
-        V(fu.joker, 0.1, C.joker),
-        L("BINGO", 0.08),
-        V(fu.bingo, 0.1, C.bingo),
-        L("ALTN FUEL", 0.1),
-        V(fu.altn, 0.08),
-      ]);
-    }
-    if (filled(sp) || loadBlank) {
-      cells([
-        { text: "SPEC", w: 0.1, kind: "head" },
-        L("ROT SPD", 0.1),
-        V(sp.rotSpd, 0.125),
-        L("ALOW", 0.1),
-        V(sp.alow, 0.125),
-        L("MSL", 0.1),
-        V(sp.msl, 0.125),
-        L("STN", 0.1),
-        V(sp.stn, 0.125),
-      ]);
-    }
-    grid("Loadout", rows);
+        ];
+      }),
+    ];
+    const confBase = [0.2, ...Array.from({ length: multi ? cols.length : 1 }, () => 0.8 / (multi ? cols.length : 1))];
+    const confFit = withWidths(confTable.slice(1), fitColumns(ctx, confBase, confTable.slice(1), k, CONF_W * WIDTH));
+    const confHead = multi ? withWidths([confTable[0]], confFit[0].map((c) => c.w))[0] : confTable[0];
+    // Colonne libellé / valeur (FUEL, SPEC), lignes en trop laissées vierges.
+    const pairColumn = (title: string, rows: [string, string, string?][]): Cell[][] => [
+      [{ text: title, w: 1, kind: "head" }],
+      ...Array.from({ length: n - 1 }, (_, r): Cell[] => [
+        { text: rows[r]?.[0], w: 0.55, kind: "label" },
+        { text: rows[r]?.[1], w: 0.45, fill: rows[r]?.[2] },
+      ]),
+    ];
+    const fuelCol = showFuel ? pairColumn("FUEL", fuelRows) : [];
+    const specCol = showSpec ? pairColumn("SPEC", specRows) : [];
+    blocks.push({
+      name: "Loadout",
+      height: n * rh,
+      draw: (c, top) => {
+        const at = (f: number) => X0 + f * WIDTH;
+        line(c, top, confHead, at(0), CONF_W * WIDTH);
+        confFit.forEach((cells, r) => line(c, top + (r + 1) * rh, cells, at(0), CONF_W * WIDTH));
+        fuelCol.forEach((cells, r) => line(c, top + r * rh, cells, at(CONF_W), FUEL_W * WIDTH));
+        specCol.forEach((cells, r) => line(c, top + r * rh, cells, at(CONF_W + FUEL_W), SPEC_W * WIDTH));
+      },
+    });
   }
 
   // RADIO : UHF, VHF, COM NOTES, SPIN (colonnes de notes vides : place rendue aux fréquences)
@@ -657,9 +695,25 @@ export async function renderTactical(
     if (totalHeight(layout(ctx, s, k, rh, blank)) > available) blank.delete(name);
   }
   blocks = layout(ctx, s, k, rh, blank);
-  const rest = available - totalHeight(blocks);
   if (blocks.some((b) => b.name === "Gameplan")) {
-    blocks = layout(ctx, s, k, rh, blank, Math.max(0, rest));
+    // Fiche courte : tout (lignes et texte) est agrandi pour que le GAMEPLAN
+    // n'occupe qu'environ le bas de la page, comme sur la fiche Excel.
+    for (let i = 0; i < 6; i++) {
+      const plan = blocks.find((b) => b.name === "Gameplan")!.height;
+      const others = totalHeight(blocks) - plan;
+      const target = available - Math.max(GAMEPLAN_SHARE * available, plan);
+      if (others >= target - 1 || k >= MAX_GROW) break;
+      k = Math.min(MAX_GROW, k * (target / others));
+      rh = ROW * k;
+      blocks = layout(ctx, s, k, rh, blank);
+    }
+    // Agrandissement de trop (arrondis, notes plus longues) : on revient en arrière.
+    for (let i = 0; i < 6 && totalHeight(blocks) > available; i++) {
+      k *= (available / totalHeight(blocks)) * 0.995;
+      rh = ROW * k;
+      blocks = layout(ctx, s, k, rh, blank);
+    }
+    blocks = layout(ctx, s, k, rh, blank, Math.max(0, available - totalHeight(blocks)));
   } else {
     // Pas la place pour un GAMEPLAN : le reste (moins de deux lignes) est réparti.
     for (let i = 0; i < 4; i++) {
