@@ -2,7 +2,7 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Download, FilePenLine, GripVertical, Pencil, RotateCcw, RotateCw, Star, StarOff, Trash2 } from "lucide-react";
+import { Download, FilePenLine, FileSpreadsheet, GripVertical, Pencil, RotateCcw, RotateCw, Star, StarOff, Trash2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { moveDocument, renameDocument } from "@/app/(app)/documents/actions";
 import { CachedThumbnail } from "@/components/cached-thumbnail";
@@ -15,7 +15,7 @@ import { fmt } from "@/lib/i18n/define";
 import { useT } from "@/lib/i18n/client";
 import type { DocumentItem } from "./document-grid";
 import { useEditPage } from "./document-uploader";
-import { downloadKneeboard } from "./download";
+import { downloadKneeboard, downloadTacticalXlsx } from "./download";
 
 const TYPE_LABEL: Record<DocumentItem["type"], string> = {
   "application/pdf": "PDF",
@@ -211,6 +211,22 @@ export function DocumentCard({
                   });
                 },
               },
+              ...(source?.kind === "tactical"
+                ? [
+                    {
+                      label: t.grid.downloadExcel,
+                      icon: <FileSpreadsheet size={16} strokeWidth={1.75} />,
+                      onSelect: () => {
+                        setError(null);
+                        setDownloading(true);
+                        void downloadTacticalXlsx(item, t).then((err) => {
+                          setDownloading(false);
+                          setError(err);
+                        });
+                      },
+                    },
+                  ]
+                : []),
               item.favorite
                 ? { label: t.grid.favoriteRemove, icon: <StarOff size={16} strokeWidth={1.75} />, onSelect: () => onFavorite(false) }
                 : { label: t.grid.favoriteAdd, icon: <Star size={16} strokeWidth={1.75} />, onSelect: () => onFavorite(true) },

@@ -75,6 +75,27 @@ const FONT: Record<NonNullable<Cell["kind"]>, [number, number]> = {
 };
 const PAD = 14;
 
+/** Case dessinée (pour l'export Excel) : position et taille en pixels de la page (150 dpi). */
+export interface DrawnCell {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  text?: string;
+  fill?: string;
+  color: string;
+  bold: boolean;
+  /** Taille du texte en pixels de la page */
+  size: number;
+  align: "left" | "center";
+  valign: "top" | "middle";
+  /** Texte vertical (bandeau de section) */
+  rotate?: boolean;
+  border: boolean;
+}
+/** Cases relevées pendant un rendu (export Excel), sinon null. */
+let drawn: DrawnCell[] | null = null;
+
 /** Largeur du texte d'une cellule à sa taille nominale (échelle k). */
 function measure(ctx: CanvasRenderingContext2D, text: string | undefined, kind: Cell["kind"], k: number): number {
   if (!text) return 0;
@@ -150,10 +171,25 @@ function row(
     ctx.strokeStyle = C.line;
     ctx.lineWidth = 1.5;
     ctx.strokeRect(x, y, w, height);
+    const color = cell.color ?? (kind === "head" ? "#ffffff" : INK);
     if (cell.text) {
-      ctx.fillStyle = cell.color ?? (kind === "head" ? "#ffffff" : INK);
+      ctx.fillStyle = color;
       cellText(ctx, cell.text, x, y, w, height, kind, k, cell.align ?? "center");
     }
+    drawn?.push({
+      x,
+      y,
+      w,
+      h: height,
+      text: cell.text || undefined,
+      fill: cell.fill ?? (kind === "head" ? C.head : kind === "label" ? C.label : undefined),
+      color,
+      bold: FONT[kind][0] >= 700,
+      size: FONT[kind][1] * k,
+      align: cell.align ?? "center",
+      valign: "middle",
+      border: true,
+    });
     x += w;
   }
   ctx.textAlign = "left";
@@ -232,6 +268,19 @@ function textBox(
   ctx.strokeStyle = C.line;
   ctx.lineWidth = 1.5;
   ctx.strokeRect(x, y, w, h);
+  drawn?.push({
+    x,
+    y,
+    w,
+    h,
+    text: lines.join("\n") || undefined,
+    color: INK,
+    bold: false,
+    size: 17 * k,
+    align,
+    valign: align === "left" ? "top" : "middle",
+    border: true,
+  });
   const lh = 22 * k;
   ctx.fillStyle = INK;
   ctx.font = `500 ${Math.round(17 * k)}px sans-serif`;
@@ -256,6 +305,21 @@ const rowsFor = (lines: number, k: number, rh: number) => (lines ? Math.ceil((li
 function band(ctx: CanvasRenderingContext2D, y: number, height: number, text: string, k: number) {
   ctx.fillStyle = C.band;
   ctx.fillRect(SIDE, y, BAND - 4, height);
+  drawn?.push({
+    x: SIDE,
+    y,
+    w: BAND - 4,
+    h: height,
+    text: text.toLocaleUpperCase(),
+    fill: C.band,
+    color: "#ffffff",
+    bold: true,
+    size: Math.min(15, 15 * k),
+    align: "center",
+    valign: "middle",
+    rotate: true,
+    border: false,
+  });
   ctx.save();
   ctx.translate(SIDE + (BAND - 4) / 2, y + height / 2);
   ctx.rotate(-Math.PI / 2);
@@ -674,6 +738,27 @@ export async function renderTactical(
   scale = 1,
 ): Promise<File[]> {
   const { canvas, ctx } = newPage(scale);
+  paint(ctx, s);
+  return [await toFile(canvas, title)];
+}
+
+/**
+ * Cases de la fiche telles que dessinées (positions en pixels d'une page A4
+ * à 150 dpi), pour la reproduire dans un tableur.
+ */
+export function tacticalCells(s: TacticalSheet): DrawnCell[] {
+  const { ctx } = newPage(1);
+  drawn = [];
+  try {
+    paint(ctx, s);
+    return drawn;
+  } finally {
+    drawn = null;
+  }
+}
+
+/** Mise en page et dessin de la fiche sur une page A4 (150 dpi × scale). */
+function paint(ctx: CanvasRenderingContext2D, s: TacticalSheet) {
   const available = BOTTOM - TOP;
 
   // Échelle du texte : la plus grande (≤ MAX_SCALE) qui fait tout tenir sur la page.
@@ -731,5 +816,4 @@ export async function renderTactical(
     block.draw(ctx, y);
     y += block.height + GAP;
   }
-  return [await toFile(canvas, title)];
 }

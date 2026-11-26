@@ -55,3 +55,21 @@ export async function downloadKneeboard(
     return t.errors.downloadFailed;
   }
 }
+
+/** Télécharge une fiche tactique au format Excel (même mise en page, mêmes couleurs). */
+export async function downloadTacticalXlsx(
+  doc: { name: string; source: GeneratedSource | null },
+  t: Dictionary["documents"],
+): Promise<string | null> {
+  if (doc.source?.kind !== "tactical") return t.errors.downloadFailed;
+  try {
+    const { tacticalXlsx } = await import("@/lib/documents/tactical-xlsx");
+    const blob = await tacticalXlsx(doc.name, doc.source);
+    const url = URL.createObjectURL(blob);
+    save(url, fileName(doc.name, "xlsx"));
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    return null;
+  } catch {
+    return t.errors.downloadFailed;
+  }
+}
